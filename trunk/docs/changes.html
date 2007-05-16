@@ -1,0 +1,60 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=euc-jp">
+<title>Fooling 更新履歴</title>
+<style type="text/css">
+BODY { line-height: 130%; }
+BLOCKQUOTE { background: #eeeeee; }
+CODE { background: #eeeeee; }
+KBD { background: #eeeeee; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h2>
+Fooling 更新履歴
+</h2>
+<p>
+<a href="index.html">Back</a>
+
+<hr noshade>
+
+<ul>
+<li> 2006/09/07: 最初の公開バージョン。
+<li> 2006/09/08: 一部の文書で snippet がうまく表示されないバグを修正。
+<li> 2006/09/11: <code>DummySelection</code> クラスを追加。
+<code>Selection.matched_ranges()</code> を分ける。
+CGIサンプルのバグを修正。
+<li> 2006/09/12: <code>Indexer</code> クラスと <code>Merger</code>クラスが
+デフォルトで余計なメッセージを stderr に出力しないようにする (verboseキーワード引数をつける)。
+<code>EMailPredicate</code>の <code>references:</code>述語を拡張。
+<li> 2006/09/14: <code>Corpus</code> オブジェクトを <code>Indexer</code> でインデックスしたあとに
+<code>Merger</code> オブジェクトに渡すと、新しく生成されたインデックスファイルが正しく
+統合されなかったバグを修正。
+<li> 2006/09/14: Corpus の最終更新時刻を保持する <code>Corpus.mtime</code>属性を廃止し、
+かわりに <code>Corpus.index_mtime()</code> メソッドを追加。
+また <code>Corpus.index_lastloc()</code> メソッドを追加。
+<li> 2006/09/15: <code>Document.MAX_SIZE</code> の値がインデックス時と検索時で違うとき、
+検索が不正に終了するバグを修正。
+<li> 2006/09/16: <code>Selection.get_preds()</code> メソッドを追加。
+<li> 2006/09/17: <code>date:</code> による日付の検索・インデックスをサポート。
+<li> 2006/09/18: <code>indexer.py</code> と <code>selection.py</code> でデフォルトのエンコーディングとして
+<code>locale.getdefaultlocale()</code> を参照するよう修正。(thanks to 岩田さん)
+<li> 2006/09/18: <code>Document.get_snippet()</code> で、正しく snippet が表示されないバグを修正。
+<li> 2006/12/10: 限定的な OR検索をサポートする。
+<li> 2006/12/29: <code>EMailPredicate</code> に <code>rcpt:</code>、<code>addr:</code> 式を追加する。
+<li> 2006/12/30: ドキュメンテーションを追加。
+<li> 2007/03/02: <code>Document.get_sents()</code> がバイトオフセットでなく
+unicode 文字オフセットを返していたバグを修正。
+PlainTextDocument をインデックスした場合にうまく検索されない場合があります。
+この問題は HTMLDocument や EMailDocument では発生しません。
+(thanks to 岩田さん)
+<li> 2007/03/05: <code>SelectionWithContinuation</code> の不具合、
+および <code>search.cgi</code> のバグを修正。ドキュメントを更新。
+(thanks to 岩田さん)
+</ul>
+
+<hr noshade>
+<address>Yusuke Shinyama</address>
+</body>

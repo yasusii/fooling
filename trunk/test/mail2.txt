@@ -1,0 +1,14 @@
+From: Yusuke Shinyama <yusuke@nonexistent.dom>
+To: =?iso-2022-jp?b?GyRCJEYkOSRIJUclORsoQg==?= test@test
+Subject: =?iso-2022-jp?b?GyRCJEYkOSRIJUclORsoQg==?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-Transfer-Encoding: 7bit
+Message-ID: <foobaamsg>
+In-Reply-To: <replie>
+References: <abcde> <xyz123>
+Date: Mon, 04 Sep 2006 03:48:02 -0400
+
+我田引水
+
+Yusuke

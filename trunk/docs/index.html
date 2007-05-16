@@ -1,0 +1,610 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=euc-jp">
+<title>風鈴、あるいは文字列検索フレームワーク</title>
+<style type="text/css">
+BODY { line-height: 130%; }
+BLOCKQUOTE { background: #eeeeee; }
+CODE { background: #eeeeee; }
+KBD { background: #eeeeee; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>
+<a href="http://www.unixuser.org/~euske/python/fooling/index.html">風鈴、あるいは文字列検索フレームワーク</a>
+</h2>
+
+<p>
+<strong>ダウンロード:
+<a href="http://www.unixuser.org/~euske/python/fooling/fooling-dist-20070305.tar.gz"><code>fooling-dist-20070305.tar.gz</code></a>
+</strong>
+(57KBytes, 要 Python2.4以上)
+
+<p>
+<strong>デモ:</strong>
+<a href="http://fooling.tabesugi.net:8080/">http://fooling.tabesugi.net:8080/</a>
+
+<p>
+<strong>ご意見・ご質問はこちらへ:</strong>
+<a href="http://groups.google.com/group/fooling-users">http://groups.google.com/group/fooling-users</a>
+
+
+<ul>
+<li> <a href="#help">検索機能ヘルプ</a>
+<li> <a href="#howto">使い方</a>
+<ol>
+<li> <a href="#howto-install">インストール</a>
+<li> <a href="#howto-notices">諸注意</a>
+<li> <a href="#howto-index">インデックスの作成</a>
+<li> <a href="#howto-add">文書の追加</a>
+<li> <a href="#howto-update">文書の更新</a>
+<li> <a href="#howto-remove">古くなったインデックスの削除</a>
+</ol>
+<li> <a href="#performance">性能</a>
+<li> <a href="#bugs">バグ・作者への連絡</a>
+<li> <a href="#license">ライセンス</a>
+<li> <a href="commands.html">Fooling コマンド一覧</a>
+<li> <a href="api.html">Fooling API と実装</a>
+<li> <a href="changes.html">更新履歴</a>
+</ul>
+
+<hr noshade>
+
+<p>
+Fooling (風鈴) は Python と ありあわせのライブラリでつくった
+文字列検索のためのフレームワークです。数千〜数十万件の文書の中から
+日本語の文字列を検索・表示するのに向いています。
+Fooling はおもに電子メール、掲示板への投稿や日記など、
+時間とともに蓄積し、変更が比較的少ない文書を対象としています。
+
+<p>
+Fooling は単独で動かすソフトウェアというよりも、
+Python プログラムに簡単に組み込んで使えるちょっとした検索機能を
+提供することを目標としています。そのため、これは Python 本体と標準ライブラリがあれば動きます。
+簡単なインターフェイスや該当文書の表示ルーチンは最初から提供されています。
+
+<a name="anti-blurb"></a>
+<h4>特色 (ようするに欠点)</h4>
+
+<ul>
+<li> ランキングは日付順で固定。(最新のものがトップにくる)
+<li> 検索条件の結合は and のみ。
+<li> 対応している文書の種類はプレインテキスト、HTML、電子メール (RFC 2822形式) のみ。
+<li> ひらがな (あるいはカタカナ) 1文字だけでは検索できない。
+<li> 半角カナ未対応。
+<li> Lucene の約5倍 (の遅さ)。
+</ul>
+
+<a name="help"></a>
+<h4>検索機能ヘルプ</h4>
+<p>
+Fooling では一般に以下のような検索条件が指定できます。
+複数の条件はスペースで区切って組み合わせると and の意味になります。
+
+<dl>
+<dt> <strong><code>フレーズ</code></strong>
+ &nbsp; <small>あるいは</small> &nbsp; <strong><code>"フレーズ"</code></strong>
+<dd> 文書中に含まれる<em>フレーズ</em>を検索します。<p>
+
+<dt> <strong><code>title:フレーズ</code></strong>
+<dd> 文書のタイトルに含まれる<em>フレーズ</em>を検索します。<p>
+
+<dt> <strong><code>-フレーズ</code></strong>
+<dd> 指定された<em>フレーズ</em>が含まれない文書を検索します。<p>
+
+<dt> <strong><code>|フレーズ|</code></strong>
+<dd> 両端が文字種の境界になっている<em>フレーズ</em>を検索します。
+たとえば、<q><code>|日本|</code></q> は、「ここは<u>日本</u>です」にはマッチしますが、
+「ここは<u>日本</u>海です」にはマッチしません。<p>
+
+<dt> <strong><code>date:年/月/日</code></strong>
+ &nbsp; <small>あるいは</small> &nbsp; <strong><code>date:年/月</code></strong>
+ &nbsp; <small>あるいは</small> &nbsp; <strong><code>date:年</code></strong>
+<dd> 指定された<em>年月日</em>に更新された文書を検索します。
+ハイフン (<code>-</code>) で範囲を指定することもできます。 
+例: <code>date:2006/8/31</code>、<code>date:2003/1-2005/3/8</code>、<code>date:2004-2007</code>
+<p>
+
+</dl>
+
+<p>
+このほかにも、電子メールを検索する際には <code>Subject:</code> や
+<code>To:</code>、<code>Message-ID:</code> などのヘッダを個別に検索できます。
+
+
+<a name="howto"></a>
+<hr noshade>
+<h3>使い方</h3>
+
+<p>
+ここでは基本的な使い方のみを説明しています。各コマンドについての詳細は
+<a href="commands.html">Fooling コマンド一覧</a>
+をごらんください。また、コマンドラインツールは Fooling の機能のすべてを
+サポートしているわけではありません。より高度な使い方をするには
+<a href="api.html">API を使って</a>プログラミングしてください。
+
+<a name="howto-install"></a>
+<h4>1. インストール</h4>
+
+<p>
+特別な操作は必要ありません。
+アーカイブを展開し、<code>fooling/</code> 以下のディレクトリを
+Python のモジュールとして発見できるようにしておきます。
+あるいは <code>PYTHONPATH</code> を使ってもかまいません。
+
+<blockquote><pre>
+$ <strong>cp -Rp fooling/ /usr/local/lib/python2.4/site-packages/</strong>
+</pre></blockquote>
+
+<a name="howto-notices"></a>
+<h4>2. 諸注意</h4>
+
+<ul>
+<li> Fooling では、snippet の生成時に元の文書ファイルを参照するため、
+検索にはインデックスファイルとともに<strong>元の文書ファイルが必要</strong>です。
+(実際には、個々の文書は独立したファイルである必要はありません。
+<a href="api.html#class-corpus"><code>Corpus</code>クラスを参照</a>)
+<li> Fooling は文書集合を日付順に分割し、<strong>複数のインデックスファイル</strong>を生成します。
+これらのインデックスファイルを新しい方から逐次的に検索することで日付順の検索をおこないます。
+<li> 個々のインデックスファイルは<strong>読み込み専用</strong>であり、いちど作成したら再度インデックスするまで
+変更できません。新しく文書が追加された場合はインデックスファイル自体を追加することによって対応します。
+<li> インデックスファイルの形式は<strong>エンディアン依存</strong>です。
+複数のマシンで同一のインデックスを共有する時は注意してください。
+</ul>
+
+<a name="howto-index"></a>
+<h4>3. インデックスの作成</h4>
+
+<p>
+たとえば元の文書ファイル (HTML) が <code>/doc/Python-2.4-ja/</code> 以下に置かれているとします。
+このディレクトリが文書ファイルの<strong>基底ディレクトリ</strong> (basedir) となります:
+<P>
+<blockquote><pre>
+$ <strong>ls /doc/Python-2.4-ja/</strong>
+about.html  api   doc  icons       inst  mac            ref  whatsnew
+acks.html   dist  ext  index.html  lib   modindex.html  tut
+</pre></blockquote>
+<P>
+次にインデックスファイル用のディレクトリ (ここでは <code>/tmp/index/</code> とします) をつくり、
+以下のように入力します:
+<P>
+<blockquote><pre>
+$ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ [<em>インデックスするファイル名</em> ...]</strong>
+</pre></blockquote>
+<p>
+<a href="commands.html#indexer.py"><code>indexer.py</code></a> コマンドは
+与えられた文書から (ひとつ以上の) インデックスファイルを生成します。
+オプション <code>-b</code> は文書ファイルの基底ディレクトリ、 
+<code>-t</code> は文書の種類 (HTML) を指定します。
+実際には、コマンドライン引数から大量のファイルを直接指定しようとすると
+「引数リストが長すぎる (Argument list too long)」といわれますので、以下のように引数のファイル名を省略し、
+<code>find</code> コマンドなどで標準入力からファイル名の一覧を与えてください。
+<blockquote><pre>
+$ <strong>( cd /doc/Python-2.4-ja/; find . -type f -name '*.html' ) | indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/</strong>
+Index: basedir='/doc/Python-2.4-ja/', idxdir='/tmp/index/', max_docs_threshold=2000, max_terms_threshold=50000
+...<em>(中略)</em>...................Building index '/tmp/index/idx00000.cdb'(504)...
+...<em>(中略)</em>.............Building index '/tmp/index/idx00001.cdb'(419)...
+...<em>(中略)</em>.....................Building index '/tmp/index/idx00002.cdb'(513)...
+Done.
+</pre></blockquote>
+<p>
+こうすると <code>indexer.py</code> は
+標準入力から与えられたファイル名を読み、そのファイルをインデックスに追加します。
+<strong>このときのパス名は、基底ディレクトリからの相対パスで与えてやる必要があります。</strong>
+<p>
+以上でインデックスファイルができあがります。
+Fooling では、大量の文書をいくつかの集合に分割して複数のインデックスファイルを作ります。
+各インデックスファイルは独立しており、それぞれが最大 2000個 (デフォルト) の文書に
+関する情報を格納しています。
+<blockquote><pre>
+$ <strong>ls -l /tmp/index/</strong>
+-rw-r--r--    1 yusuke   users     5081895 Sep  3 13:18 idx00000.cdb
+-rw-r--r--    1 yusuke   users     4673407 Sep  3 13:19 idx00001.cdb
+-rw-r--r--    1 yusuke   users     4319317 Sep  3 13:20 idx00002.cdb
+</pre></blockquote>
+<p>
+インデックスファイルは "<code><em>xxxNNNNN</em>.cdb</code>" のような名前になります。
+最初の 3文字はプレフィックスで (デフォルトは <code>idx</code>)、あとの 5文字は番号になっています。
+ここでは <code>idx00002.cdb</code> がもっとも新しい (最後に作られた) インデックスファイルです。
+Fooling はこれらのインデックスファイルを辞書順の後ろから検索します。つまり、
+<strong>最後にインデックスしたファイルが最初の検索結果として表示される</strong>
+ようになっています。
+<p>
+ためしに検索してみましょう。
+コマンドラインからの検索には <code>selection.py</code> コマンドを使います。
+検索する際には、文書の基底ディレクトリ (<code>/doc/Python-2.4-ja/</code>) と、
+インデックスファイルの置かれているディレクトリ (<code>/tmp/index/</code>) を
+両方指定する必要があります:
+<blockquote><pre>
+$ <strong>selection.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ "python" "オブジェクト"</strong>
+1: [<font color=red>Python</font> チュートリアル] ... 7.2.1 ファイル<font color=red>オブジェクト</font>のメソッド 7.2.2 pickle モジュール 8. エラーと例外...
+...
+10: [11. 標準ライブラリミニツアー - その 2] ... <font color=red>Python</font> チュートリアル ... スレッド間の通信や調整にQueue <font color=red>オブジェクト</font>を使うと、...
+1-10 of about 388 results.
+</pre></blockquote>
+
+<h5>インデックスファイルはどれくらい堅牢か?</h5>
+<p>
+Fooling で使われるインデックスファイル (<code>.cdb</code> ファイル) はそれぞれ完全に独立しています。
+あるインデックスファイルが失われた場合、そこに登録されていた文書は検索できなくなりますが、
+それ以外のインデックスファイルに含まれている文書は影響を受けません。
+もちろん、失われたインデックスファイルは元の文書から再度作りなおすことが可能です。
+
+
+<a name="howto-add"></a>
+<h4>4. 文書の追加</h4>
+<p>
+インデックスに新しく文書を追加する場合は、
+<code>indexer.py</code> コマンドに追加するファイル名を指定します。
+構文は同じです:
+<blockquote><pre>
+$ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ newfile1.html newfile2.html</strong>
+Index: basedir='/doc/Python-2.4-ja/', idxdir='/tmp/index/', max_docs_threshold=2000, max_terms_threshold=50000
+..Building index '/tmp/index/idx00003.cdb'(2)...
+Done.
+$ <strong>ls -l /tmp/index/</strong>
+-rw-r--r--    1 yusuke   users     5081895 Sep  3 13:18 idx00000.cdb
+-rw-r--r--    1 yusuke   users     4673407 Sep  3 13:19 idx00001.cdb
+-rw-r--r--    1 yusuke   users     4319317 Sep  3 13:20 idx00002.cdb
+-rw-r--r--    1 yusuke   users       40410 Sep  3 13:30 idx00003.cdb
+</pre></blockquote>
+<p>
+<code>indexer.py</code> コマンドは、すでに <code>/tmp/index/</code> 内に
+インデックスファイルが存在している場合、最新のインデックスファイルの「次の名前」 
+(この場合は <code>idx00003.cdb</code>) でインデックスファイルを作成します。
+以後は <code>idx00003.cdb</code> が最新のインデックスファイルとして利用されます。
+
+<h5>インデックスファイルの統合</h5>
+<p>
+Fooling では、新しく文書を追加するたびごとにインデックスファイルが
+最低ひとつずつ増えていきますが、あまり少量の文書からなるインデックスファイルを
+沢山つくると検索が遅くなるため、適当な間隔で
+<strong>これらのファイルを統合する必要があります。</strong>
+インデックスファイルの統合には 
+<a href="commands.html#merger.py"><code>merger.py</code></a> コマンドを使います:
+<blockquote><pre>
+$ <strong>merger.py /tmp/index/</strong>
+Remain: '/tmp/index/idx00000.cdb'
+Remain: '/tmp/index/idx00001.cdb'
+Merging: '/tmp/index/idx00002.cdb.new' (docs=515, est. terms=44382): [&lt;/tmp/index/idx00002.cdb (docs=513, terms=44382)&gt;, &lt;/tmp/index/idx00003.cdb (docs=2, terms=872)&gt;]
+............................................done: docs=515, terms=44893, ents=582242
+$ <strong>ls -l /tmp/index/</strong>
+-rw-r--r--    1 yusuke   users     5081895 Sep  3 13:18 idx00000.cdb
+-rw-r--r--    1 yusuke   users     4673407 Sep  3 13:19 idx00001.cdb
+-rw-r--r--    1 yusuke   users     4344626 Sep  3 13:31 idx00002.cdb
+-rw-r--r--    1 yusuke   users     4319317 Sep  3 13:20 idx00002.cdb.bak
+-rw-r--r--    1 yusuke   users       40410 Sep  3 13:30 idx00003.cdb.bak
+</pre></blockquote>
+<p>
+<code>merger.py</code> コマンドは複数の小さいインデックスファイルに含まれる文書を
+ひとつの大きなインデックスファイルにまとめます。上の例では
+<code>idx00003.cdb</code> に含まれていた 2つの文書が <code>idx00002.cdb</code> に統合され、
+古いファイルはそれぞれ <code>idx00002.cdb.bak</code> と <code>idx00003.cdb.bak</code> という名前で
+残されています。古いインデックスファイルはすぐに <code>rm</code> してかまいません。
+デフォルトでは <code>merger.py</code> は最大 2000件の文書までのインデックスファイルを作成します
+(これ以上の文書は次のインデックスファイルに分割されます)。
+<p>
+インデックスファイルの統合はなるべくこまめに行ったほうがよいのですが、
+この操作は 1ファイル中に含まれる文書数が多くなると時間がかかります
+(合計10000文書のインデックスを統合するには 10分ぐらいかかる)。
+そのため、1日のうちに何十件も新しい文書が追加されるような場合は、
+1時間に 1回程度の「細かい (100文書程度の)」統合をおこない、
+「大きな (2000文書程度の)」統合は 1日に 1回だけおこなうようにすればよいでしょう。
+なお、インデックスファイルの統合中にも検索はできますが、
+<strong>インデックスファイルの統合と追加を同時に行わないでください</strong>。
+<p>
+ひとつのインデックスファイル中に含まれる最大文書数は <code>-D</code> オプションで指定します:
+<blockquote><pre>
+<em>(1時間に 1回)</em>
+$ <strong>merger.py -D 100 /tmp/index/</strong>
+
+<em>(1日に 1回)</em>
+$ <strong>merger.py /tmp/index/</strong>
+</pre></blockquote>
+これらは通常 cron タスクとして指定します。統合の回数を少なくするため、
+できるだけ多くのファイルを一度にインデックスしたほうが効率的です。
+
+
+<a name="howto-update"></a>
+<h4>5. 文書の更新</h4>
+<p>
+Fooling で使われているインデックスファイルの形式は、一度作成したら
+書き換えることはできません。そのため、文書が変更された場合は基本的に
+新規の文書としてインデックスに追加するか、あるいはすべての
+インデックスファイルをゼロから作り直すことになります。いくつかのケースでは、
+これはインデックスをいくつかに分割することによって効率的におこなえます。
+
+<h5>文書の更新頻度が少ない場合</h5>
+<p>
+文書の更新頻度が少ない場合には、更新された文書を
+新規文書としてインデックスに「2重に」追加してしまってもかまいません。
+検索結果が日付順に表示されているかぎり、必ず新しい文書が先に表示されます。
+<p>
+<code>indexer.py</code> コマンドのデフォルトのふるまいは、
+インデックスの最終更新時刻 (= インデックスファイルのうち最後のものが更新された時刻) 
+よりも新しいファイルのみをインデックスに追加します。
+そのため、普通にすべてのファイルを <code>indexer.py</code> に与えれば、
+古いファイルは自動的に無視され、更新されたファイルだけがインデックスに追加されます。
+特別な操作は何も必要ありません。
+
+<h5>頻繁に更新されるファイルが限られている場合</h5>
+<p>
+ある少数の決まった文書だけが頻繁に更新される場合は、
+あらかじめそれ以外の文書をインデックスしておき、
+頻繁に更新される文書だけを毎回再インデックスすることができます。
+これはインデックスファイルに異なるプレフィックスを使うことによって実現できます。
+<p>
+<code>indexer.py</code> および <code>merger.py</code> コマンドでは、<code>-p</code> オプションによって
+作成するインデックスファイルのプレフィックス (アルファベット3文字、通常は <code>idx</code>) を指定できます。
+たとえば:
+<ul>
+<li> ほとんど更新されない文書は、<code>aaa</code> で始まるインデックスファイルにする。(これは一回だけ作成)
+<li> 頻繁に更新される文書は、<code>bbb</code> で始まるインデックスファイルにする。(これは毎回作り直し)
+</ul>
+
+<p>
+こうしておくと、検索時には <code>bbb</code> で始まるインデックスファイルが
+必ず先に参照されるため (辞書順で大きいインデックスファイル名が先に使われる)、
+頻繁に更新される文書のほうがつねに静的な文書よりも上位にランキングされることになります。
+実際のコマンドラインは以下のようになります:
+
+<blockquote><pre>
+(最初の 1回だけ実行)
+$ <strong>cat <em>ほとんど更新されない文書の一覧</em> | sortbymtime.py | indexer.py -paaa /tmp/index/</strong>
+
+(定期的に実行)
+$ <strong>cat <em>頻繁に更新される文書の一覧</em> | sortbymtime.py | indexer.py -R -pbbb /tmp/index/</strong>
+</pre></blockquote>
+
+<p>
+<code>tools/</code> ディレクトリに含まれている <code>sortbymtime.py</code> コマンドは、
+標準入力から与えられたファイル名をその更新日時の順に並べかえるものです。
+(<code>indexer.py</code> は最後にインデックスされた文書を最初に表示するので、
+日付の新しい順にランキングするにはこのようにする必要があります。)
+2番目の形式にある <code>-R</code> オプションは、
+既存のインデックスファイルをすべて無視してゼロからインデックスを作りなおす
+(「追加」しない) よう指定します。頻繁に更新される文書が 10程度の場合、
+すべてを再インデックスしても数秒しかかかりません。
+
+<p>
+さらに、<code>find</code> コマンドにある <code>-mtime</code> オプションを使うと、
+頻繁に更新される文書の一覧をほぼ自動的に発見できます:
+
+<blockquote><pre>
+(どちらも定期的に実行)
+$ <strong>find -name '*.html' -type f -mtime +3 | sortbymtime.py | indexer.py -paaa /tmp/index/</strong>
+$ <strong>find -name '*.html' -type f -mtime -3 | sortbymtime.py | indexer.py -R -pbbb /tmp/index/</strong>
+</pre></blockquote>
+
+<p>
+この例では 3日以上更新されないファイルを「古い文書」としてインデックス <code>aaa</code> に追加し、
+3日以内に更新されたファイルはインデックス <code>bbb</code> に登録されることになります
+(<code>bbb</code> は毎回作り直されます)。
+それまで更新されていたファイルが 3日以上更新されなくなると、
+これは自動的に <code>aaa</code> のほうに追加されることになります。
+
+
+<h5>多数の文書が頻繁に更新される場合</h5>
+<p>
+Fooling は、(活発な Wiki のように)
+不特定多数の文書が随時更新されているようなサイトの検索には向きません。
+このような場合は、定期的に全インデックスを作り直すしかないでしょう。
+
+<a name="howto-remove"></a>
+<h4>6. インデックスファイルの削除</h4>
+<p>
+何らかの事情によりインデックスファイルを削除したい場合は、
+番号の低い (古い) 方から削除してください。
+個々のインデックスファイルは独立しているため、
+古いインデックスファイルを削除しても、最近インデックスされた
+文書はひきつづき検索できます。
+<p>
+また、インデックスファイルを削除したあとに
+そのディレクトリに対して <code>merger.py</code>コマンドを実行すると、
+インデックスファイルの名前は 0 からの連番になるよう自動的に変更されます。
+
+<a name="performance"></a>
+<hr noshade>
+<h3>性能</h3>
+<p>
+(以下の時間はすべて Linux-2.4.31、Pentium 4 (1.8GHz)、メモリ 512 MBytes、7200rpm の IDEディスク 1基で測定したものです)
+
+<h4>インデックスにかかる時間</h4>
+
+<p>
+<table border>
+<tr>
+<th>種類</th>
+<th>文書数</th>
+<th>文書の大きさ</td>
+<th>インデックス生成時間</th>
+<th>インデックスの大きさ</th>
+</tr>
+<tr>
+<td><strong>新聞記事 (プレインテキスト形式、日本語):</strong></td>
+<td align=right>788,810件</td>
+<td align=right>1215 MBytes</td>
+<td align=right>630分 (1200文書/分)</td>
+<td align=right>622ファイル、4577 MBytes</td>
+</tr>
+<tr>
+<td><strong>電子メール (RFC2822形式、日本語および英語):</strong></td>
+<td align=right>91,200件</td>
+<td align=right>775 MBytes</td>
+<td align=right>70分 (1300文書/分)</td>
+<td align=right>70ファイル、270 MBytes</td>
+</tr>
+<tr>
+<td><strong>Java 1.5 日本語ドキュメント (HTML形式、euc-jp):</strong></td>
+<td align=right>9,700件</td>
+<td align=right>220 MBytes</td>
+<td align=right>38分 (250文書/分)</td>
+<td align=right>13ファイル、110 MBytes</td>
+</tr>
+<tr>
+<td><strong>Python 2.4 日本語ドキュメント (HTML形式、euc-jp):</strong></td>
+<td align=right>1,400件</td>
+<td align=right>14 MBytes</td>
+<td align=right>3分 (450文書/分)</td>
+<td align=right>3ファイル、14 MBytes</td>
+</tr>
+<tr>
+<td><strong>Linux-2.4 ソースコード (テキスト形式、英文):</strong></td>
+<td align=right>12,700件</td>
+<td align=right>120 MBytes</td>
+<td align=right>28分 (500文書/分)</td>
+<td align=right>23ファイル、116 MBytes</td>
+</tr>
+</table>
+
+<p>
+インデックス時間は HTML や MIME ヘッダの解析も含みます。
+インデックス時の最大メモリ使用量は 20〜100MBytes です。
+なお電子メールは新山の個人宛のもので、
+spam を含む約3年分のメッセージを使用しています。
+新聞記事は 2006年における日本の新聞サイト約25紙を独自にクロールして取得したものです。
+
+<h4>検索にかかる時間</h4>
+
+<table border>
+<tr>
+<th>検索内容</th>
+<th>最初の 10件を表示</th>
+<th>全件を表示 (1回目)</th>
+<th>全件を表示 (2回目)</th>
+</tr>
+<tr>
+<td>Java ドキュメントから <q><code>オブジェクト</code></q> を検索 (4157件)</td>
+<td align=right>0.2秒</td>
+<td align=right>56.2秒</td>
+<td align=right>32.7秒</td>
+</tr>
+<tr>
+<td>Java ドキュメントから <q><code>クラス</code></q> <q><code>継承され</code></q> を検索 (3360件)</td>
+<td align=right>0.5秒</td>
+<td align=right>73.7秒</td>
+<td align=right>58.4秒</td>
+</tr>
+<tr>
+<td>Java ドキュメントから <q><code>swing</code></q> <q><code>ファイル</code></q> <q><code>ダイアログ</code></q> を検索 (47件)</td>
+<td align=right>1.1秒</td>
+<td align=right>4.1秒</td>
+<td align=right>2.1秒</td>
+</tr>
+<tr>
+<td>Java ドキュメントから <q><code>てくるで</code></q> を検索 (0件)</td>
+<td align=right>0.5秒</td>
+<td align=right>-</td>
+<td align=right>-</td>
+</tr>
+<tr>
+<td>Python ドキュメントから <q><code>オブジェクト</code></q> を検索 (786件)</td>
+<td align=right>0.3秒</td>
+<td align=right>18.4秒</td>
+<td align=right>13.2秒</td>
+</tr>
+<tr>
+<td>Python ドキュメントから <q><code>Guido van Rossum</code></q> を検索 (24件)</td>
+<td align=right>0.2秒</td>
+<td align=right>0.7秒</td>
+<td align=right>0.3秒</td>
+</tr>
+<tr>
+<td>Python ドキュメントから <q><code>タプル</code></q> <q><code>配列</code></q> を検索 (12件)</td>
+<td align=right>0.2秒</td>
+<td align=right>0.4秒</td>
+<td align=right>0.3秒</td>
+</tr>
+<tr>
+<td>Python ドキュメントから <q><code>てくるで</code></q> を検索 (1件)</td>
+<td align=right>0.1秒</td>
+<td align=right>-</td>
+<td align=right>-</td>
+</tr>
+<tr>
+<td>Linux ソースコードから <q><code>Linus Torvalds</code></q> を検索 (550件)</td>
+<td align=right>0.1秒</td>
+<td align=right>11.1秒</td>
+<td align=right>0.7秒</td>
+</tr>
+<tr>
+<td>Linux ソースコードから <q><code>#ifdef</code></q> <q><code>__kernel__</code></q> を検索 (124件)</td>
+<td align=right>0.6秒</td>
+<td align=right>10.0秒</td>
+<td align=right>1.0秒</td>
+</tr>
+</table>
+
+<p>
+検索時間は snippet (該当部分の文脈) 生成・表示までを含みます。
+OS のバッファキャッシュにより、通常 2回目以降の検索は多少速くなります。
+
+<h4>扱える最大文書量</h4>
+
+<p>
+Fooling のインデックスファイルには、以下のような制約があります:
+<ul>
+<li> ひとつのインデックスファイルの大きさは 4GBytes まで。
+<li> 全インデックスファイルの数は、その OS で同時にオープンできる最大ファイル数 (Linux では約 4000) まで。
+</ul>
+
+<p>
+ひとつのインデックスファイルには、(文書の大きさにもよりますが) おそらく最大数十万件〜百万件の文書を格納できます。
+そのため原理的には数十億の文書を扱えることになりますが、実際にはインデックスファイルは
+逐次的に検索されるので、あまりインデックスファイルの数を増やすことはおすすめしません
+(数百個程度が無難です)。おそらく文書数 1000万件ぐらいが実用になる限界でしょう。
+しかし「快適に使える」レベルはもっと少なく、たかだか 100万件程度だと思われます。
+まだそこまで試していませんけど。
+
+<a name="bugs"></a>
+<hr noshade>
+<h3>バグ</h3>
+<P>
+きっとまだ<big><strong>山のように</strong></big>あるはずです (2006年9月7日現在)。
+怪しい挙動を発見した際はぜひ作者までお知らせください。
+
+
+<h4>作者への連絡</h4>
+<p>
+できるだけこちらにお願いします:
+<a href="http://groups.google.com/group/fooling-users">http://groups.google.com/group/fooling-users</a>
+
+<p>
+新山 祐介
+(<code>yusuke at cs dot nyu dot edu</code>)
+
+<a name="license"></a>
+<hr noshade>
+<h3>ライセンス</h3>
+<p>
+(いわゆる MIT/X ライセンスです、改変・再配布および商品への組み込みはご自由に)
+<p>
+<small>
+Copyright (c) 2006  Yusuke Shinyama &lt;yusuke at cs dot nyu dot edu&gt;
+<p>
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+<p>
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+<p>
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+</small>
+
+<hr noshade>
+<address>Yusuke Shinyama</address>
+</body>
