@@ -1,0 +1,278 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=euc-jp">
+<title>Fooling コマンド一覧</title>
+<style type="text/css">
+BODY { line-height: 130%; }
+BLOCKQUOTE { background: #eeeeee; }
+CODE { background: #eeeeee; }
+KBD { background: #eeeeee; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h2>
+Fooling コマンド一覧
+</h2>
+<p>
+<a href="index.html">Back</a>
+
+<hr noshade>
+
+<ul>
+<li> <a href="#indexer.py"><code>indexer.py</code></a>
+(インデックスの作成・追加)
+<li> <a href="#selection.py"><code>selection.py</code></a>
+(検索)
+<li> <a href="#merger.py"><code>merger.py</code></a>
+(インデックスの統合)
+<li> <a href="#sortbymtime.py"><code>tools/sortbymtime.py</code></a>
+(ファイル名を日付順にソート)
+<li> <a href="#search.cgi"><code>tools/search.cgi</code></a>
+(検索用 CGI サンプル)
+<li> <a href="#dumpidx.py"><code>tools/dumpidx.py</code></a>
+(インデックスファイルの表示)
+</ul>
+
+<hr noshade>
+<a name="indexer.py"></a>
+<h3>indexer.py (インデックスの作成・追加)</h3>
+
+<p>
+与えられた文書集合のためのインデックスを作成あるいは追加します。
+<p>
+<strong>注意:</strong>
+<code>indexer.py</code> は基本的な機能のみしかサポートしておらず、
+文書集合 (Corpus) は <code>FilesystemCorpus</code> に限定されており、
+扱う文書の種類も 1つだけであると仮定しています。複数の文書や文字コードを扱いたい場合や、
+ディレクトリツリー以外のものを文書集合として使用したい場合は、
+<a href="api.html">API</a> を使って Python プログラムを書く必要があります。
+
+<h4>構文:</h4>
+<code>
+$ indexer.py [<em>オプション</em>] <em>インデックス用ディレクトリ</em> [<em>ファイル名1 ファイル名2 ...</em>]
+</code>
+
+<p>
+<em>ファイル名</em>を省略した場合、標準入力から与えられたファイル名の一覧
+(1行に1ファイル名) を使用します。
+
+<h4>オプション:</h4>
+<dl>
+<dt> <code>-F</code>
+<dt> <code>-N</code>
+<dt> <code>-R</code>
+<dd> デフォルトでは、<code>indexer.py</code> はインデックスの更新時刻
+(= インデックスファイルのうち最後のものが更新された時刻) よりも新しいファイルのみをインデックスします。
+<code>-F</code> (force) オプションを与えると、ファイルの更新時刻にかかわらず、指定された
+文書すべてをインデックスに追加しますが、これはすでにインデックスされている文書を
+2重にインデックスしてしまう可能性があります。<code>-N</code> (new) オプションはまだ
+インデックスされていない文書のみをインデックスします。
+<code>-R</code> (reset) オプションは既存のインデックスを無視し、
+すべての文書をゼロからインデックスします。
+<dt> <code>-b <em>basedir</em></code>
+<dd> 文書集合の基底ディレクトリを指定します。
+<dt> <code>-t <em>doctype</em></code>
+<dd> 文書の種類 (HTMLなど) を指定します。インデックスされるすべての文書は同じ種類をもつと仮定されています。
+現在のところ、以下の種類をサポートしています:
+<ul>
+<li> <code>PlainTextDocument</code> (テキスト形式)
+<li> <code>HTMLDocument</code> (HTML形式)
+<li> <code>SourceCodeDocument</code> (プログラムのソースコードなど)
+<li> <code>EMailDocument</code> (RFC 2822形式) 
+</ul>
+<dt> <code>-p <em>prefix</em></code>
+<dd> インデックスファイルのプレフィックス (デフォルトは <code>idx</code>) を指定します。
+これはアルファベット 3文字である必要があります。
+<dt> <code>-e <em>encoding</em></code>
+<dd> 文書ファイルの文字コード (デフォルトは <code>locale.getdefaultlocale()</code> の値) を指定します。
+<dt> <code>-D <em>maxdocs</em></code>
+<dd> ひとつのインデックスファイルに含まれる最大の文書数 (デフォルトは <code>2000</code>) を指定します。
+これ以上の文書は次のインデックスファイルに持ち越されます。
+0 を指定すると制限はなくなります。
+<dt> <code>-T <em>maxterms</em></code>
+<dd> ひとつのインデックスファイルに含まれる最大の単語数 (デフォルトは <code>50000</code>) を指定します。
+単語数がこれ以上になると、たとえ文書数が少なくても次の文書は自動的に
+次のインデックスファイルに持ち越されます。
+0 を指定すると制限はなくなります。
+</dl>
+
+<hr noshade>
+<a name="selection.py"></a>
+<h3>selection.py (検索)</h3>
+
+<p>
+与えられた文書集合から文字列を検索・表示します。
+<p>
+<strong>注意:</strong>
+<code>selection.py</code> は基本的な機能のみしかサポートしておらず、
+文書集合 (Corpus) は <code>FilesystemCorpus</code> に限定されており、
+扱う文書の種類も 1つだけであると仮定しています。これ以外の文書集合を扱いたい場合は、
+<a href="api.html">API</a>  を使って Python プログラムを書く必要があります。
+
+<h4>構文:</h4>
+<p>
+<code>
+$ selection.py [-c <em>中間結果ファイル</em>] [<em>オプション</em>] <em>インデックス用ディレクトリ</em> [<em>キーワード1 キーワード2 ...</em>]
+</code><br>
+または<br>
+<code>
+$ selection.py -c <em>中間結果ファイル</em>
+</code>
+
+<p>
+1番目の形式で <em>中間結果ファイル</em> を指定すると、
+途中結果を指定されたファイルに pickle 保存し、
+2番目の形式で途中から表示を再開させることができます。
+(これは「次の 10件」などの表示に使います)
+
+<h4>オプション:</h4>
+<dl>
+<dt> <code>-b <em>basedir</em></code>
+<dd> 文書集合の基底ディレクトリを指定します。
+<dt> <code>-t <em>doctype</em></code>
+<dd> 文書の種類 (HTMLなど) を指定します。
+<dt> <code>-p <em>prefix</em></code>
+<dd> 検索対象となるインデックスファイルのプレフィックスを指定します。
+デフォルトは空文字列であり、これは "<code><em>xxxNNNNN</em>.cdb</code>"
+という形式のファイル名をもつすべてのインデックスファイルを対象とします。
+<dt> <code>-e <em>encoding</em></code>
+<dd> 文書ファイルの文字コード (デフォルトは <code>locale.getdefaultlocale()</code> の値) を指定します。
+<dt> <code>-s</code>
+<dd> 検索のさいに <code>Predicate</code> のかわりに <code>StrictPredicate</code> を使用します。
+<dt> <code>-n <em>results</em></code>
+<dd> 結果表示する最大件数 (デフォルトは 10) を指定します。
+この値を 0 にするとすべての結果を表示します。
+<dt> <code>-S</code>
+<dd> 安全でないモード。デフォルトでは、Fooling はすでに
+インデックスされた文書がその後更新された場合、
+その文書を検索結果に含めませんが、
+このオプションを指定するとそれらも表示するようになります。
+<dt> <code>-D</code>
+<dd> Disjunctive (OR 検索) モード。与えられた検索条件を AND ではなく、
+すべて OR として組み合わせます。
+<p>
+<strong>注意:</strong> インデックス後に元の文書を更新すると
+文書内の単語の位置がズレてしまうため、正しく文字列を発見できない
+(あるいは snippet が文字化けする) 可能性があります。
+<dt> <code>-T <em>timeout</em></code>
+<dd> 検索のタイムアウトを秒数で指定します。
+<code>-T</code> オプションを与えると検索にかかった時間が (まじめに) 表示されます。
+</dl>
+
+<hr noshade>
+<a name="merger.py"></a>
+<h3>merger.py (インデックスの統合)</h3>
+
+<p>
+複数のインデックスファイルを統合します。
+<p>
+与えられたインデックス用ディレクトリの <code>.cdb</code> ファイルを
+順に検査していき、まとめられるファイルをすべてまとめた新しいインデックスファイルを作ります。
+古いインデックスファイルは拡張子 <code>.bak</code> をつけて残されます。
+(これらは <code>rm</code> してかまいません。)
+<p>
+なお、インデックスファイルの統合中にも検索はできますが、
+<strong>インデックスファイルの統合と追加を同時に行わないでください</strong>。
+
+<h4>構文:</h4>
+<p>
+<code>
+$ merger.py [<em>オプション</em>] <em>インデックス用ディレクトリ</em>
+</code><br>
+
+<h4>オプション:</h4>
+<dl>
+<dt> <code>-p <em>prefix</em></code>
+<dd> 統合するインデックスファイルのプレフィックス (デフォルトは <code>idx</code>) を指定します。
+これはアルファベット 3文字である必要があります。
+<dt> <code>-D <em>maxdocs</em></code>
+<dd> ひとつのインデックスファイルに含まれる最大の文書数 (デフォルトは <code>2000</code>) を指定します。
+これ以上の文書は次のインデックスファイルに持ち越されます。
+0 を指定すると制限はなくなります。
+<dt> <code>-T <em>maxterms</em></code>
+<dd> ひとつのインデックスファイルに含まれる最大の単語数 (デフォルトは <code>50000</code>) を指定します。
+単語数がこれ以上になると、たとえ文書数が少なくても次の文書は自動的に
+次のインデックスファイルに持ち越されます。
+0 を指定すると制限はなくなります。
+</dl>
+
+<hr noshade>
+<a name="sortbymtime.py"></a>
+<h3>tools/sortbymtime.py (ファイル名を日付順にソート)</h3>
+
+<p>
+与えられたファイル名一覧を古い順に (= 新しいファイルが最後にくるように) 並べ換えて表示します。
+これは <code>find</code> などの結果を日付順で <code>indexer.py</code> に渡すときに使います。
+
+<h4>構文:</h4>
+<p>
+<code>
+$ sortbymtime.py [<em>ファイル名1 ファイル名2 ...</em>]
+</code>
+
+<p>
+<em>ファイル名</em>を省略した場合、標準入力から与えられたファイル名の一覧
+(1行に1ファイル名) を使用します。
+
+<hr noshade>
+<a name="search.cgi"></a>
+<h3>tools/search.cgi (検索用 CGI サンプル)</h3>
+
+<p>
+これは Fooling を使った検索用 CGI のサンプルです。
+<code>SearchApp</code> クラスを適当に変更してお使いください。
+
+<p>
+とくに変更する必要がある部分はクラス変数 <code>TITLE</code> と <code>CORPUS</code> です。
+<code>TITLE</code> には検索ページのタイトルを指定します。
+<code>CORPUS</code> は文書集合のマッピングで、
+記号 (URL中のパラメータ <code>c</code> の値) と
+文書集合の名前、文書ディレクトリ、文書の種類 (Pythonクラス)、
+およびリンク用の基底URLを指定します。
+
+<blockquote><pre>
+TITLE = '<em>タイトル文字列</em>'
+
+CORPUS = {
+  '<em>記号</em>': (u'<em>名前</em>', '<em>文書ディレクトリ</em>', <em>種類</em>, '<em>リンク用の基底URL</em>'),
+  ...
+  }
+</pre></blockquote>
+
+<p>
+なお、文書ディレクトリ中には、元の文書本体が <code>doc/</code> というサブディレクトリに、
+そのインデックスファイルが <code>idx/</code> というサブディレクトリに
+それぞれ格納されていると仮定しています。たとえば文書ディレクトリが <code>/www/python</code> なら、
+<ul>
+<li> 元の文書ファイル: <code>/www/python/doc</code> 以下
+<li> インデックスファイル: <code>/www/python/idx</code> 以下
+</ul>
+
+<p>
+以下のパラメータは CGI による負荷を制限するために調整してください。
+
+<blockquote><pre>
+MAX_QUERY_CHARS = <em>フォームに入力できる最大文字数</em>
+MAX_QUERY_PREDS = <em>検索条件の最大数</em>
+TIMEOUT = <em>検索のタイムアウト秒数</em>
+</pre></blockquote>
+
+<hr noshade>
+<a name="dumpidx.py"></a>
+<h3>tools/dumpidx.py (インデックスファイルの表示)</h3>
+
+<p>
+指定されたインデックスファイル (.cdb ファイル) を可読形式で表示します。
+これはデバッグ用です。
+
+<h4>構文:</h4>
+<p>
+<code>
+$ dumpidx.py [<em>ファイル名1 ファイル名2 ...</em>]
+</code>
+
+<hr noshade>
+<address>Yusuke Shinyama</address>
+</body>

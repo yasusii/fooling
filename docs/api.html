@@ -1,0 +1,964 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=euc-jp">
+<title>Fooling API と実装</title>
+<style type="text/css">
+BODY { line-height: 130%; }
+BLOCKQUOTE { background: #eeeeee; }
+CODE { background: #eeeeee; }
+KBD { background: #eeeeee; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h2>
+Fooling API と実装
+</h2>
+<p>
+<a href="index.html">Back</a>
+
+<hr noshade>
+<ol>
+<li> <a href="#basic">基本的な流れ</a>
+<ol type=a>
+<li> <a href="#basic-search">検索</a>
+<li> <a href="#basic-index">インデックス</a>
+</ol>
+<li> <a href="#classes">各クラスの使い方</a>
+<ul>
+<li> <a href="#class-corpus"><code>Corpus</code> クラス</a>
+<li> <a href="#class-predicate"><code>Predicate</code> クラス</a>
+<li> <a href="#class-selection"><code>Selection</code> クラス</a>
+<li> <a href="#class-document"><code>Document</code> クラス</a>
+<li> <a href="#class-indexer"><code>Indexer</code> クラス</a>
+<li> <a href="#class-merger"><code>Merger</code> クラス</a>
+</ul>
+<li> <a href="#extension">拡張方法</a>
+<ol type=a>
+<li> <a href="#ext-corpus">新しい種類の文書集合 (Corpus) をサポートする</a>
+<li> <a href="#ext-document">新しい種類の文書 (Document) をサポートする</a>
+<li> <a href="#ext-predicate">新しい種類の述語 (Predicate) をサポートする</a>
+</ol>
+<li> <a href="#webapp">Webアプリケーションから使う際の注意点</a>
+</ol>
+
+<ul>
+<li> <a href="#implementation">付録. Fooling 実装上の特徴</a>
+<ol type=a>
+<li> <a href="#impl-2.2-gram">2.2-グラム</a>
+<li> <a href="#impl-multiple-indices">複数のインデックスファイルによる検索</a>
+<li> <a href="#impl-index-file-format">インデックスファイルの形式</a>
+<li> <a href="#impl-token-boundary">トークンの境界情報</a>
+</ol>
+</ul>
+
+<a name="basic"></a>
+<hr noshade>
+<h3>1. 基本的な流れ</h3>
+
+<a name="basic-search"></a>
+<h4>a. 検索</h4>
+
+<p>
+Python プログラム中で文書を検索する場合、
+以下のクラスを使います。
+<ul>
+<li> <code>Document</code> (ひとつの文書)
+<li> <code>Corpus</code> (文書の集合)
+<li> <code>Predicate</code> (述語 = ひとつの検索条件)
+<li> <code>Selection</code> (検索条件に該当する文書)
+</ul>
+
+<p>
+<code>Document</code> と <code>Corpus</code> は抽象的な
+文書および文書の集合を表すクラスです 
+(実際には <code>HTMLDocument</code> や <code>FilesystemCorpus</code> などの派生クラスを使います)。
+<code>Corpus</code> オブジェクトと複数の <code>Predicate</code> オブジェクトから
+<code>Selection</code> (該当する文書) オブジェクトを作成します。
+ここから <code>Document</code> オブジェクトをひとつずつ取り出し、検索結果として表示します。
+
+<blockquote><pre>
+# 基底ディレクトリ /doc/Python-2.4-ja にある HTML 文書と、
+# /tmp/index にあるインデックスを使って検索する例
+
+from fooling.corpus import FilesystemCorpus
+from fooling.document import HTMLDocument
+from fooling.selection import Predicate, Selection
+
+# 検索する文書集合の基底ディレクトリとインデックス用ディレクトリ、および文書の種類を指定する:
+corpus = FilesystemCorpus('/doc/Python-2.4-ja', '/tmp/index', HTMLDocument)
+
+# 検索条件を作成する (これらは AND で結合される) :
+predicates = [ Predicate(u'Python'), Predicate(u'オブジェクト') ]
+
+# 該当する文書の一覧を得る:
+selection = Selection(corpus, predicates)
+
+# すべての該当文書のタイトルと snippet を表示する:
+for (found, doc) in selection:
+  print found, doc.get_title(), doc.get_snippet(selection)
+</pre></blockquote>
+
+<p>
+<code>Selection</code> オブジェクトはリストとしても扱えますが、
+内部ではイテレータになっており、
+文書をひとつ取得するたびに次の文書を漸進的に検索します。
+すべての文書を表示すると時間がかかるため、途中でやめてもかまいません。
+<code>Selection</code> オブジェクトは <code>pickle</code>可能なので、
+途中まで検索した <code>Selection</code>オブジェクトを pickle 保存しておき、
+あとで検索を再開することが可能です。
+CGI から使う場合は <code>SelectionWithContinuation</code> クラスを参照してください。
+
+<a name="basic-index"></a>
+<h4>b. インデックス</h4>
+
+<p>
+インデックスの際には <code>Corpus</code> クラスと
+<code>Indexer</code> クラスを使います:
+
+<blockquote><pre>
+# 基底ディレクトリ /doc/Python-2.4-ja にある HTML 文書から
+# /tmp/index 以下のディレクトリにインデックスを作成する例
+
+from fooling.corpus import FilesystemCorpus
+from fooling.document import HTMLDocument
+from fooling.indexer import Indexer
+
+# 検索する文書集合の基底ディレクトリとインデックス用ディレクトリ、および文書の種類を指定する:
+corpus = FilesystemCorpus('/doc/Python-2.4-ja', '/tmp/index', HTMLDocument)
+
+# 文書集合に対する Indexer オブジェクトを作成する:
+indexer = Indexer(corpus)
+
+# 文書をインデックスに追加する。
+# これらは基底ディレクトリからの相対パス名で指定する:
+indexer.index_doc('a.html')
+indexer.index_doc('b.html')
+indexer.index_doc('c.html')
+
+# インデックスを完了する:
+indexer.finish()
+</pre></blockquote>
+
+<p>
+最後の <code>indexer.finish()</code> を実行した時点で
+インデックスファイルがディスクに書き込まれます
+(これ以前にも、文書数または単語数が規定の値を超えると
+そこまでのインデックスファイルが順次、作成されていきます)。
+
+
+<a name="classes"></a>
+<hr noshade>
+<h3>
+2. 各クラスの使い方
+</h3>
+
+<a name="class-corpus"></a>
+<h4>Corpus クラス</h4>
+<p>
+<code>Corpus</code> クラスは仮想的な文書集合を定義し、
+各文書とそのインデックスにアクセスするためのインターフェイスを提供します。
+各文書は location (位置) によって一意に指定されます。
+Location は文字列で、この値はたとえば <code>FilesystemCorpus</code> では文書ファイルのパス名として使われ、
+<code>BerkeleyDBCorpus</code> では文書データ (value) を取り出すためのキーとして使われます。
+<p>
+<code>Corpus</code> クラスは <code>fooling.corpus</code> モジュール内で定義されています。
+<code>Corpus</code> クラスは抽象クラスであるため、実際には以下のサブクラスのどれかを作成します。
+これらすべての <code>Corpus</code> オブジェクトは pickle が可能です。
+
+<h5>作成可能なクラス</h5>
+<dl>
+<dt> <code>FilesystemCorpus(<em>basedir</em>, <em>idxdir</em>, prefix=<em>''</em>, doctype=<em>None</em>, encoding=<em>'euc-jp'</em>)</code>
+<dd> 通常のディレクトリツリー構造を使った文書集合を表現します。
+すべての文書は <em>basedir</em> 以下のディレクトリに格納され、
+各文書は <em>basedir</em> からの相対パス名で指定されます。
+検索時には <em>idxdir</em> ディレクトリ中の <em>prefix</em> のプレフィックスをもつ
+インデックスファイルが使われます (<em>prefix</em> が空の場合はすべてのインデックスファイルが使われます)。
+すべての文書は同一の文書クラス <em>doctype</em> および同一の文字コード <em>encoding</em> を
+もつと仮定されています。
+<em>doctype</em> には <code>Document</code> クラス (後述) の
+<strong>クラスオブジェクト</strong>を与える必要があります。
+<p>
+
+<dt> <code>BerkeleyDBCorpus(<em>dbfile</em>, <em>idxdir</em>, prefix=<em>''</em>, doctype=<em>None</em>, encoding=<em>'euc-jp'</em>)</code>
+<dd> Berkeley DB ファイルに格納されている文書集合を表現します。
+各文書は <em>dbfile</em> 内のキーにより指定されます。
+<p>
+
+<dt> <code>CDBCorpus(<em>dbfile</em>, <em>idxdir</em>, prefix=<em>''</em>, doctype=<em>None</em>, encoding=<em>'euc-jp'</em>)</code>
+<dd> CDB ファイルに格納されている文書集合を表現します。
+各文書は <em>dbfile</em> 内のキーにより指定されます。
+<p>
+
+<dt> <code>SQLiteCorpus(<em>dbfile</em>, <em>idxdir</em>, prefix=<em>''</em>, doctype=<em>None</em>, encoding=<em>'euc-jp'</em>, 
+table=<em>'documents'</em>, key=<em>'docid'</em>, text=<em>'doctext'</em>, mtime=<em>'mtime'</em>):
+</code>
+<dd> SQLite テーブルに格納されている文書集合を表現します (pysqlite2 が必要です)。
+各文書はテーブル <em>table</em> 中の主キー <em>key</em> で表され、
+<em>text</em> フィールド内には文書データ (文字列) が、
+<em>mtime</em> フィールド内には文書の更新時刻 (整数) が格納されると仮定しています。
+<p>
+(<strong>注意:</strong>
+新山は SQLite をまともに使ったことがないため、このクラスは
+まだしっかりテストしていません。ぜひご協力を!)
+<p>
+</dl>
+
+<h5>公開されている属性・メソッド</h5>
+<p>
+以下の属性・メソッドはすべての <code>Corpus</code> クラスで使えます:
+<ul>
+<li> <code>index_mtime()</code><Br> 
+インデックスファイルの最終更新時刻 (秒) を返します。
+インデックスファイルがひとつもない場合は 0 を返します。
+<p>
+<li> <code>index_lastloc()</code><Br> 
+最後にインデックスされた文書の location を返します。
+インデックス中にまだひとつも文書がない場合は None を返します。
+<p>
+<li> <code>total_docs()</code><Br> 
+インデックスされている総文書数を返します。
+<p>
+<li> <code>loc_indexed(<em>loc</em>)</code><Br>
+<code><em>loc</em></code>の位置にある文書がインデックスに含まれているかどうかを真偽で返します。
+<p>
+</ul>
+
+<h5>Corpus オブジェクトを pickle する際の注意点</h5>
+<p>
+
+
+<a name="class-predicate"></a>
+<h4>Predicate クラス</h4>
+<p>
+<code>Predicate</code> オブジェクトは検索条件を表現します。
+ひとつの検索フレーズがひとつの Predicate オブジェクトに相当します。
+<code>Predicate</code> オブジェクトの内部には単語列と正規表現パターンが含まれており、
+ユーザは <code>Corpus</code> オブジェクトと <code>Predicate</code> オブジェクトのリストを
+使って検索結果である <code>Selection</code> オブジェクト (後述) を作成します。
+<p>
+<code>Predicate</code> クラスは <code>fooling.selection</code> モジュール内で定義されています。
+ユーザは以下の 2種類の <code>Predicate</code> クラスを作成できます。
+
+<h5>作成可能なクラス</h5>
+<dl>
+<dt> <code>Predicate(<em>phrase</em>)</code>
+<dd> <em>phrase</em> にはひとつの検索条件式 (文字列) を与えます。
+Predicate オブジェクトはこれを内部表現 (2.2-グラムのトークンおよび正規表現パターン) に変換して保存します。
+条件式の文法は <a href="index.html#help">検索機能ヘルプ</a> にあるのと同じで、
+<strong><code>フレーズ</code></strong>、<strong><code>title:フレーズ</code></strong>、
+または <strong><code>|フレーズ|</code></strong> という形式が使えます。
+<strong><code>"フレーズ"</code></strong> という形式はサポートしていません。
+<q>〜</q> で囲まれたフレーズを <code>Predicate</code> オブジェクトのリストに分割するには
+<code>fooling.selection</code> モジュールにある <code>parse_preds()</code>関数を使ってください。
+<P>
+
+<dt> <code>StrictPredicate(<em>phrase</em>)</code>
+<dd> <code>Predicate</code>オブジェクトと同じですが、検索フレーズ中の
+記号や句読点まで (空白以外の) 一字一句にマッチする文書を検索します。
+<p>
+<strong>注意:</strong> Fooling では記号や句読点はインデックスされていません。
+そのため、<code>StrictPredicate</code> を使った検索では最初に「意味のある (約物以外の)」
+フレーズ検索をしたあと、各フレーズの周囲を調べて与えられたパターンにマッチするかどうか
+絞りこみが行われます。文書集合が特定のフレーズを大量に含んでおり、なおかつ
+その中でパターンに正確に合致するようなものが非常に少なかった場合、これはほとんど
+逐次検索と同じなるため、検索に非常に時間がかかる場合があります。
+<P>
+
+<dt> <code>EMailPredicate(<em>phrase</em>)</code>
+<dd> <code>Predicate</code> オブジェクトと同じく検索条件式を表現しますが、
+この述語は電子メール (<code>EMailDocument</code> オブジェクト) の検索専用です。
+上にあげた通常のフレーズ検索に加えて、以下のような条件式をサポートしています:
+<ul>
+<li> <strong><code>subject:<em>フレーズ</em></code></strong> … <code>Subject:</code> ヘッダを検索する。
+<li> <strong><code>from:<em>フレーズ</em></code></strong> … <code>From:</code> ヘッダを検索する。
+<li> <strong><code>to:<em>フレーズ</em></code></strong> … <code>To:</code> ヘッダ (複数あってもよい) を検索する。
+<li> <strong><code>cc:<em>フレーズ</em></code></strong> … <code>Cc:</code> ヘッダ (複数あってもよい) を検索する。
+<li> <strong><code>rcpt:<em>フレーズ</em></code></strong> … <code>To:</code> あるいは <code>Cc:</code> ヘッダを検索する。(これらヘッダのどちらかにフレーズが含まれていればマッチする。)
+<li> <strong><code>addr:<em>フレーズ</em></code></strong> … <code>From:</code>、<code>To:</code> あるいは <code>Cc:</code> ヘッダを検索する。(これらヘッダのどちらかにフレーズが含まれていればマッチする。)
+<li> <strong><code>message-id:<em>メッセージID</em></code></strong> … メッセージIDを検索する。
+<li> <strong><code>references:<em>メッセージID,メッセージID,...</em></code></strong> … <code>Reference:</code> ヘッダ、
+<code>In-Reply-To:</code> ヘッダ、<code>Message-ID:</code>ヘッダのどれかに含まれているメッセージIDを検索する。
+ある議論のスレッドを検索するときに便利。
+</ul>
+<p>
+</dl>
+
+<a name="class-selection"></a>
+<h4>Selection クラス</h4>
+<p>
+<code>Selection</code> オブジェクトは、与えられた <code>Corpus</code>オブジェクトと
+<code>Predicate</code>オブジェクトに対する検索結果の一覧を表現します。
+実際にはこのオブジェクトは最初からすべての該当文書を含んでいるわけではなく、
+ユーザが要素を参照するに従って漸進的に構築されていきます。
+<p>
+<code>Selection</code> クラスは <code>fooling.selection</code> モジュール内で定義されています。
+<code>Selection</code> オブジェクトはこれまでに見つかった文書 (の location) 一覧を含んでおり、
+<code>Document</code> オブジェクト (後述) のリストまたはイテレータとして扱うことができます。
+また、<code>Selection</code> オブジェクトは pickle が可能です。
+<code>Selection</code> クラスの使い方については
+<code>fooling/selection.py</code> の <code>main</code>関数も参照してください。
+
+<h5>作成可能なクラス</h5>
+<dl>
+<dt> <code>Selection(<em>corpus</em>, <em>predicates</em>, doc_preds=<em>None</em>, safe=<em>True</em>, start_loc=<em>None</em>, end_loc=<em>None</em>, disjunctive=<em>False</em>)</code>
+<dd> 与えられた <code>Corpus</code>オブジェクト <em>corpus</em> と、
+<code>Predicate</code>オブジェクトのリスト <em>predicates</em> に対する
+検索結果の一覧を作成します。引数 <code>doc_preds</code> が指定されている場合は、
+得られた各文書の location に対して doc_preds 内の各関数を呼び出し、文書のさらなる絞り込みを行います。
+引数 <code>safe</code> が <code>True</code> の場合、インデックスの最終更新時刻よりも後に
+変更された文書は検索結果から除かれます。
+<code>disjunctive</code> が <code>True</code> の場合、検索条件は and ではなく or として組み合わされます。
+<p>
+<code>Selection</code> オブジェクトは <code>__iter__</code> や <code>__getitem__</code> を
+サポートしており、リストと同様に扱えますが、リストとして参照したときと
+イテレータとして使用したときでは返す結果が違うので注意してください。
+リストとして参照したときは <em>i</em>番目の <code>Document</code>オブジェクトを返しますが、
+イテレータとして使用すると <code>(<em>順位</em>, Documentオブジェクト)</code>
+という形式のタプルを返します。
+<p>
+<dt> <code>SelectionWithContinuation(<em>corpus</em>, <em>predicates</em>)</code>
+<dd> Fooling の検索は漸進的におこなわれるため、
+検索結果はかならず最初から取得する必要があります。
+いわゆる「20位目からの結果を表示」というような、
+該当文書中の途中の位置から検索を開始することはできません。
+<code>Selection</code>オブジェクトを pickle 保存しておくことで
+「次の 10件」のような機能を提供することができますが、
+Webアプリケーション上でサービスを提供する場合はこの方法は不便です。
+<p>
+<code>SelectionWithContinuation</code> クラスには、
+<code>Selection</code> オブジェクトを pickle 保存しなくても続きから検索が再開できるような
+メソッドを追加してあります。これらのメソッドは現在の <code>Selection</code> オブジェクトの状態を、
+文字列として符号化・復号します。pickle で保存したのとは異なり、
+この文字列にはこれまでに見つかった文書の一覧は保存されていませんが、
+この情報を使うことで「続き」から検索を再開できます。
+ただし、<code>Selection</code> オブジェクトと違い、
+<code>SelectionWithContinuation</code> オブジェクトはイテレータとしては使えません。
+これは <code>SelectionWithContinuation</code> オブジェクトが過去の検索結果を
+保存していないため、検索結果を最初からすべて返すイテレータの意味論が適用できないためです。
+途中から検索を再開するには <code>iter_start()</code> メソッドを使ってください。
+<p>
+<ul>
+<li> <code>save_continuation()</code><br>
+現在の <code>Selection</code> オブジェクトの「継続 (continuation)」として、
+base64 エンコーディングされた 12文字の文字列を返します。
+この文字列は URL やフォームの値に含めることができます。
+<p>
+<li> <code>load_continuation(<em>continuation</em>)</code><br>
+<code>save_continuation()</code> で得られた base64文字列を渡すと、
+<code>Selection</code> オブジェクトの以前の状態を復元します。
+<p>
+</ul>
+<p>
+<dt> <code>DummySelection(<em>corpus</em>, <em>locations</em>)</code>
+<dd> 手動で作成した文書の集合 (<em>locations</em> に文書の位置のリストを与えます) を
+あたかも Selection の検索結果と同じように扱うオブジェクトです。なお、このオブジェクトから返された
+<code>Document</code>オブジェクトの <code>get_snippet()</code> メソッドを呼び出すと、
+各文書の先頭 (あるいはそのクラスの <code>default_snippet_pos</code> で指定された位置) からの
+内容をデフォルトの snippet として表示します。
+<p>
+</dl>
+
+<h5>公開されている属性・メソッド</h5>
+<p>
+以下の属性・メソッドはすべての <code>Selection</code> クラスで使えます:
+<ul>
+<li> <code>iter_start(timeout=<em>0</em>)</code><Br>
+検索結果の最後尾から検索を開始し、順に結果を返すようなイテレータを返します。
+引数 <code>timeout</code> を <code>0</code> 以外の値 (秒数) に指定すると、
+規定された時間後に検索をタイムアウトし <code>SearchTimeout</code> 例外を送出します。
+これは Web アプリケーションなどで、意地悪な検索条件により計算時間が浪費されるのを防ぐためのものです。
+<p>
+<code>Selection</code> オブジェクトを作成したばかりの状態
+(つまり、検索結果がまったくない状態) では、これは通常のイテレータと同じですが、
+通常のイテレータがつねに検索結果を最初から (キャッシュを使って) 返すのに対し、
+このメソッドのイテレータはつねに次の検索結果を返そうとします。
+<p>
+<li> <code>iter(start=<em>0</em>, timeout=<em>0</em>)</code><Br>
+通常のイテレータを返す <code>__iter__()</code> メソッドに
+開始位置 <code>start</code> と <code>timeout</code> を指定できるようにしたものです。
+なお、<code>SelectionWithContinuation</code> クラスではこのメソッドは使えません。
+<p>
+<li> <code>get(i, timeout=<em>0</em>)</code><Br>
+指定された要素を取得する <code>__getitem__</code> メソッドに <code>timeout</code> 引数を追加したものです。
+<p>
+<li> <code>get_preds()</code><Br>
+この <code>Selection</code> オブジェクトが使っている <code>Predicate</code> オブジェクトのリストを返します。
+<p> 
+<li> <code>status()</code><Br>
+現在の検索の状態をあらわす (<em>finish</em>, <em>estimated</em>) の
+2要素からなるタプルを返します。
+<em>finished</em> は検索が完了したか (もう続きがないかどうか) を表す真偽値で、
+<em>estimated</em> は該当する文書数のおおよその概算値を返します。
+Fooling における検索は漸進的に行われるため、検索が完了するまで「該当する文書数」の正確な数はわかりません。
+<code>status()</code> では、該当文書が文書集合中に一様に分布していると仮定してこの値を計算します。
+検索するフレーズが偏って分布している場合、この予測値は実際と大きくずれる場合があります。
+<p>
+<li> <code>matched_range(<em>s</em>)</code><br>
+与えられた文字列を、現在の検索条件に従ってハイライトさせる部分とそうでない部分に切り分けて返します。
+たとえば '<code>b</code>' という文字列を検索した場合にこのメソッドに '<code>abbcc</code>' を与えると、
+<code>[(False, 'a'), (True, 'bb'), (False, 'cc')]</code> のようなタプルのリストが返されます。
+このルーチンはおもに snippet の生成に使われますが、該当した文書自身を
+ハイライト表示したいときなどにも使えます。
+<p>
+</ul>
+
+<a name="class-document"></a>
+<h4>Document クラス</h4>
+<p>
+<code>Document</code> オブジェクトはひとつの文書を表現します。
+このクラスは必ずしも内部に具体的なデータを持っているわけではなく、
+<code>Corpus</code> オブジェクトから file-like オブジェクト (実際の <code>file</code>オブジェクト
+または <code>StringIO</code>) を取得して文書データにアクセスします。
+また、このクラスは各文書からインデックスするための単語列を抽出したり、
+文書のタイトルを取得したりするインターフェイスを提供します。
+<p>
+検索機能を使うユーザは、通常 <code>Selection</code> オブジェクトを介して 
+<code>Document</code> オブジェクトを受け取り、以下のメソッドあるいは属性にアクセスします:
+
+<h5>公開されている属性・メソッド</h5>
+<p>
+以下の属性・メソッドはすべての <code>Document</code> クラスで使えます:
+<ul>
+<li> <code>loc</code><Br>
+その文書の位置 (location) を表します。
+この解釈はその文書が含まれている <code>Corpus</code> によって違っており、
+ユーザはこの値から該当文書のパス名やリンクを表示します。
+<p>
+<li> <code>get_mtime()</code><Br>
+その文書の最終更新時刻 (秒数) を返します。
+<p>
+<li> <code>get_snippet(<em>selection</em>, normal=<em>lambda x:x</em>, highlight=<em>lambda x:x</em>, 
+maxsents=<em>3</em>, maxchars=<em>100</em>, maxcontext=<em>20</em>)</code><br>
+検索結果 <em>selection</em> に対応する snippet (マッチするフレーズの文脈) を文字列で返します。
+このとき、マッチした部分の文字列は関数 <em>highlight</em> に渡され、
+それ以外の部分は関数 <em>normal</em> に渡され、それぞれの返り値が連結されます。
+たとえば検索結果として HTML を表示したい場合は、<em>normal</em> に通常の HTML のエスケープ関数
+(メタ文字をエンティティに置換する)、<em>highlight</em> に強調表示を加える関数
+(<code>lambda x: '&lt;strong&gt;'+escape(x)+'&lt;/strong&gt;'</code> など) を与えます。
+なお、マッチした部分が重なったりネストしている場合はもっとも外側の範囲が渡されます。
+<p>
+その他のキーワード引数 <em>maxsents</em>, <em>maxchars</em>, <em>maxcontext</em> には、
+それぞれ snippet に表示する文の最大数、snippet 全体の最大文字数、
+マッチした各部分の周辺を表示する最大文字数を指定します。
+<p>
+</ul>
+
+<h5>定義されているクラスオブジェクト</h5>
+<p>
+以下のクラスが <code>fooling.document</code> モジュール内で定義されています。
+<p>
+ユーザが <code>Document</code> オブジェクトを直接作成しては *いけません*。
+<code>Document</code> オブジェクトはつねに <code>Corpus</code> オブジェクトによって作成されます。
+ただし <code>Corpus</code> オブジェクト を作成するさい、ユーザはその文書形式として
+引数 <em>doctype</em> に以下の<strong>クラスオブジェクト</strong>のどれかを与える必要があります。
+これらのクラスは、文書データ (生のバイト列) の解釈と snippet の表示方法が
+異なっています。新しい <code>Document</code> サブクラスを定義するさいは
+<a href="#ext-document">新しい種類の文書 (Document) をサポートする</a>
+を参照してください。
+
+<dl>
+<dt> <code>PlainTextDocument</code>
+<dd> プレインテキスト形式の文書。
+<p>
+<dt> <code>HTMLDocument</code>
+<dd> HTML文書。
+<p>
+<dt> <code>EMailDocument</code>
+<dd> 電子メール文書 (RFC 2822形式のテキスト)。
+<p>
+<dt> <code>SourceCodeDocument</code>
+<dd> プログラムのソースコード。(<code>PlainTextDocument</code> とほとんど同じ)
+<p>
+</dl>
+
+<a name="class-indexer"></a>
+<h4>Indexer クラス</h4>
+<p>
+<code>Indexer</code> オブジェクトは指定された <code>Corpus</code> 中の文書をインデックスし、
+インデックスファイルを作成します。ユーザは作成した <code>Indexer</code> オブジェクトの
+<code>index_doc()</code>メソッドを呼び出して文書を追加していきます。
+文書数 (あるいはその合計単語数) がある既定値を超えると、 <code>Indexer</code> は
+随時インデックスファイルを (<code>Corpus</code> オブジェクトで指定された) インデックス用ディレクトリに
+書き出していきます。<code>Indexer</code> クラスの使い方については、
+<code>fooling/indexer.py</code> の <code>main</code>関数も参照してください。
+
+<h5>作成可能なクラス</h5>
+<dl>
+<dt> <code>Indexer(<em>corpus</em>, max_docs_threshold=<em>2000</em>, max_terms_threshold=<em>50000</em>)</code>
+<dd> 与えられた <code>Corpus</code>オブジェクト <em>corpus</em> を対象とした
+<code>Indexer</code> オブジェクトを作成します。オプション引数 <em>max_docs_threshold</em> は
+1インデックスファイル中に含まれる文書の最大数を指定し、 <em>max_terms_threshold</em> は
+1インデックスファイル中に含まれる単語の (おおまかな) 最大数を指定します。
+毎回ひとつの文書をインデックスに追加したあと、<code>Indexer</code> はこれらの値が
+ここで指定されたスレッショルドを超えているかどうかを調べ、
+超えていればそれまでの結果をひとつのインデックスファイル中に書き出し次に進みます。
+<p>
+デフォルトの値では、ひとつのインデックスファイルはだいたい 3〜10MBytes になり、
+生成時にはその約2倍のメモリを必要とします。個々のインデックスファイルを大きくする
+(<em>max_docs_threshold</em> あるいは <em>max_terms_threshold</em> の値を上げる) と
+場所の効率はよくなりますが、検索時間が必ずしも早くなるとはかぎりません
+(検索フレーズによってはかえって遅くなることもあります)。
+</dl>
+
+<h5>公開されている属性・メソッド</h5>
+<p>
+<ul>
+<li> <code>index_doc(<em>loc</em>, maxpos=<em>1000000</em>, titleonly=<em>False</em>)</code><Br>
+位置 <em>loc</em> で表される文書をインデックスに追加します。
+ひとつのインデックスファイル中に含まれる文書数あるいは単語数がそれぞれ
+(オブジェクト作成時の)
+<em>max_docs_threshold</em>、<em>max_terms_threshold</em> の値を超えたとき、
+これまでのインデックスが新しいファイルに書き出されます。
+<p>
+引数 <em>maxpos</em> にはインデックスをおこなう最大範囲を指定します
+(一文書中で、この値より以降のオフセットに現れるデータは無視されます)。
+デフォルトで 1000000 を指定すると、これはだいたい各文書の最初の 約1MBytes だけを
+インデックスしますが、実際にはこのオフセット値の解釈は各 <code>Document</code>クラスごとに
+異なるため、正確に 1MBytes ぶんのテキストをインデックスするわけではありません
+(たとえば <code>EMailDocument</code> では、<em>maxpos</em> の値は各MIMEパート中で
+インデックスする最大サイズを意味します)。
+<p>
+<em>titleonly</em> に真を指定すると、文書のタイトルのみをインデックスし、
+文書の内容はインデックスしません。
+<p>
+<li> <code>finish()</code><Br>
+インデックスを完了します。まだ書き出されていないインデックスファイルは、
+このときまとめてディスクに書き出されます。
+<p>
+</ul>
+
+<a name="class-merger"></a>
+<h4>Merger クラス</h4>
+
+<p>
+<code>Merger</code> オブジェクトは指定された <code>Corpus</code> 中に属する
+インデックスファイルを統合・再構成します。ほとんどの操作は自動で行われるため、
+ユーザはただ <code>Merger</code> オブジェクトを作成して <code>run()</code> メソッドを
+呼び出すだけです。<code>Merger</code> クラスの使い方については
+<code>fooling/merger.py</code> の <code>main</code>関数も参照してください。
+
+<h5>作成可能なクラス</h5>
+<dl>
+<dt> <code>Merger(<em>corpus</em>, max_docs_threshold=<em>2000</em>, max_terms_threshold=<em>50000</em>)</code>
+<dd> 与えられた <code>Corpus</code>オブジェクト <em>corpus</em> を対象とした
+<code>Merger</code> オブジェクトを作成します。引数 <em>max_docs_threshold</em>、
+<em>max_terms_threshold</em> の値は <code>Indexer</code> オブジェクトと同じです。
+
+</dl>
+
+<h5>公開されている属性・メソッド</h5>
+<p>
+<ul>
+<li> <code>run()</code><Br>
+インデックスファイルの統合を開始します。
+<p>
+</ul>
+
+
+<a name="extension"></a>
+<hr noshade>
+<h3>
+3. 拡張方法
+</h3>
+
+<p>
+Fooling では以下のクラスを拡張して
+新しい文書集合や文書の形式、検索方法などをサポートすることができます。
+
+<a name="ext-corpus"></a>
+<h4>a. 新しい種類の文書集合 (Corpus) をサポートする</h4>
+
+<p>
+<code>Corpus</code> クラスは文書の実体データにアクセスする手段を提供します。
+また、このクラスは個々の文書に関連したメタ情報 (タイトル、更新日時など) や、
+文書の形式を決定するのにも使われます。文書のデータを保存するコンテナとして
+別のものが利用したい場合や、ひとつの文書集合中で異なる文書形式・文字コードを
+混在させたい場合は、<code>Corpus</code> のサブクラスを定義してください。
+
+<h5>必ず実装しなければならないメソッド</h5>
+
+<ul>
+<li><code>loc_exists(self, loc)</code><br>
+位置 <em>loc</em> に文書が存在しているかどうかを真偽値で返します。
+ある文書がインデックス後に消去されている場合、Fooling はこのメソッドを使って
+それらの文書を検索結果から排除します。
+<p>
+<li><code>loc_fp(self, loc)</code><br>
+位置 <em>loc</em> にある文書の実体 (バイト列のデータ) にアクセスするための
+file-like オブジェクトを返します。
+このメソッドは <code>Document</code> オブジェクトから呼び出され、
+<code>Document</code> オブジェクトはその文書形式に応じてこのデータを解析し、
+単語の抽出や snippet の生成を行います。なお、文書データの文字コードとして
+<code>loc_encoding(self, loc)</code> の値が使われます。
+<p>
+</ul>
+
+<h5>オーバーライド可能なメソッド</h5>
+
+<ul>
+<li><code>get_doc(self, loc)</code><br>
+位置 <em>loc</em> にある文書を表す <code>Document</code> オブジェクトを返します。
+このメソッドは <code>Document</code> オブジェクトの種類を決定するためのもので、
+デフォルトではすべての文書が同一の形式をもつと仮定しているため、
+これはただ単に <code>self.default_doctype</code> に
+格納されているクラスオブジェクトを使ってインスタンスを作成するだけです。
+<p>
+ひとつの文書集合に複数の異なる形式の文書が格納されている場合には、
+<em>loc</em> の値に応じて異なるクラスを選択するようにしてください。
+<P>
+<li><code>loc_default_title(self, loc)</code><br>
+位置 <em>loc</em> にある文書のデフォルトのタイトルを unicode 文字列で返します。
+通常、ある文書のタイトルはメタ情報としてではなく、それ自身の中に記されていますが、
+一部の文書形式 (<code>SourceCodeDocument</code> クラスなど) ではそうなっていません。
+このメソッドはそのような場合に利用されます。文書の位置からタイトルが推測できる場合は
+その文字列を返すようにしてください。
+<p>
+(たとえば <code>FilesystemCorpus</code> では、
+このメソッドは文書のファイル名を返すようになっているので
+<code>SourceCodeDocument</code> と <code>FilesystemCorpus</code> を使っているときは
+タイトルとしてソースコードのファイル名が表示されることになります。)
+<p>
+<li><code>loc_encoding(self, loc)</code><br>
+位置 <em>loc</em> にある文書の文字コード (Python codec名) を文字列で返します。
+デフォルトではすべての文書が同一の文字コードをもつと仮定しているため、
+このメソッドはただ単に <code>self.default_encoding</code> の値を返すだけです。
+<p>
+<li><code>loc_mtime(self, loc)</code><br>
+位置 <em>loc</em> にある文書の最終更新時刻を epoch 秒数で返します。
+最終更新時刻が不明な場合は 0 を返します。
+<p>
+</ul>
+
+<a name="ext-document"></a>
+<h4>b. 新しい種類の文書 (Document) をサポートする</h4>
+<p>
+<code>Document</code> オブジェクトは <code>Corpus</code> オブジェクトから
+得られたバイト列データを解析し、検索単語の抽出や snippet の生成を行います。
+あるバイト列データを特定の文書形式として解析したい場合は、このサブクラスを作成します。
+
+
+<h5>必ず実装しなければならないメソッド</h5>
+
+<ul>
+<li> <code>get_sents(self, pos)</code><br>
+指定された開始位置 <em>pos</em> 以降の文をすべて列挙するイテレータを返します。
+このイテレータは <code>(<em>文ID</em>, <em>文</em>)</code> のようなタプルを
+生成する必要があります。<em>文ID</em> は整数で、これはその文を一意に区別するためのものです。
+通常これはその文の (文書データ中における) 開始バイトオフセットを表します。
+各文は Unicodeオブジェクトである必要があります。
+<p>
+もっとも単純な <code>get_sents()</code> メソッドは <code>SourceCodeDocument</code>クラスのものです。
+これは、<code>self.open()</code> を呼び出して文書データにアクセスする file-like オブジェクトを
+取得したあと、ファイル中の位置 <em>pos</em> まで <code>seek</code> し、
+そこから各行を 1文として返すものです。
+<p>
+なお、<code>get_sents()</code> は通常ジェネレータのため、
+自分自身では終了したかどうかを判定することができません。そのため 
+<code>get_sents()</code> を呼び出すメソッド (通常は後述の <code>get_terms</code> と
+<code>get_title</code>) は、終了時にかならず <code>self.close()</code> を実行して
+file-like オブジェクトを閉じる必要があります。
+(さもないとファイルを一度に開きすぎて OS の制限を超える場合があります)
+</ul>
+
+<h5>オーバーライド可能なメソッド</h5>
+
+<ul>
+<li> <code>get_terms(self, maxpos)</code><br>
+インデックスする単語列を列挙します。文書の先頭から、
+1文ごとに <code>(<em>文ID</em>, <em>その文に含まれる単語のリスト</em>)</code> のような
+タプルを生成するイテレータを返します。これは内部で <code>get_sents(0)</code> を呼び出し、
+得られた文字列を <code>fooling.util.isplit</code> 関数を使って 2.2-グラム単語列に変換します。
+各文書ごとのメタ情報 (電子メールのヘッダなど) をインデックスしたい場合は
+この <code>get_terms()</code> メソッドに追加の単語列を生成させるようにします。
+<p>
+<li> <code>get_title(self)</code><br>
+文書のタイトルを文字列で返します。
+デフォルトでは、これは内部で <code>get_sents(0)</code> を呼び出し、
+最初に得られた文をタイトルとして使用します。
+<code>EMailDocument</code> では <code>Subject:</code>ヘッダの値を使用します。
+<p>
+<li> <code>get_mtime(self)</code><br>
+文書の更新日時を epoch からの経過秒数で返します。
+(電子メールの <code>Date:</code> ヘッダなどで) 更新日時が文書中に記されている場合、
+このメソッドをオーバーライドすることにより文書内から更新日時を取得できます。
+デフォルトでは、これは <code>Corpus</code> クラスの <code>loc_mtime()</code> を呼び出した値を返します。
+<p>
+</ul>
+
+<a name="ext-predicate"></a>
+<h4>c. 新しい種類の述語 (Predicate) をサポートする</h4>
+<p>
+<code>Predicate</code> クラスを拡張するためには、
+Fooling の検索ルーチンでこれがどのように使われているかを理解している必要があります:
+
+<ol>
+<li> <code>Selection</code> オブジェクトに渡されたひとつ (あるいは複数) の 
+<code>Predicate</code> オブジェクトは、まず優先度高→優先度低の順にソートされます。
+各 <code>Predicate</code> オブジェクトは優先度 (<code>priority</code>) をもっています。
+これは AND 検索で複数の述語を使う場合、なるべく文書を絞りこめるような述語を先に
+適用したほうが処理速度が上がるためです。
+<p>
+<li> 次に、否定をあらわす述語 (<q><code>-</code></q> あるいは 
+<q><code>!</code></q> が先頭についているもの) は後で処理されるよう並べ替えられます。
+Fooling 検索では「まず肯定的な条件に合致する文書を集め、
+そこから否定的な条件に合致する文章を引く」という戦略をとっています。
+その述語が否定かどうかは <code>neg</code> 属性によって決定されます。
+<p>
+<li> 各述語の中では、検索するキーワードは <A href="#impl-2.2-gram">2.2-グラム</a> の列に分解され、
+さらに検索文字列の「先頭」「中央」「末尾」部分それぞれのトークンを含んだ
+3つのリストに分けて返されます。これは、2.2-グラムが境界の文字種を区別するため、
+たとえば「日本列島」などのキーワードを境界を無視して検索するさいには、
+以下に示す 3つの条件を見たす文を検索しなければならないからです:
+<ul>
+<li> 「先頭」部分: <q><code>|日本-</code></q> または <q><code>-日本-</code></q> どちらかのトークンを含む。
+<li> 「中央」部分: <q><code>-本列-</code></q> のトークンを含む。
+<li> 「末尾」部分: <q><code>-列島-</code></q> または <q><code>-列島|</code></q> どちらかのトークンを含む。
+</ul>
+インデックスファイルからこれらのトークンを検索するさい、
+先頭と末尾のトークン列は OR 結合され、中央のトークン列は AND 結合として扱われます。
+<p>
+<li> インデックスファイルの中から、検索キーワードをあらわす 2.2-グラムのトークンを含んだ
+(<em>文書ID</em>, <em>文ID</em>) の
+リストが取得されます。各文書内の文 ID は <code>Predicate オブジェクト</code> の
+<code>pos_filter</code> 関数に渡され、条件に合致しない文 ID はふるい落とされます。
+たとえば電子メール (<code>EMailDocument</code> オブジェクト) 中で
+ヘッダに含まれる文字列だけを検索したい場合、ヘッダに現れる文字列は必ず 100未満の文 ID をもち、
+ボディ中に現れる文字列は必ず 100以上の文 ID をもつようになっているので、
+<code>pos_filter</code> を <code>lambda pos: pos &lt; 100</code> に設定してやれば
+ヘッダ内の文字列のみにマッチするような述語を作成することができます。
+この判定は実際の文書ファイルにシークする前におこなわれるため、
+これによって 5. の段階で文書ファイルを取得する回数を減らすことができます。
+<p>
+<li> 該当した文書ファイルが実際にアクセスされ、文 ID で表される文のリストが取得されます。
+ここで <code>Predicate オブジェクト</code> の <code>reg_pat</code> 属性に格納された
+正規表現オブジェクトが使われ、最終的にこの検索文字列に正確にマッチするかどうかがテストされます。
+</ol>
+
+<code>Predicate</code> オブジェクトの基本的なふるまいは、
+ほとんど <code>Predicate.__init__</code> メソッドが行います。
+Predicate クラスを拡張する場合は <code>setup</code> メソッドをオーバーライドしてください。
+<p>
+<ul>
+<li> <code>setup(self, s)</code><br>
+与えられた検索式 <em>s</em> を解析し、<code>Predicate</code> オブジェクト中の属性値を設定する。
+その後、以下のような 4要素のタプルを返す。
+<p>
+<code>(正規表現パターン, 先頭のトークン列, 中央のトークン列, 末尾のトークン列)</code>
+<p>
+<em>正規表現パターン</em> は Unicode 文字列オブジェクト、先頭・中央・末尾の各トークン列は
+str 文字列のリストです。たとえば「<code>日本列島</code>」という検索文字列を標準の 
+<code>Predicate</code>オブジェクトに与えた場合は以下のようなタプルが返されます (模式図):
+<p>
+<code>(u'日本列島', ['|日本-', '-日本-'], ['-本列-'], ['-列島-', '-列島|'])</code>
+<p>
+実際には、各トークンは境界情報をふくんだ UTF-8 文字列で返されるので、
+本当に返されるタプルは以下のとおりです (境界情報の記述方法については、
+<A href="#impl-token-boundary">トークンの境界情報</a>を参照)。
+<p>
+<code>(u'日本列島', ['\x03\xe6\x97\xa5\xe6\x9c\xac', '\x01\xe6\x97\xa5\xe6\x9c\xac'], 
+['\x01\xe6\x9c\xac\xe5\x88\x97'], ['\x02\xe5\x88\x97\xe5\xb3\xb6', '\x01\xe5\x88\x97\xe5\xb3\xb6'])</code>
+
+<p>
+各 <code>Predicate</code> オブジェクトは以下のような属性をもっており、
+<code>Predicate.setup</code> メソッドはこれらのうちいくつかを設定する必要があります:
+
+<ul>
+<li> <code>priority</code><br>
+<code>Predicate</code> オブジェクトの優先度を表します。
+優先度は、複数の <code>Predicate</code> オブジェクトを検索に使う場合に使用され、
+整数で表されます。検索開始時にすべての <code>Predicate</code> オブジェクトは
+優先度をキーとして降順にソートされ、大きな優先度をもつ述語が先に使われます。
+デフォルトの優先度は 0 です。
+<p>
+<li> <code>pos_filter</code><br>
+文書中の文ID (通常はファイル中のオフセット値) を絞りこむための関数を指定します。
+この関数は単純で、高速に実行できるものである必要があります。
+なお、この属性の値は <code>eval</code> して関数オブジェクトが得られるような
+<strong>文字列表現であり、関数オブジェクトではありません</strong>
+(これは <code>Predicate</code> オブジェクトを pickle 可能にするための措置です)。
+通常は <code>lambda</code> 式が使われることになります。
+実際にはこの値は <code>eval</code> されて <code>pos_filter_func</code> という属性に格納されます。
+この値が <code>None</code> の場合、文IDによる絞りこみは行われません。
+<p>
+<li> <code>neg</code> <strong>(変更不可)</strong><br>
+この <code>Predicate</code> オブジェクトが否定を表すものかどうかを表します。
+検索キーワードの先頭に「<code>-</code>」あるいは「<code>!</code>」がついている場合、
+この値は <code>True</code> になります。なお、この属性値はユーザが変更してはいけません。
+<code>Predicate.__init__</code> メソッドは検索キーワードの先頭に
+「<code>-</code>」あるいは「<code>!</code>」がついている場合、
+<code>neg</code> を <code>True</code> に設定し、この部分を切り取って <code>setup</code>メソッドに渡します。
+<p>
+<li> <code>reg_pat</code> <strong>(変更不可)</strong><br>
+インデックスファイルで該当した文が本当に検索文字列を含んでいるかどうか、
+最後の絞りこみに使われる正規表現オブジェクトです。なお、この属性値は
+<code>setup</code> メソッドが返した値によって <code>Predicate.__init__</code> メソッドが設定します。
+この値が <code>None</code> の場合、絞りこみは行われません。
+</ul> 
+
+</ul>
+
+
+<a name="webapp"></a>
+<hr noshade>
+<h3>
+4. Webアプリケーションから使う際の注意点
+</h3>
+
+<p>
+Webアプリケーションなどから不特定多数のユーザに
+Fooling の検索サービスを提供する場合、
+以下のことに注意する必要があります:
+
+<h4>SelectionWithContinuation クラスを使う</h4>
+<p>
+Webアプリケーション上で「次の 10件」のような機能を提供する場合は
+<code>SelectionWithContinuation</code> クラスの
+<code>save_continuation()</code> メソッドを使って
+次の検索開始位置を 12文字の base64 文字列として符号化します。
+この文字列を URL またはフォームに入れておき、次の HTTPリクエスト時に
+受けとって <code>load_continuation()</code> メソッドを使うと、
+それまでの続きから検索できます。なお、ここで保存・復元される情報は
+検索の開始位置と「おおよその該当件数」を計算するために必要な
+統計情報のみです。そのため、悪意あるユーザがこの文字列を改ざんしても
+オブジェクトが不正な状態になることはありません。
+
+<h4>検索タイムアウトを設定する</h4>
+<p>
+Fooling は検索のたびに数百ミリ秒〜数秒の CPU 時間を消費するので、
+状況によってはこれはマシンの負荷を増大させます。
+そのため、あまり時間のかかる検索は避けたほうが無難です。
+<code>Selection</code> オブジェクト (または <code>SelectionWithContinuation</code>オブジェクト)
+でキーワード引数 <em>timeout</em> (秒数) を指定すると、一定時間後に検索は自動的にタイムアウトします。
+
+<h4>StrictPredicate クラスを使わない</h4>
+<p>
+上の項目と関連したことですが、<code>StrictPredicate</code> オブジェクトを使った検索は、
+場合によっては非常に時間がかかる場合があります。たとえば
+JavaDoc 日本語版で「<code>オブジェクト-</code>」という文字列を検索すると、
+Fooling は「<code>オブジェクト</code>」を検索したあと、各文書の該当部分が
+「<code>オブジェクト-</code>」というパターンにマッチするかどうかを調べるため、
+実際には数千件の文書をスキャンすることになります。そのため Webアプリケーションでは
+とくに必要がない限り <code>StrictPredicate</code> は使わないほうがよいでしょう。
+
+
+<a name="implementation"></a>
+<hr noshade>
+<h3>
+付録. Fooling 実装上の特徴
+</h3>
+
+<a name="impl-2.2-gram"></a>
+<h4>a. 2.2-グラム</h4>
+<p>
+Fooling で使われている文字列検索の基本的なアイデアは、
+ある文字列から、となりあった 2文字の組 (2-グラム) を単語列として
+分解しインデックスするというものです。たとえば「東京都」という文字列は
+「東京」と「京都」に分解されることになりますが、これに加えて Fooling では
+各文字種 (漢字、ひらがな、カタカナ) の境界を考慮することにより
+各単語をもう少し細かく区別するようにしました。たとえば:
+<ul>
+<li> 「ここは東<strong><u>京都</u></strong>です。」
+<li> 「東<strong><u>京都</u></strong>庁は新宿にある。」
+<li> 「ぼくは<strong><u>京都</u></strong>駅に着いた。」
+</ul>
+この例に示された「京都」は、どれも通常の 2-グラムでは
+区別されませんが、2.2-グラムでは各「京都」の両どなりにある
+文字が異なる種類のものは別の語として識別します。
+左右にある文字が同じ種類 (漢字) である場合は "-" で、
+異なる種類の場合は "|" で表すとすると、上の「京都」は
+それぞれ以下のようなトークンとして表されます:
+<ul>
+<li> (<code>-京都|</code>) 「ここは東<strong><u>京都</u></strong>です。」
+<li> (<code>-京都-</code>) 「東<strong><u>京都</u></strong>庁は新宿にある。」
+<li> (<code>|京都-</code>) 「ぼくは<strong><u>京都</u></strong>駅に着いた。」
+<li> (<code>|京都|</code>) 「べつに<strong><u>京都</u></strong>は好きじゃありません。」
+</ul>
+<p>
+「2.2-グラム」という名前は、これらの各トークンが通常の 2-グラムよりも
+2ビット分余計な情報を含んでいることからつけました。
+
+<a name="impl-multiple-indices"></a>
+<h4>b. 複数のインデックスファイルによる検索</h4>
+<p>
+Fooling で使われているインデックスは、文中の各トークン (2.2-グラムで分割されたもの)
+に対して、それが現れる文書 ID と文 ID を羅列したものです。
+Fooling における「文」とは、フレーズを検索する際の最小単位です。
+異なる「文」をまたいだ文字列は一個のフレーズとはみなされません。
+複数のトークンが同じ文中に現れていれば、
+その文は検索フレーズを含んでいる可能性が高くなります。
+しかしこの操作はインデックス中に含まれる文書 ID と文 ID の数が
+多くなると遅くなるため、Fooling ではインデックスをいくつものファイルに分割し、
+優先順位の高い方から検索していきます (これは、ランキングがあらかじめ
+決まっていると仮定しているために可能になっています)。また文 ID として
+文書ファイル中でその文が現れるバイトオフセットを使っているため、
+snippets を表示するときもすばやく文中の該当する位置にシークできます。
+
+<a name="impl-index-file-format"></a>
+<h4>c. インデックスファイルの形式</h4>
+<p>
+Fooling ではインデックスファイルの形式として <a href="http://cr.yp.to/cdb.html">cdb</a> を使っています。
+cdb はある「キー」に対応する値をすばやく (ディスクの平均シーク回数が約3回で) 見つけることができます。
+cdb は Berkeley DB などと比べてファイルサイズが小さく高速ですが、
+いちど作成したら追加・修正ができないという欠点があります。そのため Fooling では
+新しく追加された文書に対する cdb ファイルを毎回新たに作成します。
+この方法では cdb ファイルは時間がたつにつれて増えていくので、
+定期的にこれらをマージすることによってコンパクトなファイルを保持します。
+<p>
+以下の図はインデックスファイルの構造を示しています。
+マージ操作の効率を上げるため、
+すべてのキーは最後のひとつを除き辞書順にソートされています。
+すべての文書には インデックスファイル中でローカルな文書 ID がつけられています。
+最初に各文書 ID とその文書の location に対応するマッピングがあり、
+そのあとに 2.2-グラムで分割されたトークンが続きます。
+各トークンの前にある文字 <code>c</code> は、トークンの境界情報を表します。
+各トークンに対応する値は降順にソートされた (文書ID, 文ID) のリストであり、
+最初にリストの要素数 <em>n</em> が記録されています。
+Fooling では <em>n</em> が 4以上の場合、以後の文字列は <code>zlib.compress</code> で圧縮されます。
+つづいて文書の location から文書 ID へのマッピングがあります。
+最後に、空文字列をキーとしてインデックスファイル全体の情報が記録されています。
+<p>
+<table style="border:1px solid">
+<tr><td><strong>キー</strong></td><td colspan=3><strong>値</strong></td></tr>
+<tr><td style="border:1px solid"><code>'\x00'+docid1</code></td><td style="border:1px solid"><code>location1</code></td><td width=40></td><td width=40></td></tr>
+<tr><td style="border:1px solid"><code>'\x00'+docid2</code></td><td style="border:1px solid"><code>location2</code></td><td width=40></td><td width=40></td></tr>
+<tr><td colspan=4>...</td></tr>
+<tr><td style="border:1px solid"><code>c + トークン1</code></td><td style="border:1px solid"><code>(n, [(docid, sentid), ...])</code></td><td width=40></td><td width=40></td></tr>
+<tr><td style="border:1px solid"><code>c + トークン2</code></td><td style="border:1px solid" colspan=3><code>(n, [(docid, sentid), ...])</code></td><td></td></tr>
+<tr><td style="border:1px solid"><code>c + トークン3</code></td><td style="border:1px solid" colspan=2><code>(n, [(docid, sentid), ...])</code></td></tr>
+<tr><td colspan=4>...</td></tr>
+<tr><td style="border:1px solid"><code>'\xff'+location1</code></td><td style="border:1px solid"><code>docid1</code></td><td width=40></td><td width=40></td></tr>
+<tr><td style="border:1px solid"><code>'\xff'+location2</code></td><td style="border:1px solid"><code>docid2</code></td><td width=40></td><td width=40></td></tr>
+<tr><td colspan=4>...</td></tr>
+<tr><td style="border:1px solid"><code>''</code></td><td style="border:1px solid"><code>(総文書数, 総トークン数)</code></td><td width=40></td><td width=40></td></tr>
+</table>
+<p>
+
+<a name="impl-token-boundary"></a>
+<h4>d. トークンの境界情報</h4>
+<p>
+インデックスファイル中の各トークンは、境界情報を表す 1バイトの文字のあとに 
+UTF-8で表されたトークン本体の文字列が連結された形で表されています。
+この境界情報を表す 1バイトの意味は以下のとおりです:
+<ul>
+<li> <code>'\x01'</code>: このトークンの左右どちら側も境界でない。(<code>-○○-</code>)
+<li> <code>'\x02'</code>: このトークンの右側だけが境界である。(<code>-○○|</code>)
+<li> <code>'\x03'</code>: このトークンの左側だけが境界である。(<code>|○○-</code>)
+<li> <code>'\x04'</code>: このトークンの左右どちら側も境界である。(<code>|○○|</code>)
+</ul>
+<p>
+なお、境界情報が '\x10'〜 以上の文字である場合、
+このトークンは文書に関するメタ情報を表す特殊なトークンとして扱われます。
+<ul>
+<li> <code>'\x10'</code>: このトークンは電子メールの Message-ID を表す。(EMailDocument のみ)
+<li> <code>'\x11'</code>: このトークンは電子メールが引用する Message-ID を表す。
+この ID を <code>In-Reply-To</code> あるいは <code>References</code> ヘッダに含む
+メッセージはすべてこのトークンを含む。(EMailDocument のみ)
+<li> <code>'\x20'</code>: このトークンは文書の日付情報を表す。
+</ul>
+
+
+<hr noshade>
+<address>Yusuke Shinyama</address>
+</body>
