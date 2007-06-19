@@ -20,6 +20,8 @@ KBD { background: #eeeeee; font-weight: bold; }
 <a href="http://www.unixuser.org/~euske/python/fooling/fooling-dist-20070305.tar.gz"><code>fooling-dist-20070305.tar.gz</code></a>
 </strong>
 (57KBytes, 要 Python2.4以上)
+<a href="http://code.google.com/p/fooling/">[SVN]</a>
+<a href="changes.html">[更新履歴]</a>
 
 <p>
 <strong>デモ:</strong>
@@ -29,6 +31,8 @@ KBD { background: #eeeeee; font-weight: bold; }
 <strong>ご意見・ご質問はこちらへ:</strong>
 <a href="http://groups.google.com/group/fooling-users">http://groups.google.com/group/fooling-users</a>
 
+<p>
+Fooling (風鈴) は <a href="http://www.python.org/">Python</a>用の文字列検索フレームワークです。
 
 <ul>
 <li> <a href="#help">検索機能ヘルプ</a>
@@ -46,7 +50,6 @@ KBD { background: #eeeeee; font-weight: bold; }
 <li> <a href="#license">ライセンス</a>
 <li> <a href="commands.html">Fooling コマンド一覧</a>
 <li> <a href="api.html">Fooling API と実装</a>
-<li> <a href="changes.html">更新履歴</a>
 </ul>
 
 <hr noshade>
@@ -149,8 +152,7 @@ $ <strong>cp -Rp fooling/ /usr/local/lib/python2.4/site-packages/</strong>
 これらのインデックスファイルを新しい方から逐次的に検索することで日付順の検索をおこないます。
 <li> 個々のインデックスファイルは<strong>読み込み専用</strong>であり、いちど作成したら再度インデックスするまで
 変更できません。新しく文書が追加された場合はインデックスファイル自体を追加することによって対応します。
-<li> インデックスファイルの形式は<strong>エンディアン依存</strong>です。
-複数のマシンで同一のインデックスを共有する時は注意してください。
+<li> インデックスファイル中の数値はリトルエンディアンで格納されます。
 </ul>
 
 <a name="howto-index"></a>

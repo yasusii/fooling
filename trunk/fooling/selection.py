@@ -89,9 +89,9 @@ class Predicate:
     else:
       self.neg = False
     (pat, self.r0, self.r1, self.r2) = self.setup(s)
+    #print (pat, self.r0, self.r1, self.r2)
     if pat:
       self.reg_pat = re.compile(pat, re.I | re.UNICODE)
-    #print (pat, self.r0, self.r1, self.r2)
     if self.pos_filter:
       self.pos_filter_func = eval(self.pos_filter)
     return
@@ -180,7 +180,7 @@ class EMailPredicate(Predicate):
         return (None, r, [], [])
       else:
         h = self.HEADER_MAP.get(h, h)
-        pat = ('^%s:.*' % h) + '('+r'\s*'.join( c for (c,t) in splitchars(s) if not c.isspace() )+')'
+        pat = ('^%s:.*' % h) + '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s) if not c.isspace() )+')'
     else:
       pat = '('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')'
     (r0,r1,r2) = rsplit(s)
