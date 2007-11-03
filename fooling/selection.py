@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: euc-jp -*-
-
-import re, sys, time
-from util import zen2han, rsplit, encodew
+import re, sys
+from util import zen2han, rsplit2
 from util import splitchars
 from util import intersect, merge, union, decode_array
 from struct import pack, unpack
@@ -11,9 +10,16 @@ from array import array
 upperbound = min
 lowerbound = max
 
-__all__ = [ 'Predicate', 'StrictPredicate', 'EMailPredicate', 'Selection',
-            'SelectionWithContinuation', 'DummySelection',
-            'parse_preds' ]
+__all__ = [
+  'Predicate',
+  'StrictPredicate',
+  'EMailPredicate',
+  'YomiPredicate',
+  'Selection',
+  'SelectionWithContinuation',
+  'DummySelection',
+  'parse_preds'
+  ]
 
 
 # retrieval date features
@@ -90,8 +96,10 @@ class Predicate:
       self.neg = False
     (pat, self.r0, self.r1, self.r2) = self.setup(s)
     #print (pat, self.r0, self.r1, self.r2)
-    if pat:
+    if isinstance(pat, basestring):
       self.reg_pat = re.compile(pat, re.I | re.UNICODE)
+    else:
+      self.reg_pat = pat
     if self.pos_filter:
       self.pos_filter_func = eval(self.pos_filter)
     return
@@ -118,11 +126,65 @@ class Predicate:
     if s.startswith('title:'):
       s = s[6:]
       self.pos_filter = 'lambda pos: pos == 0'
-    (r0,r1,r2) = rsplit(s)
+    (r0,r1,r2) = rsplit2(s)
     return ('('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')',
-            [ encodew(w) for w in r0 ],
-            [ encodew(w) for w in r1 ],
-            [ encodew(w) for w in r2 ])
+            r0, r1, r2)
+
+  def narrow(self, idx):
+    """
+    Returns a list of candidate docs within the given idx.
+    """
+    m0 = [ decode_array(idx[w]) for w in self.r0 if idx.has_key(w) ]
+    if self.r0 and not m0:
+      raise KeyError
+    m2 = [ decode_array(idx[w]) for w in self.r2 if idx.has_key(w) ]
+    if self.r2 and not m2:
+      raise KeyError
+    if self.r1:
+      refs = union(intersect( decode_array(idx[w]) for w in self.r1 ),
+                   [ m for m in (m0,m2) if m ])
+    elif not self.r2:
+      refs = merge(m0)
+    else:
+      refs = union(merge(m0), [m2])
+    # Now: refs = [ docid1,pos1, docid2,pos2, ... ]
+    locs = [ (refs[i], refs[i+1]) for i in xrange(0, len(refs), 2) ]
+    if self.pos_filter_func:
+      locs = [ (docid,pos) for (docid,pos) in locs
+               if self.pos_filter_func(pos) ]
+    return locs
+
+
+##  YomiPredicate
+##
+class YomiPredicate(Predicate):
+
+  class Pattern:
+    def __init__(self, yomi):
+      self.yomi = yomi
+      return
+    def search(self, sent):
+      import yomi
+      for _ in yomi.grep_yomi(self.yomi, sent):
+        return True
+      return False
+    def finditer(self, sent):
+      import yomi
+      return yomi.grep_yomi(self.yomi, sent)
+
+  def __repr__(self):
+    return '<YomiPredicate: %r>' % self.q
+
+  def setup(self, s):
+    import yomi
+    if s.startswith('?'):
+      yomi = yomi.encode_yomi(s)
+      return (YomiPredicate.Pattern(yomi),
+              [],
+              [ '\x05'+c1+c2 for (c1,c2) in zip(yomi[:-1],yomi[1:]) ],
+              [])
+    else:
+      return Predicate.setup(self, s)
 
 
 ##  StrictPredicate
@@ -131,6 +193,9 @@ class StrictPredicate(Predicate):
 
   ALL_ALPHABET = re.compile(ur'^\|?[\w\s]+\|?$', re.I | re.UNICODE)
   
+  def __repr__(self):
+    return '<StrictPredicate: %r>' % self.q
+
   def setup(self, s):
     if s.startswith('date:'):
       self.priority = 1
@@ -141,21 +206,24 @@ class StrictPredicate(Predicate):
     if self.ALL_ALPHABET.match(s):
       pat = '('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')'
     else:
-      pat = '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s) if not c.isspace() )+')'
-    (r0,r1,r2) = rsplit(s)
-    return (pat,
-            [ encodew(w) for w in r0 ],
-            [ encodew(w) for w in r1 ],
-            [ encodew(w) for w in r2 ])
+      pat = '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
+                             if not c.isspace() )+')'
+    (r0,r1,r2) = rsplit2(s)
+    return (pat, r0, r1, r2)
 
 
 ##  EMailPredicate
 ##
 class EMailPredicate(Predicate):
 
-  HEADER_PAT = re.compile(r'(subject|from|to|cc|rcpt|addr|message-id|references):(.*)', re.I|re.S)
+  HEADER_PAT = re.compile(
+    r'(subject|from|to|cc|rcpt|addr|message-id|references):(.*)',
+    re.I|re.S)
   HEADER_MAP = { 'rcpt':'(?:to|cc)', 'addr':'(?:from|to|cc)' }
   MSGID_PAT = re.compile(r'<([^>]+)>')
+
+  def __repr__(self):
+    return '<EMailPredicate: %r>' % self.q
 
   def setup(self, s):
     if s.startswith('date:'):
@@ -180,14 +248,13 @@ class EMailPredicate(Predicate):
         return (None, r, [], [])
       else:
         h = self.HEADER_MAP.get(h, h)
-        pat = ('^%s:.*' % h) + '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s) if not c.isspace() )+')'
+        pat = ('^%s:.*' % h) + \
+              '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
+                               if not c.isspace() )+')'
     else:
       pat = '('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')'
-    (r0,r1,r2) = rsplit(s)
-    return (pat,
-            [ encodew(w) for w in r0 ],
-            [ encodew(w) for w in r1 ],
-            [ encodew(w) for w in r2 ])
+    (r0,r1,r2) = rsplit2(s)
+    return (pat, r0, r1, r2)
 
 
 ##  Selection
@@ -200,8 +267,7 @@ class Selection:
                disjunctive=False):
     self._corpus = corpus
 
-    # Predicates:
-    # term_preds = [ positive ] + [ negative ]
+    # Predicates: term_preds = [ positive ] + [ negative ]
     self.pos_preds = sorted(( pred for pred in term_preds if not pred.neg ),
                             key=lambda pred: pred.priority, reverse=True)
     self.neg_preds = sorted(( pred for pred in term_preds if pred.neg ),
@@ -212,20 +278,17 @@ class Selection:
     
     # Starting position:
     if start_loc:
-      (self.start_idx, self.start_docid) = corpus.loc_indexed(start_loc)
-      self.start_docid += 1
+      self.start_loc = corpus.loc_indexed(start_loc)
     else:
-      (self.start_idx, self.start_docid) = (0, sys.maxint)
+      self.start_loc = (0, sys.maxint)
     # Ending position:
     if end_loc:
-      (self.end_idx, self.end_docid) = corpus.loc_indexed(end_loc)
+      self.end_loc = corpus.loc_indexed(end_loc)
     else:
-      (self.end_idx, self.end_docid) = (sys.maxint, 0)
+      self.end_loc = (sys.maxint-1, 0)
     
-    # Number of docs in the current index file.
-    self.idx_docs = 0
-    # Number of docs in the indices that are already searched.
-    self.finished_docs = 0
+    # Number of docs that are already searched.
+    self.searched_docs = (0, 0)
     
     # Found documents:
     # (We don't store Document objects to avoid having them pickled!)
@@ -234,9 +297,10 @@ class Selection:
     return
 
   def __repr__(self):
-    return '<Selection: corpus=%r, term_preds=%r, doc_preds=%r, start_idx=%r, start_docid=%d, found_locs=%r>' % \
+    return ('<Selection: corpus=%r, term_preds=%r, doc_preds=%r, '
+            'start_loc=%r, end_loc=%r, found_locs=%r>') % \
            (self._corpus, self.pos_preds+self.neg_preds, self.doc_preds,
-            self.start_idx, self.start_docid, self.found_locs)
+            self.start_loc, self.end_loc, self.found_locs)
 
   def __setstate__(self, dict):
     self.__dict__.update(dict)
@@ -267,7 +331,10 @@ class Selection:
       pat = pred.reg_pat
       if not pat: continue
       for m in pat.finditer(s):
-        (p0,p1) = (m.start(1), m.end(1))
+        if isinstance(m, tuple):
+          (p0,p1) = m
+        else:
+          (p0,p1) = (m.start(1), m.end(1))
         if p0 < p1:
           r.append((p0,1))
           r.append((p1,-1))
@@ -297,8 +364,10 @@ class Selection:
   def iter(self, start=0, timeout=0):
     if len(self.found_locs) < start:
       raise ValueError('invalid start index: %d' % start)
+    # Return the existing results first.
     for i in xrange(start, len(self.found_locs)):
       yield (i, self.get(i))
+    # Now retrieve new results.
     for x in self.iter_start(timeout):
       yield x
     return
@@ -307,154 +376,170 @@ class Selection:
     # Get the number of all documents.
     found_docs = len(self.found_locs)
     total_docs = self._corpus.total_docs()
-    if self.finished_docs == total_docs:
+    (searched_docs0, searched_docs1) = self.searched_docs
+    searched_docs = searched_docs0 + searched_docs1
+    if searched_docs == total_docs:
       return (True, found_docs)
     else:
       # Estimate the number of searched documents,
-      # assuming (start_docid == the number of unscanned docs in the current idx).
-      searched_docs = max(1, self.finished_docs + self.idx_docs - self.start_docid)
+      # assuming (start_docid ==
+      #           the number of unscanned docs in the current idx).
+      (_,docid) = self.start_loc
       # rate = (# of found documents) / (# of searched documents)
-      estimated = (found_docs * (total_docs - searched_docs) / searched_docs)
+      estimated = found_docs * (total_docs-searched_docs) / lowerbound(searched_docs, 1)
       return (False, found_docs+estimated)
 
-  def get_docids(self, idx):
-    if self.pos_preds:
-      docs = {}
-      conj = False
-    else:
-      # no positive predicate.
-      docs = dict( (docid,[]) for docid in xrange(min(self.start_docid-1, self.idx_docs-1),-1,-1) )
-      conj = True
-    for pred in (self.pos_preds + self.neg_preds):
-      try:
-        m0 = [ decode_array(idx[w]) for w in pred.r0 if idx.has_key(w) ]
-        if pred.r0 and not m0: raise KeyError
-        m2 = [ decode_array(idx[w]) for w in pred.r2 if idx.has_key(w) ]
-        if pred.r2 and not m2: raise KeyError
-        if pred.r1:
-          refs = union(intersect( decode_array(idx[w]) for w in pred.r1 ),
-                       [ m for m in (m0,m2) if m ])
-        elif not pred.r2:
-          refs = merge(m0)
-        else:
-          refs = union(merge(m0), [m2])
-      except KeyError:
-        if pred.neg:
-          continue
-        elif self.disjunctive:
-          refs = []
-        else:
-          docs.clear()
-          break
-      # refs = [ docid1,pos1, docid2,pos2, ... ]
-      #print 'refs:', pred, refs
-      # sort refs by docid
-      pos_filter = pred.pos_filter_func
-      start_docid = self.start_docid
-      end_docid = 0
-      if self.start_idx == self.end_idx:
-        end_docid = self.end_docid
-      if self.disjunctive:
-        # disjunctive (or) search
-        docs1 = {}
-        for i in xrange(0, len(refs), 2):
-          (docid,pos) = (refs[i], refs[i+1])
-          if start_docid <= docid: continue
-          if docid < end_docid: break
-          if pos_filter and not pos_filter(pos): continue
-          if docid not in docs1:
-            context = array('i')
-            docs1[docid] = context
-          else:
-            context = docs1[docid]
-          context.append(pos)
-        # conjunction with the previous docs.
-        for (docid,context) in docs1.iteritems():
-          if docid not in docs:
-            r = []
-            docs[docid] = r
-          else:
-            r = docs[docid]
-          r.append((context, pred.reg_pat))
-      elif pred.neg:
-        # negative conjunctive (-and) search
-        for i in xrange(0, len(refs), 2):
-          (docid,pos) = (refs[i], refs[i+1])
-          if start_docid <= docid: continue
-          if docid < end_docid: break
-          if pos_filter and not pos_filter(pos): continue
-          if docid in docs:
-            del docs[docid]
+  def get_docids(self):
+    """
+    Returns a list of DocIDs that might meet the query.
+    """
+    (start_idx, start_docid0) = self.start_loc
+    (end_idx, end_docid0) = self.end_loc
+    # We maintain the number of docs that have been searched so far.
+    # But this is separeted into two parts:
+    #  "all the docs included up to the previous index" + 
+    #  "the number of docs that have been searched within the current index"
+    # This way we can compute the number of searched docs deterministicly
+    # without any cumulative counting within iterators
+    # (no worry for double counting!).
+    (searched_docs0, _) = self.searched_docs
+
+    #  start_idx <= idxid <= end_idx.
+    #  start_docid-1 >= docid >= end_docid.
+    for (idxid,idx) in self._corpus.iteridxs(start_idx, end_idx):
+      (idx_docs, _) = unpack('>ii', idx[''])
+      if idxid == start_idx:
+        start_docid = min(start_docid0, idx_docs)
       else:
-        # positive conjunctive (+and) search
-        docs1 = {}
-        for i in xrange(0, len(refs), 2):
-          (docid,pos) = (refs[i], refs[i+1])
-          if conj and (docid not in docs): continue
-          if start_docid <= docid: continue
-          if docid < end_docid: break
-          if pos_filter and not pos_filter(pos): continue
-          if docid not in docs1:
-            context = array('i')
-            docs1[docid] = context
+        start_docid = idx_docs
+      if idxid == end_idx:
+        end_docid = end_docid0
+      else:
+        end_docid = 0
+      
+      if self.pos_preds:
+        conj = False
+        docs = {}
+      else:
+        # no positive predicate.
+        conj = True
+        docs = dict( (docid,[]) for docid in xrange(start_docid-1,-1,-1) )
+      
+      # Obtain a set of candidate documents for each predicate.
+      for pred in (self.pos_preds + self.neg_preds):
+        try:
+          locs = pred.narrow(idx)
+          locs = [ (docid,pos) for (docid,pos) in locs
+                   if start_docid > docid and docid >= end_docid ]
+        except KeyError:
+          if pred.neg:
+            continue
+          elif self.disjunctive:
+            locs = []
           else:
-            context = docs1[docid]
-          context.append(pos)
-        # conj: conjunction with the previous docs.
-        if conj:
-          # intersect
+            docs.clear()
+            break
+        
+        if self.disjunctive:
+          # disjunctive (OR) search.
+          docs1 = {}
+          for (docid,pos) in locs:
+            if docid not in docs1:
+              context = array('i')
+              docs1[docid] = context
+            else:
+              context = docs1[docid]
+            context.append(pos)
+          # combine with the previous docs.
           for (docid,context) in docs1.iteritems():
-            r = docs[docid]
+            if docid not in docs:
+              r = []
+              docs[docid] = r
+            else:
+              r = docs[docid]
             r.append((context, pred.reg_pat))
-            docs1[docid] = r
-          docs = docs1
+
+        elif pred.neg:
+          # negative conjunctive (-AND) search.
+          for (docid,pos) in locs:
+            if docid in docs:
+              del docs[docid]
+
         else:
-          docs = dict( (docid,[(a, pred.reg_pat)]) for (docid,a) in docs1.iteritems() )
-          conj = True
-    return docs
-  
-  def iter_start(self, timeout=0):
-    limit_time = 0
-    if timeout:
-      limit_time = time.time() + timeout
-    # Try each idx file...
-    for (idxid,idx) in self._corpus.iteridxs(self.start_idx):
-      if self.end_idx < idxid: break
-      (self.idx_docs, _) = unpack('>ii', idx[''])
-      # docs: { docid:[pos, ...], ... } for each index file.
-      docs = self.get_docids(idx)
-      #print docs
-      # load up candidate documents, check if it really matches.
-      for (docid,contexts) in sorted(docs.iteritems(), reverse=True):
+          # positive conjunctive (+AND) search.
+          docs1 = {}
+          for (docid,pos) in locs:
+            if conj and (docid not in docs): continue
+            if docid not in docs1:
+              context = array('i')
+              docs1[docid] = context
+            else:
+              context = docs1[docid]
+            context.append(pos)
+          if conj:
+            # intersect with the previous docs.
+            for (docid,context) in docs1.iteritems():
+              r = docs[docid]
+              r.append((context, pred.reg_pat))
+              docs1[docid] = r
+            docs = docs1
+          else:
+            conj = True
+            docs = dict( (docid,[(a, pred.reg_pat)]) for (docid,a)
+                         in docs1.iteritems() )
+
+      # docs: the candidate documents in the current index file.
+      docs = docs.items()
+      docs.sort(reverse=True)
+      for (docid,contexts) in docs:
+        self.start_loc = (idxid, docid)
+        self.searched_docs = (searched_docs0, idx_docs-docid)
         try:
           loc = idx['\x00'+pack('>i',docid)]
         except KeyError:
           continue
-        # Avoid duplication.
+        # Skip if the document is already in the cache.
         if loc in self.contexts: continue
         # Skip if the document does not exist.
         if not self._corpus.loc_exists(loc): continue
-        # Document predicates.
-        x = 0
+        # Apply the document predicates.
+        pol = 0
         for pred in self.doc_preds:
-          x = pred(loc, self._corpus)
-          if x: break
-        if x < 0: continue
-        doc = self._corpus.get_doc(loc)
-        # Skip if the document is newer than the index.
-        if self.safe and self._corpus.mtime < doc.get_mtime(): continue
+          pol = pred(loc, self._corpus)
+          if pol: break
+        # pol < 0: rejected immediately.
+        # pol > 0: accepted immediately.
+        # pol = 0: not decided (further examination required).
+        if 0 <= pol:
+          yield (pol,loc,contexts)
+
+      # Finished this index.
+      searched_docs0 += idx_docs
+      self.searched_docs = (searched_docs0, 0)
+    return
+    
+  def iter_start(self, timeout=0):
+    from time import time
+    limit_time = 0
+    if timeout:
+      limit_time = time() + timeout
+    
+    for (pol,loc,contexts) in self.get_docids():
+      # open each candidate document.
+      doc = self._corpus.get_doc(loc)
+      # Skip if the document is newer than the index.
+      if self.safe and self._corpus.mtime < doc.get_mtime(): continue
+      if not pol:
         filtered = doc.filter_context(contexts, self.disjunctive)
         if len(filtered) == len(contexts) or (self.disjunctive and filtered):
-          x = 1
+          pol = 1
           self.contexts[loc] = filtered
-        if x:
-          self.found_locs.append(loc)
-          self.start_docid = docid
-          yield (len(self.found_locs)-1, doc)
-        if limit_time and limit_time < time.time(): raise SearchTimeout(self)
-      self.finished_docs += self.idx_docs
-      self.start_idx = idxid+1
-      self.start_docid = sys.maxint
+      if 0 < pol:
+        self.found_locs.append(loc)
+        yield (len(self.found_locs)-1, doc)
+      # Abort if the specified time is passed.
+      if limit_time and limit_time < time():
+        raise SearchTimeout(self)
     return
 
 
@@ -462,33 +547,30 @@ class Selection:
 ##
 class SelectionWithContinuation(Selection):
   
-  def __iter__(self):
-    raise TypeError('Use iter_start() instead.')
-  
   def iter(self, start=0, timeout=0):
-    raise TypeError('Use iter_start() instead.')
-    
+    if start != len(self.found_locs):
+      raise ValueError('Cannot retrieve previous results.')
+    return self.iter_start(timeout)
+  
   def save_continuation(self):
     from base64 import b64encode
-    return b64encode(pack('>HiH',
-                          self.start_idx,
-                          self.start_docid,
-                          len(self.found_locs)))
+    (idxid, docid) = self.start_loc
+    return b64encode(pack('>HiH', idxid, docid, len(self.found_locs)))
 
   def load_continuation(self, x):
     from base64 import b64decode
     try:
-      (self.start_idx,
-       self.start_docid,
-       found_docs) = unpack('>HiH', b64decode(x))
+      (idxid0, docid0, found_docs) = unpack('>HiH', b64decode(x))
     except:
       return
     # put dummy locs (max. 65535)
+    self.start_loc = (idxid0, docid0)
     self.found_locs = [None] * found_docs
-    for (idxid,idx) in self._corpus.iteridxs():
-      (self.idx_docs, _) = unpack('>ii', idx[''])
-      if idxid == self.start_idx: break
-      self.finished_docs += self.idx_docs
+    searched_docs0 = 0
+    for (idxid,idx) in self._corpus.iteridxs(end=idxid0-1):
+      (idx_docs, _) = unpack('>ii', idx[''])
+      searched_docs0 += idx_docs
+    self.searched_docs = (searched_docs0, idx_docs-docid0)
     return
 
 
@@ -563,7 +645,9 @@ def show_results(selection, n, encoding, timeout=0):
   def e(s): return s.encode(encoding, 'replace')
   window = []
   for (found,doc) in selection.iter(timeout=timeout):
-    s = doc.get_snippet(selection, highlight=lambda x: '\033[31m%s\033[m' % x, maxchars=200, maxcontext=100)
+    s = doc.get_snippet(selection,
+                        highlight=lambda x: '\033[31m%s\033[m' % x,
+                        maxchars=200, maxcontext=100)
     print '%d: [%s] %s' % (found+1, e(doc.get_title()), e(s))
     window.append(found)
     if len(window) == n: break
@@ -595,14 +679,16 @@ def load_selection(fname):
   return selection
 
 def search(argv):
-  import getopt, locale
+  import getopt, locale, time
   import document
   from corpus import FilesystemCorpus
   def usage():
-    print 'usage: %s [-d] [-T timeout] [-s] [-S] [-D] [-c savefile] [-b basedir] [-p prefix] [-t doctype] [-e encoding] [-n results] idxdir [keyword ...]' % argv[0]
+    print ('usage: %s [-d] [-T timeout] [-s|-y] [-S] [-D] '
+           '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '
+           '[-e encoding] [-n results] idxdir [keyword ...]') % argv[0]
     sys.exit(2)
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'dT:sSDc:b:p:t:e:n:')
+    (opts, args) = getopt.getopt(argv[1:], 'dT:sySDc:b:p:t:e:n:')
   except getopt.GetoptError:
     usage()
   debug = 0
@@ -622,6 +708,7 @@ def search(argv):
     elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
     elif k == '-s': predtype = StrictPredicate
+    elif k == '-y': predtype = YomiPredicate
     elif k == '-c': savefile = v
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
@@ -661,7 +748,4 @@ def search(argv):
   return
 
 # main
-if __name__ == '__main__':
-  search(sys.argv)
-  #import profile
-  #profile.run('search(sys.argv)')
+if __name__ == '__main__': search(sys.argv)

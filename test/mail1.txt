@@ -3,7 +3,7 @@ MIME-Version: 1.0
 From: Yusuke Shinyama <yusuke@nonexistent.dom>
 To: anyone <any@one>
 Subject: =?iso-2022-jp?b?GyRCJEYkOSRIJUclORsoQg==?=
-Date: Thu, 31 Aug 2006 14:52:39 -0400
+Date: Thu, 31 Aug 2006 14:52:39 +0900
 
 This message contains MIME objects.
 

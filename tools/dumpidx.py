@@ -5,6 +5,8 @@ from zlib import decompress
 from array import array
 
 COMPRESS_THRESHOLD = 4
+SWAP_ENDIAN = (pack('=i',1) == pack('>i',1)) # True if this is big endian.
+ENCODING = 'euc-jp'
 
 ##  dumpidx
 ##
@@ -30,7 +32,7 @@ def dumpidx(cdbname):
     else:
       (c,k) = (k[0], k[1:])
       if '\x01' <= c and c <= '\x04':
-        w = unicode(k, 'utf-8').encode('euc-jp')
+        w = unicode(k, 'utf-8').encode(ENCODING)
       elif c == '\x20':
         if len(k) == 2:
           w = '%04d' % unpack('>h', k)
@@ -48,8 +50,10 @@ def dumpidx(cdbname):
         a.fromstring(decompress(v[4:]))
       else:
         a.fromstring(v[4:])
+      if SWAP_ENDIAN:
+        a.byteswap()
       print 'term(%d):%s -> (%d) %s' % (ord(c), w, len(a)/2,
-                                     ', '.join('%d:%d' % (a[i], a[i+1]) for i in xrange(0, len(a), 2)))
+                                        ', '.join('%d:%d' % (a[i], a[i+1]) for i in xrange(0, len(a), 2)))
   fp.close()
   return
 

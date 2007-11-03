@@ -78,8 +78,8 @@ class Corpus:
     return fname
 
   # (Internal) Returns an iterator for the index files.
-  def iteridxs(self, start=0):
-    for idxid in xrange(start, len(self.idxs)):
+  def iteridxs(self, start=0, end=sys.maxint-1):
+    for idxid in xrange(start, min(end+1, len(self.idxs))):
       fname = self.idxs[idxid]
       if fname in self._idxcache:
         idx = self._idxcache[fname]

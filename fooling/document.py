@@ -4,7 +4,7 @@
 import sys, re, codecs, time
 from array import array
 from struct import pack
-from util import dispw, encodew, isplit, zen2han
+from util import isplit2, zen2han
 
 
 __all__ = [ 'Document', 'PlainTextDocument', 'SourceCodeDocument',
@@ -102,7 +102,7 @@ class Document:
     yield (0, idatefeats(self.get_mtime()))
     for (pos,sent) in self.get_sents(0):
       #print pos, ' '.join(dispw(isplit(zen2han(sent)))).encode('euc-jp')
-      words = set( encodew(w) for w in isplit(zen2han(sent)) )
+      words = set(isplit2(zen2han(sent)))
       yield (pos, words)
       if maxpos <= pos: break
     self.close()
@@ -362,7 +362,7 @@ class EMailDocument(Document):
     if r:
       yield (0, r)
     for (pos,sent) in self.get_sents(0):
-      words = set( encodew(w) for w in isplit(zen2han(sent)) )
+      words = set(isplit2(zen2han(sent)))
       yield (pos, words)
       pos &= EMailDocument.MAX_OFFSET
       if maxpos <= pos: break

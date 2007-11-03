@@ -1,0 +1,1 @@
+../../jdic/yomi/yomi.py

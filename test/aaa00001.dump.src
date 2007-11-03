@@ -1,4 +1,4 @@
-docid:0 -> loc:'./test/bar.html'
+docid:0 -> loc:'bar.html'
 term(1):うに -> (1) 0:0
 term(1):とう -> (1) 0:0
 term(1):んと -> (1) 0:0
@@ -7,5 +7,5 @@ term(3):ほん -> (1) 0:0
 term(4):gasagoso -> (1) 0:44
 term(4):pre1 -> (1) 0:29
 term(4):pre2 -> (1) 0:29
-loc:'./test/bar.html' -> docid:0
+loc:'bar.html' -> docid:0
 ndocs=1, nterms=11
