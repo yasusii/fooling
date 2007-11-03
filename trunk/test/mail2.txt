@@ -7,7 +7,7 @@ Content-Transfer-Encoding: 7bit
 Message-ID: <foobaamsg>
 In-Reply-To: <replie>
 References: <abcde> <xyz123>
-Date: Mon, 04 Sep 2006 03:48:02 -0400
+Date: Mon, 04 Sep 2006 03:48:02 +0900
 
 我田引水
 

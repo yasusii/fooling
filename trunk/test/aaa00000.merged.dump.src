@@ -1,5 +1,5 @@
-docid:0 -> loc:'./test/foo.html'
-docid:1 -> loc:'./test/bar.html'
+docid:0 -> loc:'foo.html'
+docid:1 -> loc:'bar.html'
 term(1):いい -> (1) 0:33
 term(1):いで -> (1) 0:33
 term(1):うに -> (1) 1:0
@@ -22,6 +22,6 @@ term(4):test -> (1) 0:0
 term(4):に -> (1) 0:74
 term(4):ふう -> (1) 0:0
 term(4):ドー -> (1) 0:33
-loc:'./test/bar.html' -> docid:1
-loc:'./test/foo.html' -> docid:0
-ndocs=2, nterms=27
+loc:'bar.html' -> docid:1
+loc:'foo.html' -> docid:0
+ndocs=2, nterms=25

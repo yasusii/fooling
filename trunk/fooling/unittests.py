@@ -21,9 +21,7 @@ class TestZen2Han(unittest.TestCase):
 class TestISplit(unittest.TestCase):
   def assertTokens(self, x, y):
     print '====', x.encode('euc-jp')
-    r = []
-    for i in dispw(isplit(x)):
-      r.append(i)
+    r = list(dispw(isplit(x)))
     print ' '.join(sorted(y.split(' '))).encode('euc-jp')
     print ' '.join(sorted(r)).encode('euc-jp')
     self.assertEqual(' '.join(sorted(r)), ' '.join(sorted(y.split(' '))))
@@ -386,6 +384,7 @@ class TestHTMLRipper(unittest.TestCase):
   def test_07(self):
     self.assertHTML(u'<p>abc\n<img src="foo" alt="baa">', [(0,u''),(0,u'abc\n[baa]')])
     return
+
 
 #
 if __name__ == '__main__': unittest.main()

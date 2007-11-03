@@ -1,6 +1,6 @@
-docid:0 -> loc:'./test/mail1.txt'
-docid:1 -> loc:'./test/mail2.txt'
-docid:2 -> loc:'./test/mail3.txt'
+docid:0 -> loc:'mail1.txt'
+docid:1 -> loc:'mail2.txt'
+docid:2 -> loc:'mail3.txt'
 term(1):とデ -> (3) 1:2, 1:1, 0:1
 term(1):はテ -> (1) 0:16777316
 term(1):トで -> (1) 0:16777316
@@ -67,8 +67,8 @@ term(32):2006/09 -> (1) 1:0
 term(32):2006/09/04 -> (1) 1:0
 term(32):2007 -> (1) 2:0
 term(32):2007/05 -> (1) 2:0
-term(32):2007/05/15 -> (1) 2:0
-loc:'./test/mail1.txt' -> docid:0
-loc:'./test/mail2.txt' -> docid:1
-loc:'./test/mail3.txt' -> docid:2
+term(32):2007/05/17 -> (1) 2:0
+loc:'mail1.txt' -> docid:0
+loc:'mail2.txt' -> docid:1
+loc:'mail3.txt' -> docid:2
 ndocs=3, nterms=67

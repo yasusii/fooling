@@ -13,7 +13,7 @@ from array import array
 
 # calc hash value with a given key
 def cdbhash(s, n=5381L):
-  return reduce(lambda h,c: (((h << 5) + h) ^ ord(c)) & 0xffffffffL, s, n)
+  return reduce(lambda h,c: ((h*33) ^ ord(c)) & 0xffffffffL, s, n)
 
 if pack('=i',1) == pack('>i',1):
   # big endian
@@ -65,6 +65,9 @@ class CDBReader:
     self._keyiter = None
     self._eachiter = None
     return
+
+  def __repr__(self):
+    return '<CDBReader: %r>' % self.name
 
   def __getstate__(self):
     raise TypeError
@@ -156,6 +159,9 @@ class CDBMaker:
     self._pos = 2048                    # sizeof((h,p))*256
     self._bucket = [ array('I') for _ in xrange(256) ]
     return
+
+  def __repr__(self):
+    return '<CDBMaker: %r, %r, %d ents>' % (self.fn, self.fntmp, self.numentries)
 
   def __len__(self):
     return self.numentries
