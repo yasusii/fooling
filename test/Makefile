@@ -3,20 +3,21 @@
 FOOLING=..
 PYTHON=python2.4 -E
 
-INDEX=$(PYTHON) $(FOOLING)/fooling/indexer.py -e euc-jp
+INDEX=$(PYTHON) $(FOOLING)/fooling/indexer.py -e euc-jp -F
 SEARCH=$(PYTHON) $(FOOLING)/fooling/selection.py -e euc-jp
 MERGE=$(PYTHON) $(FOOLING)/fooling/merger.py
 DUMPIDX=$(PYTHON) $(FOOLING)/tools/dumpidx.py
+ELIMDATE=fgrep -v 'term(32):'
 
 # Automated tests:
 
-all: searchplaintest searchhtmltest searchmailtest
+test: searchplaintest searchhtmltest searchmailtest searchplainyomitest
 
 clean:
 	-rm *.cdb *.dump *.cdb.bak *.result
 
 indexplaintest: clean
-	$(INDEX) -F -e euc-jp -tPlainTextDocument ./ plain1.txt
+	$(INDEX) -tPlainTextDocument ./ plain1.txt
 	$(DUMPIDX) idx00000.cdb > idx00000.dump
 	cmp idx00000.dump idx00000.dump.src
 
@@ -25,17 +26,17 @@ searchplaintest: indexplaintest
 	cmp plain1.result plain1.result.src
 
 indexhtmltest: clean
-	$(INDEX) -F -tHTMLDocument -paaa ./ foo.html
-	$(DUMPIDX) aaa00000.cdb | fgrep -v 'term(32):' > aaa00000.dump
+	$(INDEX) -tHTMLDocument -paaa ./ foo.html
+	$(DUMPIDX) aaa00000.cdb | $(ELIMDATE) > aaa00000.dump
 	cmp aaa00000.dump aaa00000.dump.src
-	$(INDEX) -F -tHTMLDocument -paaa ./ bar.html
-	$(DUMPIDX) aaa00001.cdb | fgrep -v 'term(32):' > aaa00001.dump
+	$(INDEX) -tHTMLDocument -paaa ./ bar.html
+	$(DUMPIDX) aaa00001.cdb | $(ELIMDATE) > aaa00001.dump
 	cmp aaa00001.dump aaa00001.dump.src
 	$(MERGE) -paaa ./
-	$(DUMPIDX) aaa00000.cdb | fgrep -v 'term(32):' > aaa00000.merged.dump
+	$(DUMPIDX) aaa00000.cdb | $(ELIMDATE) > aaa00000.merged.dump
 	cmp aaa00000.merged.dump aaa00000.merged.dump.src
-	$(INDEX) -F -tHTMLDocument -pbbb ./ baz.html
-	$(DUMPIDX) bbb00000.cdb | fgrep -v 'term(32):' > bbb00000.dump
+	$(INDEX) -tHTMLDocument -pbbb ./ baz.html
+	$(DUMPIDX) bbb00000.cdb | $(ELIMDATE) > bbb00000.dump
 	cmp bbb00000.dump bbb00000.dump.src
 
 searchhtmltest: indexhtmltest
@@ -59,7 +60,7 @@ searchhtmltest: indexhtmltest
 	cmp title2.result title2.result.src
 
 indexmailtest: clean
-	$(INDEX) -F -tEMailDocument -pccc ./ mail1.txt mail2.txt mail3.txt
+	$(INDEX) -tEMailDocument -pccc ./ mail1.txt mail2.txt mail3.txt
 	$(DUMPIDX) ccc00000.cdb > ccc00000.dump
 	cmp ccc00000.dump ccc00000.dump.src
 
@@ -82,3 +83,14 @@ searchmailtest: indexmailtest
 	cmp attach.result attach.result.src
 	$(SEARCH) -tEMailDocument -pccc ./ 我田引水 > iso2022.result
 	cmp iso2022.result iso2022.result.src
+
+indexplainyomitest: clean
+	$(INDEX) -tPlainTextDocument -pidy -Y ./ plain2.txt
+	$(DUMPIDX) idy00000.cdb | $(ELIMDATE) > idy00000.dump
+	cmp idy00000.dump idy00000.dump.src
+
+searchplainyomitest: indexplainyomitest
+	$(SEARCH) -tPlainTextDocument -pidy ./ '?iitenki' > plain2.result
+	cmp plain2.result plain2.result.src
+	$(SEARCH) -tPlainTextDocument -pidy ./ '?きじゃよ' > plain2.result2
+	cmp plain2.result2 plain2.result2.src

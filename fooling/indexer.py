@@ -3,7 +3,7 @@ import sys, time
 import pycdb as cdb
 from struct import pack
 from array import array
-from util import encode_array
+from util import isplit, encodew, encode_array
 stderr = sys.stderr
 
 
@@ -39,7 +39,7 @@ class Indexer:
     return (fname, m)
 
   # Index a new Document at a given location.
-  def index_doc(self, loc, maxpos=1000000, titleonly=False):
+  def index_doc(self, loc, maxpos=1000000, titleonly=False, indexyomi=False):
     doc = self.corpus.get_doc(loc)
     if not doc: return False
     docid = len(self.docid2loc)
@@ -52,7 +52,20 @@ class Indexer:
     if titleonly:
       get_terms = [(0, doc.get_title())]
     else:
-      get_terms = doc.get_terms(maxpos)
+      if indexyomi:
+        from yomi import index_yomi
+        def splitterms(s):
+          for x in isplit(s):
+            yield encodew(x)
+          for x in index_yomi(s):
+            yield '\x05'+x
+          return
+      else:
+        def splitterms(s):
+          for x in isplit(s):
+            yield encodew(x)
+          return
+      get_terms = doc.get_terms(splitterms, maxpos)
     for (pos, words) in get_terms:
       for w in words:
         if w not in terms:
@@ -118,10 +131,10 @@ def index(argv):
   import document
   from corpus import FilesystemCorpus
   def usage():
-    print 'usage: %s [-v] [-F|-N|-R] [-b basedir] [-p prefix] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
+    print 'usage: %s [-v] [-F|-N|-R] [-y] [-b basedir] [-p prefix] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
     sys.exit(2)
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'vFRNb:p:t:e:D:T:')
+    (opts, args) = getopt.getopt(argv[1:], 'vFRNYb:p:t:e:D:T:')
   except getopt.GetoptError:
     usage()
   verbose = 1
@@ -132,11 +145,13 @@ def index(argv):
   encoding = locale.getdefaultlocale()[1] or 'euc-jp'
   maxdocs = 2000
   maxterms = 50000
+  indexyomi = False
   for (k, v) in opts:
     if k == '-d': verbose += 1
     elif k == '-F': mode = 1
     elif k == '-N': mode = 2
     elif k == '-R': mode = 3
+    elif k == '-Y': indexyomi = True
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
     elif k == '-t': doctype = getattr(document, v)
@@ -164,7 +179,7 @@ def index(argv):
     if not corpus.loc_exists(fname): continue
     if (mode == 2) and corpus.loc_indexed(fname): continue
     if (mode == 0) and corpus.loc_mtime(fname) < lastmod: continue
-    indexer.index_doc(fname)
+    indexer.index_doc(fname, indexyomi=indexyomi)
 
   indexer.finish()
   print >>stderr, 'Done.'

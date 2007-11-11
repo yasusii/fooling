@@ -6,8 +6,6 @@ from array import array
 from struct import pack, unpack
 
 
-INDEX_YOMI = False
-
 
 # Detect endian.
 # We always follow little endian, so if the machine is big endian, we swap bytes.
@@ -352,24 +350,3 @@ def decode_array(bits):
     a.byteswap()
   return a
 
-
-# 
-if INDEX_YOMI:
-  from yomi import index_yomi
-  def isplit2(s):
-    for x in isplit(s):
-      yield encodew(x)
-    for x in index_yomi(s):
-      yield '\x05'+x
-    return
-else:
-  def isplit2(s):
-    for x in isplit(s):
-      yield encodew(x)
-    return
-
-def rsplit2(s):
-  (r0,r1,r2) = rsplit(s)
-  return ([ encodew(w) for w in r0 ],
-          [ encodew(w) for w in r1 ],
-          [ encodew(w) for w in r2 ])

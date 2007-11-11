@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding: euc-jp -*-
 import re, sys
-from util import zen2han, rsplit2
+from util import zen2han, rsplit, encodew
 from util import splitchars
 from util import intersect, merge, union, decode_array
 from struct import pack, unpack
@@ -14,7 +14,6 @@ __all__ = [
   'Predicate',
   'StrictPredicate',
   'EMailPredicate',
-  'YomiPredicate',
   'Selection',
   'SelectionWithContinuation',
   'DummySelection',
@@ -86,7 +85,8 @@ class Predicate:
     self.priority = 0
     self.pos_filter = None
     self.pos_filter_func = None
-    self.reg_pat = None
+    self.checkpat = None
+    self.extpat = None
     s = zen2han(s)
     self.q = s
     if s.startswith('-') or s.startswith('!'):
@@ -94,12 +94,8 @@ class Predicate:
       self.neg = True
     else:
       self.neg = False
-    (pat, self.r0, self.r1, self.r2) = self.setup(s)
-    #print (pat, self.r0, self.r1, self.r2)
-    if isinstance(pat, basestring):
-      self.reg_pat = re.compile(pat, re.I | re.UNICODE)
-    else:
-      self.reg_pat = pat
+    self.setup(s)
+    #print (self.checkpat, self.extpat, self.r0, self.r1, self.r2)
     if self.pos_filter:
       self.pos_filter_func = eval(self.pos_filter)
     return
@@ -119,16 +115,30 @@ class Predicate:
       self.pos_filter_func = eval(self.pos_filter)
     return
 
-  def setup(self, s):
+  def setup(self, s, checkpat=None):
     if s.startswith('date:'):
       self.priority = 1
-      return (None, rdatefeats(s[5:].split(',')), [], [])
-    if s.startswith('title:'):
+      self.r0 = rdatefeats(s[5:].split(','))
+      self.r1 = self.r2 = []
+    elif s.startswith('title:'):
       s = s[6:]
       self.pos_filter = 'lambda pos: pos == 0'
-    (r0,r1,r2) = rsplit2(s)
-    return ('('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')',
-            r0, r1, r2)
+    elif s.startswith('?'):
+      import yomi, romm
+      y = yomi.encode_yomi(romm.official2kana(s[1:], ignore=True))
+      self.r1 = [ '\x05'+c1+c2 for (c1,c2) in zip(y[:-1],y[1:]) ]
+      self.r0 = self.r2 = []
+      self.extpat = yomi.YomiPattern(y)
+    else:
+      (r0,r1,r2) = rsplit(s)
+      self.r0 = [ encodew(w) for w in r0 ]
+      self.r1 = [ encodew(w) for w in r1 ]
+      self.r2 = [ encodew(w) for w in r2 ]
+      self.extpat = re.compile(
+        r'\W*'.join( c for (c,t) in splitchars(s) if t ),
+        re.I | re.UNICODE)
+    self.checkpat = checkpat or self.extpat
+    return
 
   def narrow(self, idx):
     """
@@ -155,38 +165,6 @@ class Predicate:
     return locs
 
 
-##  YomiPredicate
-##
-class YomiPredicate(Predicate):
-
-  class Pattern:
-    def __init__(self, yomi):
-      self.yomi = yomi
-      return
-    def search(self, sent):
-      import yomi
-      for _ in yomi.grep_yomi(self.yomi, sent):
-        return True
-      return False
-    def finditer(self, sent):
-      import yomi
-      return yomi.grep_yomi(self.yomi, sent)
-
-  def __repr__(self):
-    return '<YomiPredicate: %r>' % self.q
-
-  def setup(self, s):
-    import yomi
-    if s.startswith('?'):
-      yomi = yomi.encode_yomi(s)
-      return (YomiPredicate.Pattern(yomi),
-              [],
-              [ '\x05'+c1+c2 for (c1,c2) in zip(yomi[:-1],yomi[1:]) ],
-              [])
-    else:
-      return Predicate.setup(self, s)
-
-
 ##  StrictPredicate
 ##
 class StrictPredicate(Predicate):
@@ -196,20 +174,15 @@ class StrictPredicate(Predicate):
   def __repr__(self):
     return '<StrictPredicate: %r>' % self.q
 
-  def setup(self, s):
-    if s.startswith('date:'):
-      self.priority = 1
-      return (None, rdatefeats(s[5:].split(',')), [], [])
-    if s.startswith('title:'):
-      s = s[6:]
-      self.pos_filter = 'lambda pos: pos == 0'
-    if self.ALL_ALPHABET.match(s):
-      pat = '('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')'
+  def setup(self, s, _=None):
+    if (not s.startswith('date:') and
+        not s.startswith('date:') and
+        self.ALL_ALPHABET.match(s)):
+      pat = r'\W*'.join( c for (c,t) in splitchars(s) if t )
     else:
-      pat = '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
-                             if not c.isspace() )+')'
-    (r0,r1,r2) = rsplit2(s)
-    return (pat, r0, r1, r2)
+      pat = r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
+                         if not c.isspace() )
+    return Predicate.setup(self, s, checkpat=re.compile(pat, re.UNICODE))
 
 
 ##  EMailPredicate
@@ -217,44 +190,43 @@ class StrictPredicate(Predicate):
 class EMailPredicate(Predicate):
 
   HEADER_PAT = re.compile(
-    r'(subject|from|to|cc|rcpt|addr|message-id|references):(.*)',
+    # does not include "Date:" because it's treated specially.
+    r'(title|subject|from|to|cc|rcpt|addr|message-id|references):(.*)',
     re.I|re.S)
-  HEADER_MAP = { 'rcpt':'(?:to|cc)', 'addr':'(?:from|to|cc)' }
+  HEADER_MAP = { 'rcpt':'(?:to|cc)',
+                 'addr':'(?:from|to|cc)',
+                 'title':'subject' }
   MSGID_PAT = re.compile(r'<([^>]+)>')
 
   def __repr__(self):
     return '<EMailPredicate: %r>' % self.q
 
-  def setup(self, s):
-    if s.startswith('date:'):
-      self.priority = 1
-      return (None, rdatefeats(s[5:].split(',')), [], [])
+  def setup(self, s, _=None):
     m = self.HEADER_PAT.match(s)
+    checkpat = None
     if m:
       (h,s) = m.groups()
       h = h.lower()
       self.pos_filter = 'lambda pos: pos < 100'
-      if h == 'message-id':
-        r = []
+      if h == 'message-id':  # searching Messsage-ID.
+        self.r1 = []
         for m in self.MSGID_PAT.finditer(s):
-          r.append('\x10'+m.group(1))
+          self.r1.append('\x10'+m.group(1))
           break
-        return (None, [], r, [])
-      elif h == 'references':
-        r = []
+        self.r0 = self.r2 = []
+        return
+      elif h == 'references':  # searching References.
+        self.r0 = []
         for m in self.MSGID_PAT.finditer(s):
-          r.append('\x10'+m.group(1))
-          r.append('\x11'+m.group(1))
-        return (None, r, [], [])
+          self.r0.append('\x10'+m.group(1))
+          self.r0.append('\x11'+m.group(1))
+        self.r1 = self.r2 = []
+        return
       else:
+        # searching other headers.
         h = self.HEADER_MAP.get(h, h)
-        pat = ('^%s:.*' % h) + \
-              '('+r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
-                               if not c.isspace() )+')'
-    else:
-      pat = '('+r'\W*'.join( c for (c,t) in splitchars(s) if t )+')'
-    (r0,r1,r2) = rsplit2(s)
-    return (pat, r0, r1, r2)
+        checkpat = re.compile(r'^%s:' % h, re.I)
+    return Predicate.setup(self, s, checkpat=checkpat)
 
 
 ##  Selection
@@ -328,13 +300,13 @@ class Selection:
   def matched_range(self, s):
     r = []
     for pred in self.pos_preds:
-      pat = pred.reg_pat
+      pat = pred.extpat
       if not pat: continue
       for m in pat.finditer(s):
         if isinstance(m, tuple):
           (p0,p1) = m
         else:
-          (p0,p1) = (m.start(1), m.end(1))
+          (p0,p1) = (m.start(0), m.end(0))
         if p0 < p1:
           r.append((p0,1))
           r.append((p1,-1))
@@ -457,7 +429,7 @@ class Selection:
               docs[docid] = r
             else:
               r = docs[docid]
-            r.append((context, pred.reg_pat))
+            r.append((context, pred.checkpat))
 
         elif pred.neg:
           # negative conjunctive (-AND) search.
@@ -480,12 +452,12 @@ class Selection:
             # intersect with the previous docs.
             for (docid,context) in docs1.iteritems():
               r = docs[docid]
-              r.append((context, pred.reg_pat))
+              r.append((context, pred.checkpat))
               docs1[docid] = r
             docs = docs1
           else:
             conj = True
-            docs = dict( (docid,[(a, pred.reg_pat)]) for (docid,a)
+            docs = dict( (docid,[(a, pred.checkpat)]) for (docid,a)
                          in docs1.iteritems() )
 
       # docs: the candidate documents in the current index file.
@@ -708,7 +680,6 @@ def search(argv):
     elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
     elif k == '-s': predtype = StrictPredicate
-    elif k == '-y': predtype = YomiPredicate
     elif k == '-c': savefile = v
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
