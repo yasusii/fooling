@@ -33,6 +33,8 @@ def dumpidx(cdbname):
       (c,k) = (k[0], k[1:])
       if '\x01' <= c and c <= '\x04':
         w = unicode(k, 'utf-8').encode(ENCODING)
+      elif c == '\x05':
+        w = u''.join( unichr(0x3000+ord(c)) for c in k ).encode(ENCODING)
       elif c == '\x20':
         if len(k) == 2:
           w = '%04d' % unpack('>h', k)

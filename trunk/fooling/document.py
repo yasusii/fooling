@@ -4,7 +4,7 @@
 import sys, re, codecs, time
 from array import array
 from struct import pack
-from util import isplit2, zen2han
+from util import zen2han
 
 
 __all__ = [ 'Document', 'PlainTextDocument', 'SourceCodeDocument',
@@ -98,11 +98,10 @@ class Document:
   # (overridable)
   # Returns a list (or generator) of all terms in the document
   # that appear before maxpos.
-  def get_terms(self, maxpos):
+  def get_terms(self, splitterms, maxpos):
     yield (0, idatefeats(self.get_mtime()))
     for (pos,sent) in self.get_sents(0):
-      #print pos, ' '.join(dispw(isplit(zen2han(sent)))).encode('euc-jp')
-      words = set(isplit2(zen2han(sent)))
+      words = set(splitterms(sent))
       yield (pos, words)
       if maxpos <= pos: break
     self.close()
@@ -125,7 +124,7 @@ class Document:
     filtered = []
     try:
       # context (a list of pos) is stored in descending order in an index file.
-      for (context,pat) in pospat:
+      for (context,checkpat) in pospat:
         context.reverse()
         # context is ascending order now
         for pos in context:
@@ -134,7 +133,7 @@ class Document:
             (_,snip1) = sents.next()
           except StopIteration:
             continue
-          if not pat or pat.search(zen2han(snip1)):
+          if not checkpat or checkpat.search(zen2han(snip1)):
             filtered.append(pos)
             break
         else:
@@ -350,7 +349,7 @@ class EMailDocument(Document):
       offset = 0
     return
 
-  def get_terms(self, maxpos):
+  def get_terms(self, splitterms, maxpos):
     msg = self.get_msg()
     yield (0, idatefeats(self.get_mtime()))
     # Handle: Message-ID, Reference, In-Reply-To.
@@ -362,7 +361,7 @@ class EMailDocument(Document):
     if r:
       yield (0, r)
     for (pos,sent) in self.get_sents(0):
-      words = set(isplit2(zen2han(sent)))
+      words = set(splitterms(sent))
       yield (pos, words)
       pos &= EMailDocument.MAX_OFFSET
       if maxpos <= pos: break
