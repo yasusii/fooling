@@ -81,14 +81,16 @@ def rdatefeats(dates):
 ##
 class Predicate:
 
-  def __init__(self, s):
+  def __init__(self, s, yomip=False):
     self.priority = 0
     self.pos_filter = None
     self.pos_filter_func = None
     self.checkpat = None
     self.extpat = None
+    self.yomip = yomip
     s = zen2han(s)
     self.q = s
+    self.r0 = self.r1 = self.r2 = []
     if s.startswith('-') or s.startswith('!'):
       s = s[1:]
       self.neg = True
@@ -119,15 +121,14 @@ class Predicate:
     if s.startswith('date:'):
       self.priority = 1
       self.r0 = rdatefeats(s[5:].split(','))
-      self.r1 = self.r2 = []
+      return
     elif s.startswith('title:'):
       s = s[6:]
       self.pos_filter = 'lambda pos: pos == 0'
-    elif s.startswith('?'):
+    if self.yomip and s.startswith('?'):
       import yomi, romm
       y = yomi.encode_yomi(romm.official2kana(s[1:], ignore=True))
       self.r1 = [ '\x05'+c1+c2 for (c1,c2) in zip(y[:-1],y[1:]) ]
-      self.r0 = self.r2 = []
       self.extpat = yomi.YomiPattern(y)
     else:
       (r0,r1,r2) = rsplit(s)
@@ -209,18 +210,14 @@ class EMailPredicate(Predicate):
       h = h.lower()
       self.pos_filter = 'lambda pos: pos < 100'
       if h == 'message-id':  # searching Messsage-ID.
-        self.r1 = []
         for m in self.MSGID_PAT.finditer(s):
           self.r1.append('\x10'+m.group(1))
           break
-        self.r0 = self.r2 = []
         return
       elif h == 'references':  # searching References.
-        self.r0 = []
         for m in self.MSGID_PAT.finditer(s):
           self.r0.append('\x10'+m.group(1))
           self.r0.append('\x11'+m.group(1))
-        self.r1 = self.r2 = []
         return
       else:
         # searching other headers.
@@ -311,16 +308,16 @@ class Selection:
           r.append((p0,1))
           r.append((p1,-1))
     if not r:
-      return [(False, s)]
+      return [(0, s)]
     r.sort()
     x = []
-    (state,p0) = (False, 0)
+    (state,p0) = (0, 0)
     for (p1,i) in r:
       x.append((state, s[p0:p1]))
-      state += i
       p0 = p1
+      state += i
     assert state == 0
-    x.append((False, s[p1:]))
+    x.append((0, s[p1:]))
     return x
 
   def get(self, i, timeout=0):
@@ -655,12 +652,12 @@ def search(argv):
   import document
   from corpus import FilesystemCorpus
   def usage():
-    print ('usage: %s [-d] [-T timeout] [-s|-y] [-S] [-D] '
+    print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] '
            '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '
            '[-e encoding] [-n results] idxdir [keyword ...]') % argv[0]
     sys.exit(2)
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'dT:sySDc:b:p:t:e:n:')
+    (opts, args) = getopt.getopt(argv[1:], 'dT:sYSDc:b:p:t:e:n:')
   except getopt.GetoptError:
     usage()
   debug = 0
@@ -670,6 +667,7 @@ def search(argv):
   savefile = ''
   basedir = ''
   prefix = ''
+  yomip = False
   doctype = document.PlainTextDocument
   predtype = Predicate
   encoding = locale.getdefaultlocale()[1] or 'euc-jp'
@@ -679,6 +677,7 @@ def search(argv):
     elif k == '-T': timeout = int(v)
     elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
+    elif k == '-Y': yomip = True
     elif k == '-s': predtype = StrictPredicate
     elif k == '-c': savefile = v
     elif k == '-b': basedir = v
@@ -696,7 +695,7 @@ def search(argv):
     keywords = args[1:]
     corpus = FilesystemCorpus(basedir, idxdir, prefix, doctype, encoding)
     corpus.open()
-    preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
+    preds = [ predtype(unicode(kw, encoding), yomip) for kw in keywords ]
     selection = Selection(corpus, preds, safe=safe, disjunctive=disjunctive)
     try:
       show_results(selection, n, encoding, timeout)
