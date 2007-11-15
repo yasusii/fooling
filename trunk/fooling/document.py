@@ -147,8 +147,7 @@ class Document:
 
   # Receives a Selection object that has a list of position (context)
   # of hit words, and returns a snippet string where highlighted parts
-  # are processed by "highlight" func. and normal parts are
-  # by "normal" func.
+  # are processed by "highlight" func. and normal parts by "normal" func.
   def get_snippet(self, selection,
                   normal=lambda x:x, highlight=lambda x:x,
                   maxsents=3, maxchars=100, maxcontext=20):
@@ -181,6 +180,7 @@ class Document:
         if not state:
           snippet += u'... ' + normal(left[-maxcontext:])
         for (state,s) in x[1:-1]:
+          if not s: continue
           if state:
             snippet += highlight(s)
           else:
