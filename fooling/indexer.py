@@ -131,7 +131,7 @@ def index(argv):
   import document
   from corpus import FilesystemCorpus
   def usage():
-    print 'usage: %s [-v] [-F|-N|-R] [-y] [-b basedir] [-p prefix] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
+    print 'usage: %s [-v] [-F|-N|-R] [-Y] [-b basedir] [-p prefix] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
     sys.exit(2)
   try:
     (opts, args) = getopt.getopt(argv[1:], 'vFRNYb:p:t:e:D:T:')

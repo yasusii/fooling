@@ -1,7 +1,7 @@
 # Makefile for pubdic.txt
 
 # from pubdic+
-PUBDIC_DIR=pubdic+
+PUBDIC_DIR=pubdic-plus-wnn
 # from pubdic+-sup
 PUBDIC_SUP_DIR=pubdic+-sup
 # from gerodic
@@ -20,9 +20,8 @@ PUBDIC_FILES= \
  $(PUBDIC_DIR)/setsuji.u \
  $(PUBDIC_DIR)/tankan.u
 
-PUBDIC_SUP_FILES=$(PUBDIC_SUP_DIR)/supplement.u
-
-GERODIC_FILES=$(GERODIC_DIR)/g-jinmei.u
+#PUBDIC_SUP_FILES=$(PUBDIC_SUP_DIR)/supplement.u
+#GERODIC_FILES=$(GERODIC_DIR)/g-jinmei.u
 
 ALL_DICTS=$(PUBDIC_FILES) $(PUBDIC_SUP_FILES) $(GERODIC_FILES) others.u
 

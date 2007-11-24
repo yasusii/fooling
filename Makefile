@@ -5,6 +5,11 @@ PYTHON=python2.4 -E
 VERSION=`$(PYTHON) fooling/__init__.py`
 BUILD_DICT=$(PYTHON) ./tools/build_tcdb_dict.py
 TAR=tar
+SVN=svn
+
+WORKDIR=..
+DISTNAME=$(PACKAGE)-dist-$(VERSION)
+DISTFILE=$(DISTNAME).tar.gz
 
 all: dict
 
@@ -13,39 +18,46 @@ clean:
 	-cd tools; rm *.pyc *.pyo *~
 	-rm fooling/yomidict.tcdb
 	cd test; make clean
+	cd dict; make clean
+
+
+# Dictionary
 
 dict: fooling/yomidict.tcdb
 
 fooling/yomidict.tcdb: dict/pubdic.txt
 	$(BUILD_DICT) -o $@ $<
-
-# Packaging:
-
-pack: clean
-	ln -s $(PACKAGE) ../$(PACKAGE)-dist-$(VERSION)
-	$(TAR) c -z -C.. -f ../$(PACKAGE)-dist-$(VERSION).tar.gz $(PACKAGE)-dist-$(VERSION) \
-		--dereference --numeric-owner --exclude '.*'
-	rm ../$(PACKAGE)-dist-$(VERSION)
-
-publish: pack
-	mv ../$(PACKAGE)-dist-$(VERSION).tar.gz ~/public_html/python/fooling/
-	cp docs/*.html ~/public_html/python/fooling/
+dict/pubdic.txt:
+	cd dict; make pubdic.txt
 
 
-# Pychecker:
-
-pychecker:
-	pychecker fooling/*.py
-	pychecker tools/*.py
-	pychecker examples/*.py
-
-
-# Automated tests:
+# Automated testing:
 
 test: unittest searchtest
 
 unittest:
 	cd fooling; ./unittests.py
 
-searchtest:
+searchtest: dict
 	cd test; make test
+
+
+# Maintainance:
+
+pack: clean
+	$(SVN) cleanup
+	$(SVN) export . $(WORKDIR)/$(DISTNAME)
+	$(TAR) c -z -C$(WORKDIR) -f $(WORKDIR)/$(DISTFILE) $(DISTNAME) --dereference --numeric-owner
+	rm -rf $(WORKDIR)/$(DISTNAME)
+
+publish: pack
+	mv $(WORKDIR)/$(DISTFILE) ~/public_html/python/fooling/
+	cp docs/*.html ~/public_html/python/fooling/
+
+pychecker:
+	pychecker fooling/*.py
+	pychecker tools/*.py
+	pychecker examples/*.py
+
+commit: clean
+	$(SVN) commit
