@@ -12,16 +12,14 @@ lowerbound = max
 
 __all__ = [
   'Predicate',
-  'StrictPredicate',
+  'KeywordPredicate',
+  'StrictKeywordPredicate',
   'EMailPredicate',
   'Selection',
   'SelectionWithContinuation',
   'DummySelection',
   'parse_preds'
   ]
-
-
-class DocumentNotFound(Exception): pass
 
 
 # retrieval date features
@@ -84,39 +82,54 @@ def rdatefeats(dates):
 ##
 class Predicate:
 
+  def __init__(self):
+    self.priority = 0
+    self.checkpat = None
+    self.extpat = None
+    self.neg = False
+    return
+
+  def narrow(self, idx):
+    """
+    Returns a list of candidate docs within the given idx.
+    """
+    return []
+
+
+class KeywordPredicate(Predicate):
+
   class IsZeroPos:
     def __call__(self, pos):
       return pos == 0
 
   def __init__(self, s, yomip=False):
-    self.priority = 0
+    Predicate.__init__(self)
     self.pos_filter = None
-    self.checkpat = None
-    self.extpat = None
     self.yomip = yomip
     s = zen2han(s)
     self.q = s
-    self.r0 = self.r1 = self.r2 = []
     if s.startswith('-') or s.startswith('!'):
       s = s[1:]
       self.neg = True
-    else:
-      self.neg = False
+    self.r0 = self.r1 = self.r2 = []
     self.setup(s)
     #print (self.checkpat, self.extpat, self.r0, self.r1, self.r2)
     return
 
   def __repr__(self):
-    return '<Predicate: %r>' % self.q
+    return '<KeywordPredicate: %r>' % self.q
 
-  def setup(self, s, checkpat=None):
+  def __str__(self):
+    return self.q
+
+  def setup(self, s):
     if s.startswith('date:'):
       self.priority = 1
       self.r0 = rdatefeats(s[5:].split(','))
       return
     elif s.startswith('title:'):
       s = s[6:]
-      self.pos_filter = Predicate.IsZeroPos()
+      self.pos_filter = KeywordPredicate.IsZeroPos()
     if self.yomip and s.startswith('?'):
       import yomi, romm
       y = yomi.encode_yomi(romm.official2kana(s[1:], ignore=True))
@@ -130,24 +143,21 @@ class Predicate:
       self.extpat = re.compile(
         r'\W*'.join( c for (c,t) in splitchars(s) if t ),
         re.I | re.UNICODE)
-    self.checkpat = checkpat or self.extpat
+    self.checkpat = self.extpat
     return
 
   def narrow(self, idx):
-    """
-    Returns a list of candidate docs within the given idx.
-    """
     m0 = [ decode_array(idx[w]) for w in self.r0 if idx.has_key(w) ]
     if self.r0 and not m0:
-      raise DocumentNotFound
+      return []
     m2 = [ decode_array(idx[w]) for w in self.r2 if idx.has_key(w) ]
     if self.r2 and not m2:
-      raise DocumentNotFound
+      return []
     if self.r1:
       try:
         refs = intersect( decode_array(idx[w]) for w in self.r1 )
       except KeyError:
-        raise DocumentNotFound
+        return []
       refs = union(refs, [ m for m in (m0,m2) if m ])
     elif not self.r2:
       refs = merge(m0)
@@ -161,29 +171,30 @@ class Predicate:
     return locs
 
 
-##  StrictPredicate
+##  StrictKeywordPredicate
 ##
-class StrictPredicate(Predicate):
+class StrictKeywordPredicate(KeywordPredicate):
 
   ALL_ALPHABET = re.compile(ur'^\|?[\w\s]+\|?$', re.I | re.UNICODE)
   
   def __repr__(self):
-    return '<StrictPredicate: %r>' % self.q
+    return '<StrictKeywordPredicate: %r>' % self.q
 
-  def setup(self, s, _=None):
+  def setup(self, s):
+    KeywordPredicate.setup(self, s)
     if (not s.startswith('date:') and
-        not s.startswith('date:') and
-        self.ALL_ALPHABET.match(s)):
-      pat = r'\W*'.join( c for (c,t) in splitchars(s) if t )
-    else:
-      pat = r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
-                         if not c.isspace() )
-    return Predicate.setup(self, s, checkpat=re.compile(pat, re.UNICODE))
+        not s.startswith('title:') and
+        not self.ALL_ALPHABET.match(s)):
+      self.checkpat = re.compile(
+        r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
+                     if not c.isspace() ),
+        re.UNICODE)
+    return
 
 
 ##  EMailPredicate
 ##
-class EMailPredicate(Predicate):
+class EMailPredicate(KeywordPredicate):
 
   HEADER_PAT = re.compile(
     # does not include "Date:" because it's treated specially.
@@ -201,7 +212,7 @@ class EMailPredicate(Predicate):
   def __repr__(self):
     return '<EMailPredicate: %r>' % self.q
 
-  def setup(self, s, _=None):
+  def setup(self, s):
     m = self.HEADER_PAT.match(s)
     checkpat = None
     if m:
@@ -222,7 +233,10 @@ class EMailPredicate(Predicate):
         # searching other headers.
         h = self.HEADER_MAP.get(h, h)
         checkpat = re.compile(r'^%s:' % h, re.I)
-    return Predicate.setup(self, s, checkpat=checkpat)
+    KeywordPredicate.setup(self, s)
+    if checkpat:
+      self.checkpat = checkpat
+    return
 
 
 ##  Selection
@@ -395,16 +409,13 @@ class Selection:
       
       # Obtain a set of candidate documents for each predicate.
       for pred in (self.pos_preds + self.neg_preds):
-        try:
-          locs = pred.narrow(idx)
-          locs = [ (docid,pos) for (docid,pos) in locs
-                   if start_docid > docid and docid >= end_docid ]
-        except DocumentNotFound:
+        locs = pred.narrow(idx)
+        locs = [ (docid,pos) for (docid,pos) in locs
+                 if start_docid > docid and docid >= end_docid ]
+        if not locs:
           if pred.neg:
             continue
-          elif self.disjunctive:
-            locs = []
-          else:
+          elif not self.disjunctive:
             docs.clear()
             break
 
@@ -595,7 +606,7 @@ class DummySelection:
 
 # parse_preds
 QUERY_PAT = re.compile(r'"[^"]+"|\S+', re.UNICODE)
-def parse_preds(query, max_preds=10, predtype=Predicate):
+def parse_preds(query, max_preds=10, predtype=KeywordPredicate):
   preds = []
   for m in QUERY_PAT.finditer(query):
     s = m.group(0)
@@ -668,7 +679,7 @@ def search(argv):
   prefix = ''
   yomip = False
   doctype = document.PlainTextDocument
-  predtype = Predicate
+  predtype = KeywordPredicate
   encoding = locale.getdefaultlocale()[1] or 'euc-jp'
   n = 10
   for (k, v) in opts:
@@ -677,7 +688,7 @@ def search(argv):
     elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
     elif k == '-Y': yomip = True
-    elif k == '-s': predtype = StrictPredicate
+    elif k == '-s': predtype = StrictKeywordPredicate
     elif k == '-c': savefile = v
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
