@@ -10,16 +10,20 @@ __all__ = [ 'HTMLRipper' ]
 
 ##  HTMLRipper
 ##
+##  Here we need to give up charset detecting by <meta> tags,
+##  because the files might be scanned from the middle so
+##  it will miss the headers.
+##
+BR_TAGS = set('br p div li dd dt td th h1 h2 h3 h4 h5 h6 title pre blockquote address'.split(' '))
+IGNORE_TAGS = set('comment script style'.split(' '))
+EOS_PAT_HTML = re.compile(ur'[。．！？!?]')
+EOS_PAT_PRE = re.compile(ur'[。．！？!?\n]', re.UNICODE)
+
 class HTMLRipper(SGMLParser3):
 
-  BR_TAGS = set('br p div li dd dt td th h1 h2 h3 h4 h5 h6 title pre blockquote address'.split(' '))
-  IGNORE_TAGS = set('comment script style'.split(' '))
-  EOS_PAT_HTML = re.compile(ur'[。．！？!?]')
-  EOS_PAT_PRE = re.compile(ur'[。．！？!?\n]', re.UNICODE)
-  
   def __init__(self):
     SGMLParser3.__init__(self)
-    self.eos_pat = HTMLRipper.EOS_PAT_HTML
+    self.eos_pat = EOS_PAT_HTML
     self.text = u''
     self.para = []
     self.pos0 = 0
@@ -28,14 +32,14 @@ class HTMLRipper(SGMLParser3):
     return
   
   def handle_start_tag(self, tag, attrs):
-    if tag in self.IGNORE_TAGS:
+    if tag in IGNORE_TAGS:
       self.start_cdata(tag)
       self.ignore = True
       return
-    if tag in self.BR_TAGS:
+    if tag in BR_TAGS:
       self.flush()
     if tag == 'pre':
-      self.eos_pat = HTMLRipper.EOS_PAT_PRE
+      self.eos_pat = EOS_PAT_PRE
     elif tag == 'img':
       attrs = dict(attrs)
       if attrs.get('alt'):
@@ -43,13 +47,13 @@ class HTMLRipper(SGMLParser3):
     return
   
   def handle_end_tag(self, tag, _):
-    if tag in self.IGNORE_TAGS:
+    if tag in IGNORE_TAGS:
       self.ignore = False
       return
-    if tag in self.BR_TAGS:
+    if tag in BR_TAGS:
       self.flush()
     if tag == 'pre':
-      self.eos_pat = HTMLRipper.EOS_PAT_HTML
+      self.eos_pat = EOS_PAT_HTML
     return
   
   def handle_decl(self, name):
@@ -80,7 +84,7 @@ class HTMLRipper(SGMLParser3):
       self.flush(m.end(0))
       i = m.end(0)
     return
-  
+
   def feedfile(self, fp, encoding, pos=0):
     fp.seek(pos)
     encoder = codecs.getencoder(encoding)

@@ -12,6 +12,8 @@ def decode_yomi(s):
   return u''.join( unichr(0x3000+ord(c)) for c in s )
 
 
+##  read_dict
+##  Read the file and construct an in-memory tree.
 YOMI_DICT = {}
 def read_dict(args, encoding):
   for line in fileinput.input(args):
@@ -60,34 +62,36 @@ for c in u'\r\n\t ,.-=()"\'　・、−＝「」『』“”（）':
   CHARTYPE[ord(c)] = 3  # transparent
 del i,c
 
-##  grep_yomi
+##  equiv_yomi
+##  a version of grep yomi.
 ##
-def grep_yomi(yomi, sent):
+def equiv_yomi(yomi, sent):
   match = [ [(i,0)] for i in xrange(len(sent)+1) ]
   e = len(sent)
-  e0 = e-1
-  i = 0
+  end = e-1
+  pos = 0
 
-  while i < e:
-    c = ord(sent[i])
+  while pos < e:
+    c = ord(sent[pos])
     t = CHARTYPE.get(c)
     if t == 1:                          ### KANA
       if c < 0x30a0:
         cur = chr(c - 0x2fa0)           # hirakana
       else:
         cur = chr(c - 0x3000)           # katakana
-      r = match[i+1]
-      for (i0,b) in match[i]:
+      r = match[pos+1]
+      for (i0,b) in match[pos]:
         if b < len(yomi) and cur == yomi[b]:
           r.append((i0, b+1))
     elif t == 2:                        ### KANJI
       try:
         p = YOMI_DICT
-        j = i
-        bs = match[i]
+        j = pos
+        bs = match[pos]
         while j < e:
           (v,p) = p[sent[j]]
-          if i == 0 and j == e0: break
+          # avoid an entry that exactly contains this string!
+          if pos == 0 and j == end: break
           j += 1
           if v:  # reaches the end.
             r = match[j]
@@ -98,14 +102,14 @@ def grep_yomi(yomi, sent):
       except KeyError:
         pass
     elif t == 3:                        ### OTHERS
-      match[i+1] = match[i]
+      match[pos+1] = match[pos]
 
-    i += 1
+    pos += 1
   for (e,r) in enumerate(match):
     for (b,n) in r:
-      if n == len(yomi):
-        yield (b,e)
-  return
+      if b == 0 and n == len(yomi):
+        return True
+  return False
 
 
 # test
@@ -125,9 +129,7 @@ def main(argv, encoding='euc-jp'):
     for yomi in f[1:]:
       if not VALID_YOMI.match(yomi): continue
       y = encode_yomi(yomi)
-      for _ in grep_yomi(y, s):
-        break
-      else:
+      if not equiv_yomi(y, s):
         real_yomi.append(yomi)
     if real_yomi:
       print ('%s %s' % (s, ' '.join(real_yomi))).encode(encoding)

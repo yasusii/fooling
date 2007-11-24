@@ -45,13 +45,13 @@ class Corpus:
     return '<Corpus: idxdir=%r, prefix=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.idxdir, self.prefix, self.default_doctype, self.default_encoding)
 
-  # When you want to share only one Corpus object,
+  # When you want to make sure a Corpus object as a singleton,
   # unpickling two Selection objects might end up with
   # two distinct Corpus objects. To prevent this, when
   # a Corpus object is unpickled, this method is called
   # on a "stub" Corpus object and it returns the "real"
   # singleton Corpus object.
-  def _unpickle(self):
+  def _get_singleton(self):
     return self
 
   def __getstate__(self):

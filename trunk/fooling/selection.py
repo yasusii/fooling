@@ -21,6 +21,9 @@ __all__ = [
   ]
 
 
+class DocumentNotFound(Exception): pass
+
+
 # retrieval date features
 DATE_PAT = re.compile(r'(\d+)(/\d+)?(/\d+)?')
 def rdatefeats(dates):
@@ -81,10 +84,13 @@ def rdatefeats(dates):
 ##
 class Predicate:
 
+  class IsZeroPos:
+    def __call__(self, pos):
+      return pos == 0
+
   def __init__(self, s, yomip=False):
     self.priority = 0
     self.pos_filter = None
-    self.pos_filter_func = None
     self.checkpat = None
     self.extpat = None
     self.yomip = yomip
@@ -98,24 +104,10 @@ class Predicate:
       self.neg = False
     self.setup(s)
     #print (self.checkpat, self.extpat, self.r0, self.r1, self.r2)
-    if self.pos_filter:
-      self.pos_filter_func = eval(self.pos_filter)
     return
 
   def __repr__(self):
     return '<Predicate: %r>' % self.q
-
-  def __getstate__(self):
-    odict = self.__dict__.copy()
-    del odict['pos_filter_func']
-    return odict
-
-  def __setstate__(self, dict):
-    self.__dict__.update(dict)
-    self.pos_filter_func = None
-    if self.pos_filter:
-      self.pos_filter_func = eval(self.pos_filter)
-    return
 
   def setup(self, s, checkpat=None):
     if s.startswith('date:'):
@@ -124,7 +116,7 @@ class Predicate:
       return
     elif s.startswith('title:'):
       s = s[6:]
-      self.pos_filter = 'lambda pos: pos == 0'
+      self.pos_filter = Predicate.IsZeroPos()
     if self.yomip and s.startswith('?'):
       import yomi, romm
       y = yomi.encode_yomi(romm.official2kana(s[1:], ignore=True))
@@ -147,22 +139,25 @@ class Predicate:
     """
     m0 = [ decode_array(idx[w]) for w in self.r0 if idx.has_key(w) ]
     if self.r0 and not m0:
-      raise KeyError
+      raise DocumentNotFound
     m2 = [ decode_array(idx[w]) for w in self.r2 if idx.has_key(w) ]
     if self.r2 and not m2:
-      raise KeyError
+      raise DocumentNotFound
     if self.r1:
-      refs = union(intersect( decode_array(idx[w]) for w in self.r1 ),
-                   [ m for m in (m0,m2) if m ])
+      try:
+        refs = intersect( decode_array(idx[w]) for w in self.r1 )
+      except KeyError:
+        raise DocumentNotFound
+      refs = union(refs, [ m for m in (m0,m2) if m ])
     elif not self.r2:
       refs = merge(m0)
     else:
       refs = union(merge(m0), [m2])
     # Now: refs = [ docid1,pos1, docid2,pos2, ... ]
     locs = [ (refs[i], refs[i+1]) for i in xrange(0, len(refs), 2) ]
-    if self.pos_filter_func:
+    if self.pos_filter:
       locs = [ (docid,pos) for (docid,pos) in locs
-               if self.pos_filter_func(pos) ]
+               if self.pos_filter(pos) ]
     return locs
 
 
@@ -199,6 +194,10 @@ class EMailPredicate(Predicate):
                  'title':'subject' }
   MSGID_PAT = re.compile(r'<([^>]+)>')
 
+  class IsHeaderPos:
+    def __call__(self, pos):
+      return pos < 100
+
   def __repr__(self):
     return '<EMailPredicate: %r>' % self.q
 
@@ -208,7 +207,7 @@ class EMailPredicate(Predicate):
     if m:
       (h,s) = m.groups()
       h = h.lower()
-      self.pos_filter = 'lambda pos: pos < 100'
+      self.pos_filter = EMailPredicate.IsHeaderPos()
       if h == 'message-id':  # searching Messsage-ID.
         for m in self.MSGID_PAT.finditer(s):
           self.r1.append('\x10'+m.group(1))
@@ -273,7 +272,7 @@ class Selection:
 
   def __setstate__(self, dict):
     self.__dict__.update(dict)
-    self._corpus = self._corpus._unpickle()
+    self._corpus = self._corpus._get_singleton()
     return
 
   def __len__(self):
@@ -400,7 +399,7 @@ class Selection:
           locs = pred.narrow(idx)
           locs = [ (docid,pos) for (docid,pos) in locs
                    if start_docid > docid and docid >= end_docid ]
-        except KeyError:
+        except DocumentNotFound:
           if pred.neg:
             continue
           elif self.disjunctive:
@@ -408,7 +407,7 @@ class Selection:
           else:
             docs.clear()
             break
-        
+
         if self.disjunctive:
           # disjunctive (OR) search.
           docs1 = {}
@@ -563,7 +562,7 @@ class DummySelection:
 
   def __setstate__(self, dict):
     self.__dict__.update(dict)
-    self._corpus = self._corpus._unpickle()
+    self._corpus = self._corpus._get_singleton()
     return
 
   def __iter__(self):
