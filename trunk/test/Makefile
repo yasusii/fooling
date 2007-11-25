@@ -90,7 +90,7 @@ indexplainyomitest: clean
 	cmp idy00000.dump idy00000.dump.src
 
 searchplainyomitest: indexplainyomitest
-	$(SEARCH) -tPlainTextDocument -pidy -Y ./ '?iitenki' > plain2r.result
+	$(SEARCH) -tPlainTextDocument -pidy -Y ./ 'iitenki' > plain2r.result
 	cmp plain2r.result plain2r.result.src
-	$(SEARCH) -tPlainTextDocument -pidy -Y ./ '?きじゃよ' > plain2h.result
+	$(SEARCH) -tPlainTextDocument -pidy -Y ./ 'きじゃよ' > plain2h.result
 	cmp plain2h.result plain2h.result.src

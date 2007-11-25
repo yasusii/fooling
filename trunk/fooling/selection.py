@@ -13,8 +13,13 @@ lowerbound = max
 __all__ = [
   'Predicate',
   'KeywordPredicate',
-  'StrictKeywordPredicate',
   'EMailPredicate',
+  'YomiMixin',
+  'StrictMixin',
+  'YomiKeywordPredicate',
+  'StrictKeywordPredicate',
+  'YomiEMailPredicate',
+  'StrictEMailPredicate',
   'Selection',
   'SelectionWithContinuation',
   'DummySelection',
@@ -84,12 +89,12 @@ class Predicate:
 
   def __init__(self):
     self.priority = 0
+    self.neg = False
     self.checkpat = None
     self.extpat = None
-    self.neg = False
     return
 
-  def narrow(self, idx):
+  def narrow(self, _):
     """
     Returns a list of candidate docs within the given idx.
     """
@@ -102,10 +107,9 @@ class KeywordPredicate(Predicate):
     def __call__(self, pos):
       return pos == 0
 
-  def __init__(self, s, yomip=False):
+  def __init__(self, s):
     Predicate.__init__(self)
     self.pos_filter = None
-    self.yomip = yomip
     s = zen2han(s)
     self.q = s
     if s.startswith('-') or s.startswith('!'):
@@ -127,22 +131,20 @@ class KeywordPredicate(Predicate):
       self.priority = 1
       self.r0 = rdatefeats(s[5:].split(','))
       return
-    elif s.startswith('title:'):
+    if s.startswith('title:'):
       s = s[6:]
       self.pos_filter = KeywordPredicate.IsZeroPos()
-    if self.yomip and s.startswith('?'):
-      import yomi, romm
-      y = yomi.encode_yomi(romm.official2kana(s[1:], ignore=True))
-      self.r1 = [ '\x05'+c1+c2 for (c1,c2) in zip(y[:-1],y[1:]) ]
-      self.extpat = yomi.YomiPattern(y)
-    else:
-      (r0,r1,r2) = rsplit(s)
-      self.r0 = [ encodew(w) for w in r0 ]
-      self.r1 = [ encodew(w) for w in r1 ]
-      self.r2 = [ encodew(w) for w in r2 ]
-      self.extpat = re.compile(
-        r'\W*'.join( c for (c,t) in splitchars(s) if t ),
-        re.I | re.UNICODE)
+    self.setup_keyword(s)
+    return
+
+  def setup_keyword(self, s):
+    (r0,r1,r2) = rsplit(s)
+    self.r0 = [ encodew(w) for w in r0 ]
+    self.r1 = [ encodew(w) for w in r1 ]
+    self.r2 = [ encodew(w) for w in r2 ]
+    self.extpat = re.compile(
+      r'\W*'.join( c for (c,t) in splitchars(s) if t ),
+      re.I | re.UNICODE)
     self.checkpat = self.extpat
     return
 
@@ -171,30 +173,16 @@ class KeywordPredicate(Predicate):
     return locs
 
 
-##  StrictKeywordPredicate
-##
-class StrictKeywordPredicate(KeywordPredicate):
-
-  ALL_ALPHABET = re.compile(ur'^\|?[\w\s]+\|?$', re.I | re.UNICODE)
-  
-  def __repr__(self):
-    return '<StrictKeywordPredicate: %r>' % self.q
-
-  def setup(self, s):
-    KeywordPredicate.setup(self, s)
-    if (not s.startswith('date:') and
-        not s.startswith('title:') and
-        not self.ALL_ALPHABET.match(s)):
-      self.checkpat = re.compile(
-        r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
-                     if not c.isspace() ),
-        re.UNICODE)
-    return
-
-
 ##  EMailPredicate
 ##
 class EMailPredicate(KeywordPredicate):
+
+  def __repr__(self):
+    return '<EMailPredicate: %r>' % self.q
+
+  class IsHeaderPos:
+    def __call__(self, pos):
+      return pos < 100
 
   HEADER_PAT = re.compile(
     # does not include "Date:" because it's treated specially.
@@ -205,43 +193,77 @@ class EMailPredicate(KeywordPredicate):
                  'title':'subject' }
   MSGID_PAT = re.compile(r'<([^>]+)>')
 
-  class IsHeaderPos:
-    def __call__(self, pos):
-      return pos < 100
-
-  def __repr__(self):
-    return '<EMailPredicate: %r>' % self.q
-
   def setup(self, s):
     m = self.HEADER_PAT.match(s)
-    checkpat = None
-    if m:
-      (h,s) = m.groups()
-      h = h.lower()
-      self.pos_filter = EMailPredicate.IsHeaderPos()
-      if h == 'message-id':  # searching Messsage-ID.
-        for m in self.MSGID_PAT.finditer(s):
-          self.r1.append('\x10'+m.group(1))
-          break
-        return
-      elif h == 'references':  # searching References.
-        for m in self.MSGID_PAT.finditer(s):
-          self.r0.append('\x10'+m.group(1))
-          self.r0.append('\x11'+m.group(1))
-        return
-      else:
-        # searching other headers.
-        h = self.HEADER_MAP.get(h, h)
-        checkpat = re.compile(r'^%s:' % h, re.I)
-    KeywordPredicate.setup(self, s)
-    if checkpat:
-      self.checkpat = checkpat
+    if not m:
+      KeywordPredicate.setup(self, s)
+      return
+    (h,s) = m.groups()
+    h = h.lower()
+    self.pos_filter = EMailPredicate.IsHeaderPos()
+    if h == 'message-id':  # searching Messsage-ID.
+      for m in self.MSGID_PAT.finditer(s):
+        self.r1.append('\x10'+m.group(1))
+        break
+      return
+    if h == 'references':  # searching References.
+      for m in self.MSGID_PAT.finditer(s):
+        self.r0.append('\x10'+m.group(1))
+        self.r0.append('\x11'+m.group(1))
+      return
+    # searching other headers.
+    h = self.HEADER_MAP.get(h, h)
+    self.setup_keyword(s)
+    self.checkpat = re.compile(r'^%s:' % h, re.I) # XXX loose!
     return
+
+
+##  YomiMixin
+##
+class YomiMixin:
+  
+  def setup_keyword(self, s):
+    import romm, yomi
+    morae = romm.PARSE_DEFAULT.parse(s)
+    y = yomi.encode_yomi(''.join( unicode(m) for m in morae
+                                  if isinstance(m, romm.Mora) ))
+    self.r1 = [ '\x05'+c1+c2 for (c1,c2) in zip(y[:-1],y[1:]) ]
+    self.extpat = yomi.YomiPattern(y)
+    self.checkpat = self.extpat
+    return
+
+
+##  StrictMixin
+##
+class StrictMixin:
+
+  ALL_ALPHABET = re.compile(ur'^\|?[\w\s]+\|?$', re.I | re.UNICODE)
+
+  def setup_keyword(self, s):
+    (r0,r1,r2) = rsplit(s)
+    self.r0 = [ encodew(w) for w in r0 ]
+    self.r1 = [ encodew(w) for w in r1 ]
+    self.r2 = [ encodew(w) for w in r2 ]
+    self.extpat = re.compile(
+      r'\W*'.join( c for (c,t) in splitchars(s) if t ),
+      re.I | re.UNICODE)
+    self.checkpat = self.extpat
+    if not self.ALL_ALPHABET.match(s):
+      self.checkpat = re.compile(
+        r'\s*'.join( re.escape(c) for (c,t) in splitchars(s)
+                     if not c.isspace() ),
+        re.UNICODE)
+    return
+
+class YomiKeywordPredicate(YomiMixin, KeywordPredicate): pass
+class StrictKeywordPredicate(StrictMixin, KeywordPredicate): pass
+class YomiEMailPredicate(YomiMixin, EMailPredicate): pass
+class StrictEMailPredicate(StrictMixin, EMailPredicate): pass
 
 
 ##  Selection
 ##
-class SearchTimeout(RuntimeError): pass
+class SearchTimeout(Exception): pass
 class Selection:
 
   def __init__(self, corpus, term_preds, doc_preds=None,
@@ -604,6 +626,13 @@ class DummySelection:
     return (True, len(self.locs))
 
 
+# Returns True if the given string can be yomi-keyword.
+def canbe_yomi(s):
+  import romm
+  for m in romm.PARSE_DEFAULT.parse(s):
+    if not isinstance(m, romm.Mora): return False
+  return True
+
 # parse_preds
 QUERY_PAT = re.compile(r'"[^"]+"|\S+', re.UNICODE)
 def parse_preds(query, max_preds=10, predtype=KeywordPredicate):
@@ -677,7 +706,6 @@ def search(argv):
   savefile = ''
   basedir = ''
   prefix = ''
-  yomip = False
   doctype = document.PlainTextDocument
   predtype = KeywordPredicate
   encoding = locale.getdefaultlocale()[1] or 'euc-jp'
@@ -687,7 +715,7 @@ def search(argv):
     elif k == '-T': timeout = int(v)
     elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
-    elif k == '-Y': yomip = True
+    elif k == '-Y': predtype = YomiKeywordPredicate
     elif k == '-s': predtype = StrictKeywordPredicate
     elif k == '-c': savefile = v
     elif k == '-b': basedir = v
@@ -705,7 +733,7 @@ def search(argv):
     keywords = args[1:]
     corpus = FilesystemCorpus(basedir, idxdir, prefix, doctype, encoding)
     corpus.open()
-    preds = [ predtype(unicode(kw, encoding), yomip) for kw in keywords ]
+    preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
     selection = Selection(corpus, preds, safe=safe, disjunctive=disjunctive)
     try:
       show_results(selection, n, encoding, timeout)

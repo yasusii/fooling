@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, os
+import sys
 from struct import pack, unpack
 from zlib import decompress
 from array import array
