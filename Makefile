@@ -55,9 +55,9 @@ publish: pack
 	cp docs/*.html ~/public_html/python/fooling/
 
 pychecker:
-	pychecker fooling/*.py
-	pychecker tools/*.py
-	pychecker examples/*.py
+	-pychecker --limit=0 fooling/*.py
+	-pychecker --limit=0 tools/*.py
+	-pychecker --limit=0 examples/*.py
 
 commit: clean
 	$(SVN) commit
