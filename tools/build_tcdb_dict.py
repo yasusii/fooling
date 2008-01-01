@@ -1,8 +1,39 @@
 #!/usr/bin/env python
-import sys
+# -*- encoding: euc-jp -*-
+import sys, re
 sys.path.append('.')
 stdout = sys.stdout
 stderr = sys.stderr
+
+
+# encode the yomigana.
+def encode_yomi(s):
+  def f(n):
+    if n == 0x30fc:
+      # chou-on kigou
+      return chr(0xfc)
+    elif 0x3040 <= n and n <= 0x3093:
+      # hiragana
+      return chr(n-0x2fa0)
+    raise ValueError(n)
+  try:
+    return chr(len(s))+''.join( f(ord(c)) for c in s )
+  except ValueError:
+    raise ValueError(s)
+
+TRANS_TABLE = dict( (chr(ord(k)-0x3000), chr(ord(v)-0x3000)) for (k,v) in
+  [
+  (u'¥Â', u'¥¸'),  # ¥Â ¢ª ¥¸
+  (u'¥Å', u'¥º'),  # ¥Å ¢ª ¥º
+  #(u'¥ò', u'¥ª'),  # ¥ò ¢ª ¥ª
+  #(u'¥ô', u'¥Ö'),  # ¥ô ¢ª ¥Ö
+  ] )
+CAN1 = ''.join( chr(ord(c)-0x3000) for c in u'¥ª¥³¥´¥½¥¾¥È¥É¥Î¥Û¥Ü¥Ý¥â¥è¥í¥ç' )
+CAN2 = ''.join( chr(ord(c)-0x3000) for c in u'¥¦¥ª' )
+CAN_TRANS = ''.join( TRANS_TABLE.get(chr(c),chr(c)) for c in xrange(256) )
+CAN_PAT = re.compile('(['+CAN1+'])['+CAN2+']')
+def canonicalize_yomi(y):
+  return CAN_PAT.sub('\\1\xfc', y.translate(CAN_TRANS))
 
 
 ##  build_dict
@@ -13,21 +44,6 @@ def build_dict(output, files):
   
   def e(s):
     return s.encode('utf-8')
-
-  # encode the yomigana.
-  def encode_yomi(s):
-    def f(n):
-      if n == 0x30fc:
-        # chou-on kigou
-        return chr(0xfc)
-      elif 0x3040 <= n and n <= 0x3093:
-        # hiragana
-        return chr(n-0x2fa0)
-      raise ValueError(n)
-    try:
-      return chr(len(s))+''.join( f(ord(c)) for c in s )
-    except ValueError:
-      raise ValueError(s)
 
   # find the length of the common prefix of s1 and s2.
   def common_prefix(s1, s2):
@@ -53,7 +69,7 @@ def build_dict(output, files):
     for c in w[n:-1]:
       maker.put(i, e(c), '')
       i += 1
-    v = ''.join( encode_yomi(y) for y in f[1:] )
+    v = ''.join( canonicalize_yomi(encode_yomi(y)) for y in f[1:] )
     maker.put(i, e(w[-1]), v)
     w0 = w
   maker.finish()

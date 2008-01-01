@@ -45,13 +45,7 @@ def read_dict(args, encoding):
 ##  index_yomi:
 ##  returns bigrams of yomi-characters.
 ##
-CHARTYPE = {
-  0x3005: 2,  # kanji: "noma"
-  0x3006: 2,  # kanji: "shime"
-  0x30f5: 2,  # kanji: "ka"
-  0x30f6: 2,  # kanji: "ke"
-  0x30fc: 1,  # kana: "-"
-  }
+CHARTYPE = {}
 for i in xrange(0x3041, 0x3093+1):
   CHARTYPE[i] = 1  # kana
 for i in xrange(0x30a1, 0x30f4+1):
@@ -61,6 +55,15 @@ for i in xrange(0x4e00, 0x9fff+1):
 for c in u'\r\n\t ,.-=()"\'¡¡¡¦¡¢¡Ý¡á¡Ö¡×¡Ø¡Ù¡È¡É¡Ê¡Ë':
   CHARTYPE[ord(c)] = 3  # transparent
 del i,c
+CHARTYPE.update({
+  0x3005: 2,  # kanji: "¡¹"
+  0x3006: 2,  # kanji: "¡º"
+  0x306f: 2,  # kanji: "¤Ï"
+  0x3078: 2,  # kanji: "¤Ø"
+  0x30f5: 2,  # kanji: "¥õ"
+  0x30f6: 2,  # kanji: "¥ö"
+  0x30fc: 1,  # kana: "¡¼"
+  })
 
 ##  equiv_yomi
 ##  a version of grep yomi.
