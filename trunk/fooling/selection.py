@@ -185,7 +185,7 @@ class EMailPredicate(KeywordPredicate):
       return pos < 100
 
   HEADER_PAT = re.compile(
-    # does not include "Date:" because it's treated specially.
+    # does not include "Date:" because it's handled specially.
     r'(title|subject|from|to|cc|rcpt|addr|message-id|references):(.*)',
     re.I|re.S)
   HEADER_MAP = { 'rcpt':'(?:to|cc)',
@@ -629,6 +629,7 @@ class DummySelection:
 # Returns True if the given string can be yomi-keyword.
 def canbe_yomi(s):
   import romm
+  if s.startswith('.'): return False
   for m in romm.PARSE_DEFAULT.parse(s):
     if not isinstance(m, romm.Mora): return False
   return True
