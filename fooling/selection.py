@@ -225,8 +225,8 @@ class YomiMixin:
   def setup_keyword(self, s):
     import romm, yomi
     morae = romm.PARSE_DEFAULT.parse(s)
-    y = yomi.encode_yomi(''.join( unicode(m) for m in morae
-                                  if isinstance(m, romm.Mora) ))
+    q = ''.join( unicode(m) for m in morae if isinstance(m, romm.Mora) )
+    y = yomi.canonicalize_yomi(yomi.encode_yomi(q))
     self.r1 = [ '\x05'+c1+c2 for (c1,c2) in zip(y[:-1],y[1:]) ]
     self.extpat = yomi.YomiPattern(y)
     self.checkpat = self.extpat
