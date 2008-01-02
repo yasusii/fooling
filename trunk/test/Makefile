@@ -94,3 +94,7 @@ searchplainyomitest: indexplainyomitest
 	cmp plain2r.result plain2r.result.src
 	$(SEARCH) -tPlainTextDocument -pidy -Y ./ 'きじゃよ' > plain2h.result
 	cmp plain2h.result plain2h.result.src
+	$(SEARCH) -tPlainTextDocument -pidy -Y ./ toukyoutokkyokyokakyoku > plain2a.result
+	cmp plain2a.result plain2a.result.src
+	$(SEARCH) -tPlainTextDocument -pidy -Y ./ to-kyo-tokkyokyokakyoku > plain2b.result
+	cmp plain2b.result plain2a.result.src
