@@ -1,6 +1,6 @@
 # fooling
 
-__version__ = '20071131'
+__version__ = '20080101'
 
 __all__ = [
   'corpus',

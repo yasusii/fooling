@@ -24,8 +24,10 @@ TRANS_TABLE = dict( (chr(ord(k)-0x3000), chr(ord(v)-0x3000)) for (k,v) in
   #(u'ヲ', u'オ'),  # ヲ → オ
   #(u'ヴ', u'ブ'),  # ヴ → ブ
   ] )
-CAN1 = ''.join( chr(ord(c)-0x3000) for c in u'オコゴソゾトドノホボポモヨロョ' )
-CAN2 = ''.join( chr(ord(c)-0x3000) for c in u'ウオ' )
+CAN1 = ''.join( chr(ord(c)-0x3000) for c in
+                u'ウオクコグゴスソズゾツトヅドヌノフホブボプポムモユヨルロュョ' )
+CAN2 = ''.join( chr(ord(c)-0x3000) for c in
+                u'ウオ' )
 CAN_TRANS = ''.join( TRANS_TABLE.get(chr(c),chr(c)) for c in xrange(256) )
 CAN_PAT = re.compile('(['+CAN1+'])['+CAN2+']')
 def canonicalize_yomi(y):
