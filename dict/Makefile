@@ -26,7 +26,7 @@ PUBDIC_FILES= \
 DICT_FILES=$(PUBDIC_FILES) $(PUBDIC_SUP_FILES) $(GERODIC_FILES) others.u
 
 EXPAND_PUBDIC=$(PYTHON) expand_pubdic.py
-
+GEN_EUPH=$(PYTHON) gen_euph.py
 REMOVE_REDUNDANCY=$(PYTHON) remove_redundancy.py
 
 all: pubdic.txt
@@ -39,4 +39,3 @@ pubdic.txt.0: $(DICT_FILES)
 
 pubdic.txt: pubdic.txt.0
 	$(REMOVE_REDUNDANCY) pubdic.txt.0 > $@
-

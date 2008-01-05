@@ -12,10 +12,12 @@ if 'YOMI_DICT' not in globals():
 
 def encode_yomi(s):
   return ''.join( chr(ord(c)-0x3000) for c in s )
-def encode_yomi_hiragana(s):
-  return ''.join( chr(ord(c)-0x2fa0) for c in s )
 def decode_yomi(s):
   return u''.join( unichr(0x3000+ord(c)) for c in s )
+
+HIRA2KATA = dict( (unichr(c),unichr(c+96)) for c in xrange(0x3041,0x3094) )
+def tokata(s):
+  return ''.join( HIRA2KATA.get(c,c) for c in s )
 
 TRANS_TABLE = dict( (chr(ord(k)-0x3000), chr(ord(v)-0x3000)) for (k,v) in
   [
@@ -24,14 +26,26 @@ TRANS_TABLE = dict( (chr(ord(k)-0x3000), chr(ord(v)-0x3000)) for (k,v) in
   #(u'ヲ', u'オ'),  # ヲ → オ
   #(u'ヴ', u'ブ'),  # ヴ → ブ
   ] )
-CAN1 = ''.join( chr(ord(c)-0x3000) for c in
-                u'ウオクコグゴスソズゾツトヅドヌノフホブボプポムモユヨルロュョ' )
-CAN2 = ''.join( chr(ord(c)-0x3000) for c in
-                u'ウオ' )
 CAN_TRANS = ''.join( TRANS_TABLE.get(chr(c),chr(c)) for c in xrange(256) )
-CAN_PAT = re.compile('(['+CAN1+'])['+CAN2+']')
 def canonicalize_yomi(y):
-  return CAN_PAT.sub('\\1\xfc', y.translate(CAN_TRANS))
+  return y.translate(CAN_TRANS)
+
+U = encode_yomi(u'ウ')
+O = encode_yomi(u'オ')
+C = encode_yomi(u'ー')
+EU = encode_yomi(u'ウクグスズツヅヌフブプムユルュ')
+EO = encode_yomi(u'オコゴソゾトドノホボポモヨロョ')
+EUPHS = {}
+for c in EU:
+  EUPHS[c+U] = C  # クウ → クー
+  EUPHS[c+C] = U  # クー → クウ
+for c in EO:
+  EUPHS[c+U] = C    # コウ → コー
+  EUPHS[c+O] = U+C  # コオ → コウ、コー
+  EUPHS[c+C] = U    # コー → コウ
+EUPH_PAT = re.compile(r'([%s])%s|([%s])[%s]' % (EU, U, EO, U+O))
+def canonicalize_euph(s):
+  return EUPH_PAT.sub(lambda m:m.group(0)[0]+C, s)
 
 
 # expand_yomis: split bytes into a list of bytes.
@@ -53,51 +67,44 @@ def expand_yomis(s):
 ##  index_yomi:
 ##  returns bigrams of yomi-characters.
 ##
-CHARTYPE = {}
+CHARTYPE = {ord(u'ー'): 1}
 for i in xrange(0x3041, 0x3093+1):
-  CHARTYPE[i] = 1  # kana
+  CHARTYPE[i] = 0  # hirakana - MUST NOT APPEAR
 for i in xrange(0x30a1, 0x30f4+1):
-  CHARTYPE[i] = 1  # kana
+  CHARTYPE[i] = 1  # katakana
 for i in xrange(0x4e00, 0x9fff+1):
   CHARTYPE[i] = 2  # kanji
+for c in u'々〆ヵヶハヘ':
+  CHARTYPE[ord(c)] = 2  # kanji
 for c in u'\r\n\t ,.-=()"\'　・、−＝「」『』“”（）':
   CHARTYPE[ord(c)] = 3  # transparent
 del i,c
-CHARTYPE.update({
-  0x3005: 2,  # kanji: "々"
-  0x3006: 2,  # kanji: "〆"
-  0x306f: 2,  # kanji: "は"
-  0x3078: 2,  # kanji: "へ"
-  0x30f5: 2,  # kanji: "ヵ"
-  0x30f6: 2,  # kanji: "ヶ"
-  0x30fc: 1,  # kana: "ー"
-  })
   
 def index_yomi(sent):
+  sent = tokata(sent)
   chars = [ c.encode('utf-8') for c in sent ]
   context = [ set() for _ in sent ]
   e = len(sent)
   i = 0
-  c0 = None
 
   while i < e:
     c = ord(sent[i])
     t = CHARTYPE.get(c)
-    if t == 1:                          ### KANA
-      if c < 0x30a0:
-        cur = chr(c - 0x2fa0)           # hirakana
-      else:
-        cur = chr(c - 0x3000)           # katakana
-      if c0 and (c0 in CAN1) and (cur in CAN2):
-        cur = '\xfc'                    # chouon
-      cur = TRANS_TABLE.get(cur, cur)
-      c0 = cur
+    if t == 0:
+      raise ValueError(sent)
+    elif t == 1:                        ### KANA (katakana)
+      cur = chr(c - 0x3000)
+      cur = TRANS_TABLE.get(cur, cur)   # canonicalize
       context[i].add(cur)
       if 0 < i:
         for prev in context[i-1]:
-          yield prev+cur
+          y = prev+cur
+          yield y
+          if y in EUPHS:
+            for x in EUPHS[y]:
+              yield prev+x
+              context[i].add(x)
     elif t == 2:                        ### KANJI
-      c0 = None
       try:
         p = 0L
         j = i
@@ -109,17 +116,25 @@ def index_yomi(sent):
           (v,p) = YOMI_DICT.lookup1(chars[j], p)
           if v:  # reaches the end.
             for w in expand_yomis(v):
+              r = []
               if 0 < j:
-                for prev in prevs:
-                  yield prev+w[0]
-              for k in range(1, len(w)):
-                yield w[k-1]+w[k]
+                r.extend( prev+w[0] for prev in prevs )
+              r.extend( w[k-1]+w[k] for k in range(1, len(w)) )
+              for y in r:
+                yield y
+                if y in EUPHS:
+                  for x in EUPHS[y]:
+                    yield y[0]+x
               context[j].add(w[-1])
+              if r:
+                y = r[-1]
+                if y in EUPHS:
+                  for x in EUPHS[y]:
+                    context[j].add(x)
           j += 1
       except KeyError:
         pass
     elif t == 3:                        ### TRANSPARENT
-      c0 = None
       context[i] = context[i-1]
 
     i += 1
@@ -129,28 +144,29 @@ def index_yomi(sent):
 ##  grep_yomi
 ##
 def grep_yomi(yomi, sent, start=0):
+  yomi = canonicalize_yomi(yomi)
+  sent = tokata(sent)
   chars = [ c.encode('utf-8') for c in sent ]
   match = [ [(i,0)] for i in xrange(start, len(sent)+1) ]
   e = len(sent)
   pos = start
-  c0 = None
+  prev = None
 
   while pos < e:
     c = ord(sent[pos])
     t = CHARTYPE.get(c)
-    if t == 1:                          ### KANA
-      if c < 0x30a0:
-        cur = chr(c - 0x2fa0)           # hirakana
-      else:
-        cur = chr(c - 0x3000)           # katakana
-      if c0 and (c0 in CAN1) and (cur in CAN2):
-        cur = '\xfc'                    # chouon
-      cur = TRANS_TABLE.get(cur, cur)
-      c0 = cur
+    if t == 0:
+      raise ValueError(sent)
+    elif t == 1:                        ### KANA (katakana)
+      cur = chr(c - 0x3000)
+      cur = TRANS_TABLE.get(cur, cur)   # canonicalize
       r = match[pos+1]
       for (i0,b) in match[pos]:
-        if b < len(yomi) and cur == yomi[b]:
+        if len(yomi) <= b: continue
+        y = yomi[b]
+        if (y == cur) or (prev and y in EUPHS.get(prev+cur, '')):
           r.append((i0, b+1))
+      prev = cur
     elif t == 2:                        ### KANJI
       try:
         p = 0L
@@ -163,13 +179,15 @@ def grep_yomi(yomi, sent, start=0):
             r = match[j]
             for w in expand_yomis(v):
               for (i0,b) in bs:
-                if yomi[b:b+len(w)] == w:
+                y = yomi[b:b+len(w)]
+                if canonicalize_euph(y) == canonicalize_euph(w):
                   r.append((i0,b+len(w)))
       except KeyError:
         pass
+      prev = None
     elif t == 3:                        ### OTHERS
       match[pos+1] = match[pos]
-
+      prev = None
     pos += 1
   for (e,r) in enumerate(match):
     for (b,n) in r:
@@ -245,18 +263,24 @@ if __name__ == '__main__':
     def test_01(self):
       self.assertTokens(u'ゲンザイのところ異常なし',
                         u'ゲン ンザ ザイ イノ ノト トコ コロ ロイ '
-                        u'イジ ジョ ョー ーナ ナシ ロコ コト トジ '
+                        u'イジ ジョ ョー ョウ ウナ ーナ ナシ ロコ コト トジ '
                         u'トツ ツネ ネナ イツ イト コナ トト')
       return
 
     def test_02(self):
       self.assertTokens(u'私用でしようがない',
-                        u'シヨ ヨー ーデ ワタ タク クシ タシ デシ ーガ ガナ ナイ')
+                        u'シヨ ヨウ ヨー ウデ ーデ ワタ タク クシ タシ '
+                        u'デシ ウガ ーガ ガナ ナイ')
       return
 
-    def test_03(self):
+    def test_03a(self):
       self.assertTokens(u'はなぢ',
                         u'ハナ ワナ ナジ')
+      return
+    
+    def test_03b(self):
+      self.assertTokens(u'鼻血',
+                        u'ハナ ナジ ビチ ナチ ビケ ケツ ナケ バナ')
       return
 
 
@@ -265,35 +289,48 @@ if __name__ == '__main__':
 
     def assertFound(self, yomi, sent):
       print '"%s" ~= "%s"' % (yomi.encode('euc-jp'), sent.encode('euc-jp'))
-      yomi = canonicalize_yomi(encode_yomi(yomi))
-      self.assertTrue(list(grep_yomi(yomi, sent)))
+      self.assertTrue(list(grep_yomi(encode_yomi(yomi), sent)))
 
     def assertNotFound(self, yomi, sent):
       print '"%s" !~ "%s"' % (yomi.encode('euc-jp'), sent.encode('euc-jp'))
-      yomi = canonicalize_yomi(encode_yomi(yomi))
-      self.assertFalse(list(grep_yomi(yomi, sent)))
+      self.assertFalse(list(grep_yomi(encode_yomi(yomi), sent)))
 
-    def test_00(self):
+    def test_00a(self):
       self.assertFound(u'マモリニハイッテイマス',
                       u'守りに、入っています。')
       return
 
-    def test_01(self):
-      self.assertFound(u'ハアリマセン',
-                       u'そんなことはアリマセン')
+    def test_00b(self):
+      self.assertFound(u'オネガイシマス',
+                       u'よろしくお願いします。')
       return
 
     def test_01a(self):
-      self.assertFound(u'ワアリマセン',
-                       u'そんなことはアリマセン')
+      self.assertFound(u'オトウサンハ',
+                       u'おとーさんは元気ですか')
       return
 
-    def test_02(self):
+    def test_01b(self):
+      self.assertFound(u'オトーサンワ',
+                       u'おとうさんは元気ですか')
+      return
+
+    def test_01c(self):
+      self.assertFound(u'オトウサンハ',
+                       u'お父さんは元気ですか')
+      return
+
+    def test_01d(self):
+      self.assertFound(u'オトーサンワ',
+                       u'お父さんは元気ですか')
+      return
+
+    def test_03a(self):
       self.assertFound(u'アシタ',
                        u'明日は雨です')
       return
 
-    def test_03(self):
+    def test_03b(self):
       self.assertNotFound(u'シタ',
                           u'明日は雨です')
       return
