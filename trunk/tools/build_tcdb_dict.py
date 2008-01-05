@@ -9,12 +9,8 @@ stderr = sys.stderr
 # encode the yomigana.
 def encode_yomi(s):
   def f(n):
-    if n == 0x30fc:
-      # chou-on kigou
-      return chr(0xfc)
-    elif 0x3040 <= n and n <= 0x3093:
-      # hiragana
-      return chr(n-0x2fa0)
+    if (0x30a1 <= n and n <= 0x30f4) or n == 0x30fc:
+      return chr(n-0x3000)
     raise ValueError(n)
   try:
     return chr(len(s))+''.join( f(ord(c)) for c in s )
@@ -28,14 +24,9 @@ TRANS_TABLE = dict( (chr(ord(k)-0x3000), chr(ord(v)-0x3000)) for (k,v) in
   #(u'ヲ', u'オ'),  # ヲ → オ
   #(u'ヴ', u'ブ'),  # ヴ → ブ
   ] )
-CAN1 = ''.join( chr(ord(c)-0x3000) for c in
-                u'ウオクコグゴスソズゾツトヅドヌノフホブボプポムモユヨルロュョ' )
-CAN2 = ''.join( chr(ord(c)-0x3000) for c in
-                u'ウオ' )
 CAN_TRANS = ''.join( TRANS_TABLE.get(chr(c),chr(c)) for c in xrange(256) )
-CAN_PAT = re.compile('(['+CAN1+'])['+CAN2+']')
 def canonicalize_yomi(y):
-  return CAN_PAT.sub('\\1\xfc', y.translate(CAN_TRANS))
+  return y.translate(CAN_TRANS)
 
 
 ##  build_dict

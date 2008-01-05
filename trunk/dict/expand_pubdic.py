@@ -5,6 +5,10 @@ stdout = sys.stdout
 stderr = sys.stderr
 
 
+HIRA2KATA = dict( (unichr(c),unichr(c+96)) for c in xrange(0x3041,0x3094) )
+def tokata(s): return ''.join( HIRA2KATA.get(c,c) for c in s )
+
+
 ##  expand_pubdic
 ##
 def expand_pubdic(args, encoding='euc-jp', verbose=0):
@@ -13,15 +17,15 @@ def expand_pubdic(args, encoding='euc-jp', verbose=0):
   VALID_WORD = re.compile(ur'^[々〆ヵヶ\u4e00-\u9fff][々〆\u3041-\u309f\u4e00-\u9fff]*$')
   RMSP = re.compile(r'\s+')
   POS_EXPAND = {
-    u'カ行五段': u'かきくけこ',
-    u'ガ行五段': u'がぎぐげご',
-    u'サ行五段': u'さしすせそ',
-    u'タ行五段': u'たちつてとっ',
-    u'ナ行五段': u'なにぬねのん',
-    u'マ行五段': u'まみむめもん',
-    u'ラ行五段': u'らりるれろっ',
-    u'ワ行五段': u'わいうえおっ',
-    u'バ行五段': u'ばびぶべぼん',
+    u'カ行五段': u'カキクケコ',
+    u'ガ行五段': u'ガギグゲゴ',
+    u'サ行五段': u'サシスセソ',
+    u'タ行五段': u'タトツテトッ',
+    u'ナ行五段': u'ナニヌネノン',
+    u'マ行五段': u'マミムメモン',
+    u'ラ行五段': u'ラリルレロッ',
+    u'ワ行五段': u'ワイウエオッ',
+    u'バ行五段': u'バビブベボン',
     }
 
   dic = {}
@@ -48,6 +52,8 @@ def expand_pubdic(args, encoding='euc-jp', verbose=0):
       continue
 
     if not VALID_WORD.match(exp) and poss != '-': continue
+    yomi = tokata(yomi)
+    exp = tokata(exp)
     for pos1 in poss.split('&'):
       r = POS_EXPAND.get(pos1, [''])
       for c in r:

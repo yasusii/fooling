@@ -5,23 +5,30 @@ from os.path import join, dirname
 stdout = sys.stdout
 stderr = sys.stderr
 
-VALID_YOMI = re.compile(ur'^[\u3041-\u3093]+$')
+VALID_YOMI = re.compile(ur'^[\u30a1-\u30f4\u30fc]+$')
 def encode_yomi(s):
-  return ''.join( chr(ord(c)-0x2fa0) for c in s )
+  return ''.join( chr(ord(c)-0x3000) for c in s )
 def decode_yomi(s):
   return u''.join( unichr(0x3000+ord(c)) for c in s )
 
+HIRA2KATA = dict( (unichr(c),unichr(c+96)) for c in xrange(0x3041,0x3094) )
+def tokata(s): return ''.join( HIRA2KATA.get(c,c) for c in s )
 
-##  read_dict
-##  Read the file and construct an in-memory tree.
-YOMI_DICT = {}
-def read_dict(args, encoding):
+
+def read_lines(args, encoding):
   for line in fileinput.input(args):
     line = line.strip()
     if not line or line.startswith('#'): continue
-    line = unicode(line, encoding)
+    yield unicode(line, encoding)
+  return
+
+##  read_dict
+##  Read the file and construct an in-memory tree.
+def read_dict(lines):
+  yomi_dict = {}
+  for line in lines:
     f = line.split(' ')
-    d = YOMI_DICT
+    d = yomi_dict
     w = f[0]
     v = [ encode_yomi(y) for y in f[1:] if VALID_YOMI.match(y) ]
     n = len(w)-1
@@ -39,36 +46,29 @@ def read_dict(args, encoding):
         else:
           d[c] = ([],d1)
       d = d1
-  return
+  return yomi_dict
 
 
 ##  index_yomi:
 ##  returns bigrams of yomi-characters.
 ##
-CHARTYPE = {}
+CHARTYPE = {ord(u'ー'): 1}
 for i in xrange(0x3041, 0x3093+1):
-  CHARTYPE[i] = 1  # kana
+  CHARTYPE[i] = 0  # hirakana - MUST NOT APPEAR
 for i in xrange(0x30a1, 0x30f4+1):
-  CHARTYPE[i] = 1  # kana
+  CHARTYPE[i] = 1  # katakana
 for i in xrange(0x4e00, 0x9fff+1):
   CHARTYPE[i] = 2  # kanji
+for c in u'々〆ヵヶハヘ':
+  CHARTYPE[ord(c)] = 2  # kanji
 for c in u'\r\n\t ,.-=()"\'　・、−＝「」『』“”（）':
   CHARTYPE[ord(c)] = 3  # transparent
 del i,c
-CHARTYPE.update({
-  0x3005: 2,  # kanji: "々"
-  0x3006: 2,  # kanji: "〆"
-  0x306f: 2,  # kanji: "は"
-  0x3078: 2,  # kanji: "へ"
-  0x30f5: 2,  # kanji: "ヵ"
-  0x30f6: 2,  # kanji: "ヶ"
-  0x30fc: 1,  # kana: "ー"
-  })
 
 ##  equiv_yomi
 ##  a version of grep yomi.
 ##
-def equiv_yomi(yomi, sent):
+def equiv_yomi(yomi_dict, yomi, sent):
   match = [ [(i,0)] for i in xrange(len(sent)+1) ]
   e = len(sent)
   end = e-1
@@ -77,18 +77,17 @@ def equiv_yomi(yomi, sent):
   while pos < e:
     c = ord(sent[pos])
     t = CHARTYPE.get(c)
-    if t == 1:                          ### KANA
-      if c < 0x30a0:
-        cur = chr(c - 0x2fa0)           # hirakana
-      else:
-        cur = chr(c - 0x3000)           # katakana
+    if t == 0:
+      raise ValueError(sent)
+    elif t == 1:                        ### KANA
+      cur = chr(c - 0x3000)
       r = match[pos+1]
       for (i0,b) in match[pos]:
         if b < len(yomi) and cur == yomi[b]:
           r.append((i0, b+1))
     elif t == 2:                        ### KANJI
       try:
-        p = YOMI_DICT
+        p = yomi_dict
         j = pos
         bs = match[pos]
         while j < e:
@@ -108,17 +107,17 @@ def equiv_yomi(yomi, sent):
       match[pos+1] = match[pos]
 
     pos += 1
-  for (e,r) in enumerate(match):
-    for (b,n) in r:
-      if b == 0 and n == len(yomi):
-        return True
+  
+  for (b,n) in match[-1]:
+    if b == 0 and n == len(yomi):
+      return True
   return False
 
 
 # test
 def main(argv, encoding='euc-jp'):
   args = argv[1:]
-  read_dict(args, encoding)
+  yomi_dict = read_dict(read_lines(args, encoding))
   removed = 0
   for line in fileinput.input(args):
     line = line.strip()
@@ -132,7 +131,7 @@ def main(argv, encoding='euc-jp'):
     for yomi in f[1:]:
       if not VALID_YOMI.match(yomi): continue
       y = encode_yomi(yomi)
-      if not equiv_yomi(y, s):
+      if not equiv_yomi(yomi_dict, y, s):
         real_yomi.append(yomi)
     if real_yomi:
       print ('%s %s' % (s, ' '.join(real_yomi))).encode(encoding)
@@ -141,4 +140,27 @@ def main(argv, encoding='euc-jp'):
       removed += 1
   return (removed == 0)
 
+def test():
+  d = read_dict([
+    u'東京 トウキョウ',
+    u'東 トウ ヒガシ',
+    u'京 キョウ ミヤコ',
+    u'和 ワ カズ',
+    u'和泉 イズミ ワセン',
+    u'泉 イズミ セン',
+    u'願 ガン ネガイ',
+    u'願イ ネガイ',
+    u'オ願 オネガイ',
+    u'オ願イ オネガイ',
+    ])
+  assert equiv_yomi(d, encode_yomi(u'トウキョウ'), u'東京') == True
+  assert equiv_yomi(d, encode_yomi(u'キョウト'), u'東京') == False
+  assert equiv_yomi(d, encode_yomi(u'ワイズミ'), u'和泉') == True
+  assert equiv_yomi(d, encode_yomi(u'イズミ'), u'和泉') == False
+  assert equiv_yomi(d, encode_yomi(u'オネガイ'), u'オ願イ') == True
+  assert equiv_yomi(d, encode_yomi(u'オネガイ'), u'オ願') == True
+  assert equiv_yomi(d, encode_yomi(u'ネガイ'), u'願イ') == False
+  return
+
+#test()
 if __name__ == '__main__': sys.exit(main(sys.argv))
