@@ -30,20 +30,32 @@ CAN_TRANS = ''.join( TRANS_TABLE.get(chr(c),chr(c)) for c in xrange(256) )
 def canonicalize_yomi(y):
   return y.translate(CAN_TRANS)
 
+A = encode_yomi(u'ア')
+I = encode_yomi(u'イ')
 U = encode_yomi(u'ウ')
+E = encode_yomi(u'エ')
 O = encode_yomi(u'オ')
 C = encode_yomi(u'ー')
+EA = encode_yomi(u'アカガサザタダナハバパマヤラワャァ')
+EI = encode_yomi(u'イキギシジチヂニヒビピミリィ')
 EU = encode_yomi(u'ウクグスズツヅヌフブプムユルュ')
-EO = encode_yomi(u'オコゴソゾトドノホボポモヨロョ')
+EE = encode_yomi(u'エケゲセゼテデネヘベペメレェ')
+EO = encode_yomi(u'オコゴソゾトドノホボポモヨロョォ')
 EUPHS = {}
+for c in EA:
+  EUPHS[c+A] = C  # カア → カー
+for c in EI:
+  EUPHS[c+I] = C  # キイ → キー
 for c in EU:
   EUPHS[c+U] = C  # クウ → クー
-  EUPHS[c+C] = U  # クー → クウ
+for c in EE:
+  EUPHS[c+I] = C  # ケイ → ケー
+  EUPHS[c+E] = I+C  # ケエ → ケイ, ケー
 for c in EO:
   EUPHS[c+U] = C    # コウ → コー
-  EUPHS[c+O] = U+C  # コオ → コウ、コー
-  EUPHS[c+C] = U    # コー → コウ
-EUPH_PAT = re.compile(r'([%s])%s|([%s])[%s]' % (EU, U, EO, U+O))
+  EUPHS[c+O] = U+C  # コオ → コウ, コー
+EUPH_PAT = re.compile(r'([%s])%s|([%s])%s|([%s])%s|([%s])[%s]|([%s])[%s]' %
+                      (EA, A, EI, I, EU, U, EE, I+E, EO, U+O))
 def canonicalize_euph(s):
   return EUPH_PAT.sub(lambda m:m.group(0)[0]+C, s)
 
@@ -305,9 +317,14 @@ if __name__ == '__main__':
                        u'よろしくお願いします。')
       return
 
+    def test_00c(self):
+      self.assertFound(u'ヨクオモワナイ',
+                       u'良ク思ワナイ。')
+      return
+
     def test_01a(self):
       self.assertFound(u'オトウサンハ',
-                       u'おとーさんは元気ですか')
+                       u'おとうさんは元気ですか')
       return
 
     def test_01b(self):
@@ -323,6 +340,26 @@ if __name__ == '__main__':
     def test_01d(self):
       self.assertFound(u'オトーサンワ',
                        u'お父さんは元気ですか')
+      return
+
+    def test_02a(self):
+      self.assertFound(u'ケイタイ',
+                       u'携帯電話')
+      return
+
+    def test_02b(self):
+      self.assertFound(u'ケータイ',
+                       u'携帯電話')
+      return
+
+    def test_02c(self):
+      self.assertFound(u'ウマイ',
+                       u'激しくうまい')
+      return
+
+    def test_02d(self):
+      self.assertFound(u'クーマイ',
+                       u'激しくうまい')
       return
 
     def test_03a(self):
