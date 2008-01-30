@@ -147,7 +147,7 @@ def index_yomi(sent):
       except KeyError:
         pass
     elif t == 3:                        ### TRANSPARENT
-      context[i] = context[i-1]
+      context[i] = context[i-1].copy()
 
     i += 1
   return
@@ -190,9 +190,10 @@ def grep_yomi(yomi, sent, start=0):
           if v:  # reaches the end.
             r = match[j]
             for w in expand_yomis(v):
+              w = canonicalize_euph(w)
               for (i0,b) in bs:
                 y = yomi[b:b+len(w)]
-                if canonicalize_euph(y) == canonicalize_euph(w):
+                if canonicalize_euph(y) == w:
                   r.append((i0,b+len(w)))
       except KeyError:
         pass

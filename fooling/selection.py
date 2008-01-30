@@ -222,6 +222,9 @@ class EMailPredicate(KeywordPredicate):
 ##
 class YomiMixin:
   
+  def __str__(self):
+    return '{%s}' % self.q
+
   def setup_keyword(self, s):
     import romm, yomi
     morae = romm.PARSE_DEFAULT.parse(s)
@@ -238,6 +241,9 @@ class YomiMixin:
 class StrictMixin:
 
   ALL_ALPHABET = re.compile(ur'^\|?[\w\s]+\|?$', re.I | re.UNICODE)
+
+  def __str__(self):
+    return '<%s>' % self.q
 
   def setup_keyword(self, s):
     (r0,r1,r2) = rsplit(s)
