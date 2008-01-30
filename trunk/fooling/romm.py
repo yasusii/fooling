@@ -97,7 +97,7 @@ MORA_DATA = [
   
   # choked sound (Sokuon)
   ( '.t', u'ฅร', u'\uff6f', u'คร', '>', '>', '1xtu', '1ltu',
-    '3k:k', '3s:s', '3t:t', '3h:h', '3f:f', '3m:m', '3r:r',
+    '3k:k', '3s:s', '3t:t', '3h:h', '3f:f', '3m:m', '3r:r', '3p:p',
     '3g:g', '3z:z', '3j:j', '3d:d', '3b:b', '3v:v', '3b:c', '3t:c' ),
   
   # voiced (Dakuon)

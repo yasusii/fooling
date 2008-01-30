@@ -101,7 +101,7 @@ class Document:
   def get_terms(self, splitterms, maxpos):
     yield (0, idatefeats(self.get_mtime()))
     for (pos,sent) in self.get_sents(0):
-      words = set(splitterms(sent))
+      words = set(splitterms(sent)) # avoid duplicated terms!
       yield (pos, words)
       if maxpos <= pos: break
     self.close()
@@ -361,7 +361,7 @@ class EMailDocument(Document):
     if r:
       yield (0, r)
     for (pos,sent) in self.get_sents(0):
-      words = set(splitterms(sent))
+      words = set(splitterms(sent)) # avoid duplicated terms!
       yield (pos, words)
       pos &= EMailDocument.MAX_OFFSET
       if maxpos <= pos: break
