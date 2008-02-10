@@ -49,10 +49,10 @@ for c in EI:
 for c in EU:
   EUPHS[c+U] = C  # クウ → クー
 for c in EE:
-  EUPHS[c+I] = C  # ケイ → ケー
+  EUPHS[c+I] = E+C  # ケイ → ケエ, ケー
   EUPHS[c+E] = I+C  # ケエ → ケイ, ケー
 for c in EO:
-  EUPHS[c+U] = C    # コウ → コー
+  EUPHS[c+U] = O+C  # コウ → コオ, コー
   EUPHS[c+O] = U+C  # コオ → コウ, コー
 EUPH_PAT = re.compile(r'([%s])%s|([%s])%s|([%s])%s|([%s])[%s]|([%s])[%s]' %
                       (EA, A, EI, I, EU, U, EE, I+E, EO, U+O))
@@ -199,7 +199,7 @@ def grep_yomi(yomi, sent, start=0):
         pass
       prev = None
     elif t == 3:                        ### OTHERS
-      match[pos+1] = match[pos]
+      match[pos+1] = match[pos][:]
       prev = None
     pos += 1
   for (e,r) in enumerate(match):
@@ -276,14 +276,14 @@ if __name__ == '__main__':
     def test_01(self):
       self.assertTokens(u'ゲンザイのところ異常なし',
                         u'ゲン ンザ ザイ イノ ノト トコ コロ ロイ '
-                        u'イジ ジョ ョー ョウ ウナ ーナ ナシ ロコ コト トジ '
-                        u'トツ ツネ ネナ イツ イト コナ トト')
+                        u'イジ ジョ ョー ョウ ョオ ウナ オナ ーナ ナシ ロコ '
+                        u'コト トジ トツ ツネ ネナ イツ イト コナ トト')
       return
 
     def test_02(self):
       self.assertTokens(u'私用でしようがない',
-                        u'シヨ ヨウ ヨー ウデ ーデ ワタ タク クシ タシ '
-                        u'デシ ウガ ーガ ガナ ナイ')
+                        u'シヨ ヨウ ヨオ ヨー ウデ オデ ーデ ワタ タク '
+                        u'クシ タシ デシ ウガ オガ ーガ ガナ ナイ')
       return
 
     def test_03a(self):
