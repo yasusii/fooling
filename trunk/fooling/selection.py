@@ -302,6 +302,7 @@ class Selection:
     
     # Found documents:
     # (We don't store Document objects to avoid having them pickled!)
+    self.narrowed = 0
     self.found_locs = []                # [loc, ...]
     self.contexts = {}                  # { loc:[pos, ...], ... }
     return
@@ -530,12 +531,13 @@ class Selection:
     limit_time = 0
     if timeout:
       limit_time = time() + timeout
-    
+
     for (pol,loc,contexts) in self.get_docids():
       # open each candidate document.
       doc = self._corpus.get_doc(loc)
       # Skip if the document is newer than the index.
       if self.safe and self._corpus.mtime < doc.get_mtime(): continue
+      self.narrowed += 1
       if not pol:
         filtered = doc.filter_context(contexts, self.disjunctive)
         if len(filtered) == len(contexts) or (self.disjunctive and filtered):
@@ -642,16 +644,26 @@ def canbe_yomi(s):
 
 # parse_preds
 QUERY_PAT = re.compile(r'"[^"]+"|\S+', re.UNICODE)
-def parse_preds(query, max_preds=10, predtype=KeywordPredicate):
-  preds = []
+ALPHA = re.compile(r'^[-a-zA-Z]+$')
+def parse_preds(query, max_preds=10,
+                predtype=KeywordPredicate,
+                yomipredtype=YomiKeywordPredicate):
+  terms = []
+  yomiterms = []
   for m in QUERY_PAT.finditer(query):
     s = m.group(0)
     if s[0] == '"' and s[-1] == '"':
-      preds.append(predtype(s[1:-1]))
+      s = s[1:-1]
+    terms.append(s)
+    if yomipredtype and canbe_yomi(s):
+      yomiterms.append(s)
+    if max_preds <= len(terms): break
+  if len(yomiterms) == len(terms):
+    if len(terms) == 1 and ALPHA.match(terms[0]):
+      return (True, [ predtype(terms[0]), yomipredtype(terms[0]) ])
     else:
-      preds.append(predtype(s))
-    if max_preds <= len(preds): break
-  return preds
+      return (False, [ yomipredtype(s) for s in terms ])
+  return (False, [ predtype(s) for s in terms ])
 
 
 ##  search
@@ -698,17 +710,18 @@ def search(argv):
   import document
   from corpus import FilesystemCorpus
   def usage():
-    print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] '
+    print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] [-a] '
            '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '
            '[-e encoding] [-n results] idxdir [keyword ...]') % argv[0]
     sys.exit(2)
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'dT:sYSDc:b:p:t:e:n:')
+    (opts, args) = getopt.getopt(argv[1:], 'dT:sYSDac:b:p:t:e:n:')
   except getopt.GetoptError:
     usage()
   debug = 0
   timeout = 0
   safe = True
+  stat = False
   disjunctive = False
   savefile = ''
   basedir = ''
@@ -722,6 +735,7 @@ def search(argv):
     elif k == '-T': timeout = int(v)
     elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
+    elif k == '-a': stat = True
     elif k == '-Y': predtype = YomiKeywordPredicate
     elif k == '-s': predtype = StrictKeywordPredicate
     elif k == '-c': savefile = v
@@ -758,8 +772,8 @@ def search(argv):
   if savefile:
     save_selection(savefile, selection)
 
-  if timeout:
-    print '%.2f sec.' % (time.time()-t0)
+  if stat:
+    print '%.2f sec, %d/%d hit' % (time.time()-t0, len(selection.found_locs), selection.narrowed)
   return
 
 # main
