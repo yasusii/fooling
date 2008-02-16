@@ -647,7 +647,7 @@ QUERY_PAT = re.compile(r'"[^"]+"|\S+', re.UNICODE)
 ALPHA = re.compile(r'^[-a-zA-Z]+$')
 def parse_preds(query, max_preds=10,
                 predtype=KeywordPredicate,
-                yomipredtype=YomiKeywordPredicate):
+                yomipredtype=None):
   terms = []
   yomiterms = []
   for m in QUERY_PAT.finditer(query):
