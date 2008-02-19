@@ -689,7 +689,14 @@ for each (y<sub><i>i</i></sub>,s<sub><i>i</i></sub>) ∈ D {
 <p>
 インデクシングと同様に、検索についても
 いくつかのキーワードに対して漢字のみを用いた場合と、
-読みがなを用いた場合の効率を比較した。
+読みがなを用いた場合の効率を比較した。サンプル文書から
+5つのキーワードをえらび、それぞれ漢字の文字列で検索した時間 (a.) と、
+その読みがなで検索した時間 (b.) を測定した。
+「絞りこみ数」「マッチした数」はそれぞれ bi-gram による絞りこみで
+得られた文と、その後の逐次的なマッチングで正しいものをフィルタリングした数 
+(実際の検索結果の数) をあらわす。「ヒット数/秒」は、マッチした数を
+秒数で割って正規化したものである。読みがなによる検索は、
+漢字による検索の約3倍の時間がかかっていることがわかる。
 
 <table>
 <tr>
@@ -697,27 +704,28 @@ for each (y<sub><i>i</i></sub>,s<sub><i>i</i></sub>) ∈ D {
 <th>所要時間 (秒)</th>
 <th>絞りこみ数</th>
 <th>マッチした数</th>
+<th>ヒット数/秒</th>
 </tr>
 <tr><td>a. <code>祐介</code></td>
-<td align=right>0.36</td><td align=right>41</td><td align=right>41</td></tr>
+<td align=right>0.36</td><td align=right>41</td><td align=right>41</td><td align=right>113</td></tr>
 <tr><td>a. <code>明後日</code></td>
-<td align=right>0.13</td><td align=right>3</td><td align=right>3</td></tr>
+<td align=right>0.13</td><td align=right>3</td><td align=right>3</td><td align=right>23</td></tr>
 <tr><td>a. <code>計算機科学</code></td>
-<td align=right>0.42</td><td align=right>46</td><td align=right>46</td></tr>
+<td align=right>0.42</td><td align=right>46</td><td align=right>46</td><td align=right>109</td></tr>
 <tr><td>a. <code>東京とニューヨーク</code></td>
-<td align=right>0.15</td><td align=right>2</td><td align=right>2</td></tr>
+<td align=right>0.15</td><td align=right>2</td><td align=right>2</td><td align=right>13</td></tr>
 <tr><td>a. <code>連邦準備銀行</code></td>
-<td align=right>0.14</td><td align=right>3</td><td align=right>3</td></tr>
+<td align=right>0.14</td><td align=right>3</td><td align=right>3</td><td align=right>21</td></tr>
 <tr><td>b. <code>ゆうすけ</code></td>
-<td align=right>1.69</td><td align=right>73</td><td align=right>67</td></tr>
+<td align=right>1.69</td><td align=right>73</td><td align=right>67</td><td align=right>39</td></tr>
 <tr><td>b. <code>あさって</code></td>
-<td align=right>1.18</td><td align=right>37</td><td align=right>48</td></tr>
+<td align=right>1.18</td><td align=right>48</td><td align=right>37</td><td align=right>31</td></tr>
 <tr><td>b. <code>けいさんきかがく</code></td>
-<td align=right>1.72</td><td align=right>46</td><td align=right>46</td></tr>
+<td align=right>1.72</td><td align=right>46</td><td align=right>46</td><td align=right>27</td></tr>
 <tr><td>b. <code>とうきょうとにゅーよーく</code></td>
-<td align=right>0.50</td><td align=right>2</td><td align=right>3</td></tr>
+<td align=right>0.50</td><td align=right>3</td><td align=right>2</td><td align=right>4</td></tr>
 <tr><td>b. <code>れんぽーじゅんびぎんこー</code></td>
-<td align=right>0.38</td><td align=right>3</td><td align=right>3</td></tr>
+<td align=right>0.38</td><td align=right>3</td><td align=right>3</td><td align=right>8</td></tr>
 </table>
 
 <p>
@@ -725,20 +733,37 @@ for each (y<sub><i>i</i></sub>,s<sub><i>i</i></sub>) ∈ D {
 
 <hr noshade>
 <a name="future"><h3>8. 残された課題</h3></a>
+<P>
+以下にこの研究の将来的な課題をいくつか挙げる。
 
 <a name="filtering"><h4>8.1. 検索結果のランキングおよびフィルタリング</h4></a>
 <p>
-Fooling では、検索結果はつねに日付順に返される。
-「あさひ」という読みを検索すると、「朝日」「旭」といった文字列のほかにも、
-「氷」を「ひ」と発音することがあるため、
-「<strong>朝、氷</strong>が張っていた」
-というような文字列までヒットしてしまう。
+今回の実験では、検索結果をその妥当性によりランキングするといったことはしていない。
+Fooling では、検索結果はつねに日付順に返される。そのため、読みがな検索で
+上位に現れる文字列が必ずしもユーザの求める単語には一致していないことがある。
+たとえば「<code>あさひ</code>」という読みに一致する文書は 17件あったが、
+この検索結果には「<code>朝日</code> (12件)」「<code>旭</code> (4件)」といった
+文字列のほかにも、「<code><strong>朝、氷</strong>が張っていた</code> (1件)」という
+文字列がヒットしていた。これは「氷」を「ひ」と発音することがあるためだが、
+この検索結果がユーザの求めているものである可能性は低い。このような結果は、
+なんらかの別のメカニズムによりフィルタされるか、あるいはより「妥当性の低い」
+結果として表示されるべきである。このような結果のスコアリングとして使える尺度として、
+読みがなに一致する漢字列の頻度を使用することがあげられる。
+たとえば「あさひ」に一致する文字列はほとんどが「朝日」であるため、
+検索結果は「朝日」を含むもののほうがより妥当な結果として上位にランクされる、
+などである。また、ユーザが漢字列を検索している場合には、マッチした部分が
+漢字と仮名の混在する文字列であるよりも、漢字のみで構成されている方がより
+スコアを高くするといった方法も使えるかもしれない。
 
 <a name="varied"><h4>8.2. 読みがな以外による表記のゆれ</h4></a>
 <p>
-読みがなだけでは十分でない。
+本記事では検索システムに漢字から読みがなへの展開を組み込んだが、
+実際の文字列検索システムとして使うには、これだけでは十分でない。
 たとえば「ネーテブ」→「ネイティブ (ネイチブ)」のような表記のゆれ、
-「国連」→「国際連合」のような略称は扱えない。
+「国連」→「国際連合」のような略称は扱えない。これらは
+検索語そのものを増加させる keyword expansion によって扱う方法もあるが、
+本システムのような「同一の文字列に複数の読み方を許す」という方法によっても
+扱える可能性がある。
 
 <a name="efficiency"><h4>8.3. 検索効率の改善</h4></a>
 <p>
