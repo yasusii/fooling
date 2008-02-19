@@ -17,9 +17,9 @@ KBD { background: #eeeeee; font-weight: bold; }
 
 <p>
 <strong>ダウンロード:
-<a href="http://www.unixuser.org/~euske/python/fooling/fooling-dist-20070305.tar.gz"><code>fooling-dist-20070305.tar.gz</code></a>
+<a href="http://www.unixuser.org/~euske/python/fooling/fooling-dist-20080220.tar.gz"><code>fooling-dist-20080220.tar.gz</code></a>
 </strong>
-(57KBytes, 要 Python2.4以上)
+(415KBytes, 要 Python2.4以上)
 <a href="http://code.google.com/p/fooling/">[SVN]</a>
 <a href="changes.html">[更新履歴]</a>
 
@@ -139,6 +139,18 @@ Python のモジュールとして発見できるようにしておきます。
 
 <blockquote><pre>
 $ <strong>cp -Rp fooling/ /usr/local/lib/python2.4/site-packages/</strong>
+</pre></blockquote>
+
+<P>
+2008年2月のバージョンから追加された読みがな検索を使うためには、
+Fooling の Pythonコードが入っているのと同じディレクトリ
+(通常は <code>fooling-dist-2008xxxx/fooling</code>) に
+<code>yomidict.tcdb</code> というファイルが必要です。
+このファイルを生成するには、fooling のトップディレクトリ
+(<code>fooling-dist-2008xxxx</code>) で以下の操作を実行してください:
+
+<blockquote><pre>
+$ make
 </pre></blockquote>
 
 <a name="howto-notices"></a>
