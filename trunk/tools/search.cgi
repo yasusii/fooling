@@ -1,12 +1,12 @@
-#!/usr/bin/env python
-# -*- encoding: euc-jp -*-
-# -*- python -*-
-
+#!/bin/cgipython
+# -*- python -*- coding: euc-jp -*-
+import sys
+sys.path.append('.')
 import cgitb; cgitb.enable()
-import sys, os, re, cgi, random, os.path, time, codecs
+import os, re, cgi, random, os.path, time, codecs
 from fooling.document import HTMLDocument, SourceCodeDocument
 from fooling.corpus import FilesystemCorpus
-from fooling.selection import parse_preds, SelectionWithContinuation, SearchTimeout
+from fooling.selection import SelectionWithContinuation, SearchTimeout, KeywordPredicate, YomiKeywordPredicate, parse_preds
 from urlparse import urljoin
 
 ENCODING = 'euc-jp'
@@ -38,6 +38,11 @@ def url(base, **kw):
     r.append('%s=%s' % (k, v))
   return base+'&'.join(r)
 
+def forall(pred, seq):
+  for x in seq:
+    if not pred(x): return False
+  return True
+
 
 ##  SearchApp
 ##
@@ -46,10 +51,7 @@ class SearchApp:
   TITLE = u'Fooling Demo'
   
   CORPUS = {
-    'p': (u'PyDoc日本語', 'python', HTMLDocument, 'http://www.python.jp/doc/release/'),
-    'j': (u'JavaDoc日本語', 'java', HTMLDocument, 'http://java.sun.com/j2se/1.5.0/ja/docs/'),
-    'l': (u'Linuxソース', 'linux', SourceCodeDocument, 'file:///usr/src/linux/'),
-    't': (u'たべすぎ', 'tabesugi', HTMLDocument, 'http://tabesugi.net/'),
+    't': (u'たべすぎ', 'tabesugi', HTMLDocument, 'http://tabesugi.net/memo/'),
     }
 
   MAX_QUERY_CHARS = 100
@@ -65,12 +67,8 @@ class SearchApp:
     self.method = os.environ.get('REQUEST_METHOD', 'GET')
     self.server = os.environ.get('SERVER_SOFTWARE', '')
     self.form = cgi.FieldStorage()
-    # HTTP header
-    if self.server.startswith('cgi-httpd'):
-      self.out('HTTP/1.0 200 OK\n')       # required for cgi-httpd
-    self.out('Content-type: text/html; charset=euc-jp\n',
-             'Connection: close\n',
-             '\n')
+    self.content_type = 'text/html; charset=%s' % ENCODING
+    self.outbuf = ''
     return
 
   def log(self, s):
@@ -83,10 +81,9 @@ class SearchApp:
       if isinstance(arg1, list):
         arg1 = ''.join( q(unicode(s)) for s in arg1 )
       if isinstance(arg1, unicode):
-        self.outfp.write(e(arg1))
+        self.outbuf += e(arg1)
       else:
-        self.outfp.write(str(arg1))
-    self.outfp.flush()
+        self.outbuf += str(arg1)
     return
 
   QUERY_PAT = re.compile(r'"[^"]+"|\S+', re.UNICODE)
@@ -95,8 +92,9 @@ class SearchApp:
     if not os.path.exists(dirname): return
     corpus = FilesystemCorpus(os.path.join(dirname, 'doc'),
                               os.path.join(dirname, 'idx'), doctype=doctype)
-    preds = parse_preds(query, max_preds=self.MAX_QUERY_PREDS)
-    selection = SelectionWithContinuation(corpus, preds)
+    (disj, preds) = parse_preds(query, max_preds=self.MAX_QUERY_PREDS,
+                                yomipredtype=YomiKeywordPredicate)
+    selection = SelectionWithContinuation(corpus, preds, disjunctive=disj)
     try:
       if len(start) == 12:
         selection.load_continuation(start)
@@ -126,15 +124,16 @@ class SearchApp:
                  u'</small>\n')
         window.append(found)
         if len(window) == 10: break
-      self.out(u'</dl><div align=right>\n')
+      self.out(u'</dl>\n')
     except SearchTimeout:
       self.out(u'</dl><center>(',
                [self.TIMEOUT],
-               u'秒で検索を打ち切りました)</center><div align=right>\n')
+               u'秒で検索を打ち切りました)</center>\n')
     (finished, estimated) = selection.status()
     if not window:
-      self.out(u'なかったですよ。')
+      self.out(u'<div>なかったですよ。<p>')
     else:
+      self.out(u'<div align=right>')
       if finished:
         self.out([estimated],
                  u'件')
@@ -150,7 +149,7 @@ class SearchApp:
       if not finished:
         cont = selection.save_continuation()
         self.out(u'&nbsp; <a href="',
-                 [url('?', q=query, c=cname, s=cont)],
+                 [url('?', q=query, s=cont)],
                  u'">つぎ? &gt;&gt;</a>')
     self.out(u'<br><small>総文書数: ',
              [corpus.total_docs()],
@@ -190,21 +189,19 @@ class SearchApp:
 
   def body(self, query, cname):
     self.out(u'<form action="/" method="GET">',
-             u'<strong>検索条件:</strong>\n',
-             u'<small>(例: <q><code>フレーズ</code></q>, <q><code>title:タイトル検索</code></q>, <q><code>-含まれないもの</code></q>, <q><code>|フレーズ|</code></q>)</small><br>\n',
+             u'<strong>検索条件:</strong><br>\n',
              u'<input name="q" size="50" value="',
              [query],
              u'">',
              u'<input type="submit" value="検索"><br>\n',
-             u'<small>')
-    for (k,(name,_,_,_)) in self.CORPUS.iteritems():
-      sw = ''
-      if k == cname:
-        sw = 'checked'
-      self.out(u'<label><input type="radio" name="c" value="%s" %s>' % (k,sw),
-               [name],
-               u'</label>\n')
-    self.out(u'</small></form>')
+             u'</form><small><p>\n',
+             u'ひらがな、またはローマ字で検索文字列を入力すると、漢字を含む読みがなで検索します。<br>',
+             u'例:\n',
+             u'<a href="%s">asahi</a>、\n' % url('?', q=u'asahi'),
+             u'<a href="%s">ユースケ</a>、\n' % url('?', q=u'ユースケ'),
+             u'<a href="%s">おおさまのみみわろばのみみ</a>\n' % url('?', q=u'おおさまのみみわろばのみみ'),
+             u'</small>\n',
+             )
     return
 
   def footer(self):
@@ -214,18 +211,23 @@ class SearchApp:
     return
 
   def run(self):
-    if self.method == 'HEAD': return
-    if self.path_info != '/': return
     query = d(self.form.getvalue('q') or '')[:self.MAX_QUERY_CHARS]
-    cname = self.form.getvalue('c') or 'p'
     start = self.form.getvalue('s') or ''
+    cname = 't'
     self.header(query)
     self.body(query, cname)
     if query and (cname in self.CORPUS):
       t = time.time()
       self.search(query, cname, start)
-      self.log("fooling: q='%s', c=%r, start=%r (%.2f sec)" % (query, cname, start, time.time()-t))
+      self.log("fooling: q='%s', c=%r, start=%r (%.2f sec)" %
+               (query, cname, start, time.time()-t))
     self.footer()
+    if self.server.startswith('cgi-httpd'):
+      # required for cgi-httpd
+      self.outfp.write('HTTP/1.0 200 OK\r\n')
+    self.outfp.write('Content-type: %s\r\n' % self.content_type)
+    self.outfp.write('Connection: close\r\n\r\n')
+    self.outfp.write(self.outbuf)
     return
 
 
