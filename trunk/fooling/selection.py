@@ -101,11 +101,11 @@ class Predicate:
     return []
 
 
-class KeywordPredicate(Predicate):
+class IsZeroPos:
+  def __call__(self, pos):
+    return pos == 0
 
-  class IsZeroPos:
-    def __call__(self, pos):
-      return pos == 0
+class KeywordPredicate(Predicate):
 
   def __init__(self, s):
     Predicate.__init__(self)
@@ -133,7 +133,7 @@ class KeywordPredicate(Predicate):
       return
     if s.startswith('title:'):
       s = s[6:]
-      self.pos_filter = KeywordPredicate.IsZeroPos()
+      self.pos_filter = IsZeroPos()
     self.setup_keyword(s)
     return
 
@@ -175,14 +175,14 @@ class KeywordPredicate(Predicate):
 
 ##  EMailPredicate
 ##
+class IsHeaderPos:
+  def __call__(self, pos):
+    return pos < 100
+
 class EMailPredicate(KeywordPredicate):
 
   def __repr__(self):
     return '<EMailPredicate: %r>' % self.q
-
-  class IsHeaderPos:
-    def __call__(self, pos):
-      return pos < 100
 
   HEADER_PAT = re.compile(
     # does not include "Date:" because it's handled specially.
@@ -200,7 +200,7 @@ class EMailPredicate(KeywordPredicate):
       return
     (h,s) = m.groups()
     h = h.lower()
-    self.pos_filter = EMailPredicate.IsHeaderPos()
+    self.pos_filter = IsHeaderPos()
     if h == 'message-id':  # searching Messsage-ID.
       for m in self.MSGID_PAT.finditer(s):
         self.r1.append('\x10'+m.group(1))
