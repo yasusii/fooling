@@ -1,0 +1,686 @@
+#!/usr/bin/env python
+# -*- encoding: euc_jp -*-
+
+##  romm.py - handles Roma-ji and kana.
+##
+
+##  Constants
+##
+MORA_DATA = [
+  # (symbol, zenkaku_kana, hankaku_kana, zenkaku_hira, output, input)
+  
+  ( '.a', u'¥¢', u'\uff71', u'¤¢', 'a', 'a', '3a' ),
+  ( '.i', u'¥¤', u'\uff72', u'¤¤', 'i', 'i', '3i', '2y' ),
+  ( '.u', u'¥¦', u'\uff73', u'¤¦', 'u', 'u', '3u', '3wu', '2w' ),
+  ( '.e', u'¥¨', u'\uff74', u'¤¨', 'e', 'e', '3e' ),
+  ( '.o', u'¥ª', u'\uff75', u'¤ª', 'o', 'o', '3o' ),
+  
+  ( 'ka', u'¥«', u'\uff76', u'¤«', 'ka', 'ka', '3ka', '3ca' ),
+  ( 'ki', u'¥­', u'\uff77', u'¤­', 'ki', 'ki', '3ki', '2ky' ),
+  ( 'ku', u'¥¯', u'\uff78', u'¤¯', 'ku', 'ku', '3ku', '2k', '2c', '2q' ),
+  ( 'ke', u'¥±', u'\uff79', u'¤±', 'ke', 'ke', '3ke' ),
+  ( 'ko', u'¥³', u'\uff7a', u'¤³', 'ko', 'ko', '3ko' ),
+  
+  ( 'sa', u'¥µ', u'\uff7b', u'¤µ', 'sa', 'sa', '3sa' ),
+  ( 'si', u'¥·', u'\uff7c', u'¤·', 'si', 'shi', '3si', '3shi', '2sy' ),
+  ( 'su', u'¥¹', u'\uff7d', u'¤¹', 'su', 'su', '3su', '2s' ),
+  ( 'se', u'¥»', u'\uff7e', u'¤»', 'se', 'se', '3se' ),
+  ( 'so', u'¥½', u'\uff7f', u'¤½', 'so', 'so', '3so' ),
+                               
+  ( 'ta', u'¥¿', u'\uff80', u'¤¿', 'ta', 'ta', '3ta' ),
+  ( 'ti', u'¥Á', u'\uff81', u'¤Á', 'ti', 'chi', '3chi', '3ci', '1ti', '2chy', '2ch' ),
+  ( 'tu', u'¥Ä', u'\uff82', u'¤Ä', 'tu', 'tsu', '3tsu', '1tu' ),
+  ( 'te', u'¥Æ', u'\uff83', u'¤Æ', 'te', 'te', '3te' ),
+  ( 'to', u'¥È', u'\uff84', u'¤È', 'to', 'to', '3to', '2t' ),
+  
+  ( 'na', u'¥Ê', u'\uff85', u'¤Ê', 'na', 'na', '3na' ),
+  ( 'ni', u'¥Ë', u'\uff86', u'¤Ë', 'ni', 'ni', '3ni', '2ny' ),
+  ( 'nu', u'¥Ì', u'\uff87', u'¤Ì', 'nu', 'nu', '3nu' ),
+  ( 'ne', u'¥Í', u'\uff88', u'¤Í', 'ne', 'ne', '3ne' ),
+  ( 'no', u'¥Î', u'\uff89', u'¤Î', 'no', 'no', '3no' ),
+  
+  ( 'ha', u'¥Ï', u'\uff8a', u'¤Ï', 'ha', 'ha', '3ha' ),
+  ( 'hi', u'¥Ò', u'\uff8b', u'¤Ò', 'hi', 'hi', '3hi', '2hy' ),
+  ( 'hu', u'¥Õ', u'\uff8c', u'¤Õ', 'hu', 'fu', '3hu', '3fu', '2f' ),
+  ( 'he', u'¥Ø', u'\uff8d', u'¤Ø', 'he', 'he', '3he' ),
+  ( 'ho', u'¥Û', u'\uff8e', u'¤Û', 'ho', 'ho', '3ho' ),
+  
+  ( 'ma', u'¥Þ', u'\uff8f', u'¤Þ', 'ma', 'ma', '3ma' ),
+  ( 'mi', u'¥ß', u'\uff90', u'¤ß', 'mi', 'mi', '3mi', '2my' ),
+  ( 'mu', u'¥à', u'\uff91', u'¤à', 'mu', 'mu', '3mu', '2m' ),
+  ( 'me', u'¥á', u'\uff92', u'¤á', 'me', 'me', '3me' ),
+  ( 'mo', u'¥â', u'\uff93', u'¤â', 'mo', 'mo', '3mo' ),
+  
+  ( 'ya', u'¥ä', u'\uff94', u'¤ä', 'ya', 'ya', '3ya' ),
+  ( 'yu', u'¥æ', u'\uff95', u'¤æ', 'yu', 'yu', '3yu' ),
+  ( 'ye', u'¥¤¥§', u'\uff72\uff6a', u'¤¤¤§', 'ye', 'ye', '3ye' ),
+  ( 'yo', u'¥è', u'\uff96', u'¤è', 'yo', 'yo', '3yo' ),
+  
+  ( 'ra', u'¥é', u'\uff97', u'¤é', 'ra', 'ra', '3ra', '2la' ),
+  ( 'ri', u'¥ê', u'\uff98', u'¤ê', 'ri', 'ri', '3ri' ,'2li', '2ry', '2ly' ),
+  ( 'ru', u'¥ë', u'\uff99', u'¤ë', 'ru', 'ru', '3ru' ,'2lu', '2r', '2l' ),
+  ( 're', u'¥ì', u'\uff9a', u'¤ì', 're', 'le', '3re', '2le' ),
+  ( 'ro', u'¥í', u'\uff9b', u'¤í', 'ro', 'ro', '3ro', '2lo' ),
+  
+  ( 'wa', u'¥ï', u'\uff9c', u'¤ï', 'wa', 'wa', '3wa' ),
+  ( 'wi', u'¥¦¥£', u'\uff73\uff68', u'¤¦¤£', 'wi', 'wi', '3whi', '3wi', '2wy', '2why' ),
+  ( 'we', u'¥¦¥§', u'\uff73\uff6a', u'¤¦¤§', 'we', 'we', '3whe', '3we' ),
+  ( 'wo', u'¥¦¥©', u'\uff73\uff6b', u'¤¦¤©', 'wo', 'wo', '1xwo', '2wo' ),
+  
+  ( 'Wi', u'¥ð', u'', u'¤ð', 'wi', 'i', '1xwi' ),
+  ( 'We', u'¥ñ', u'', u'¤ñ', 'we', 'e', '1xwe' ),
+  ( 'Wo', u'¥ò', u'\uff66', u'¤ò', 'wo', 'o', '1wo' ),
+
+  ( '.n', u'¥ó', u'\uff9d', u'¤ó', "nn", 'n', '3n', "3n'", '3m:p', '2ng' ),
+  
+  # Special morae: They don't have actual pronunciation,
+  #                but we keep them for IMEs.
+  ( 'xW', u'¥¡', u'\uff67', u'¤¡', '(a)', '(a)', '1xa', '1la' ),
+  ( 'xI', u'¥£', u'\uff68', u'¤£', '(i)', '(i)', '1xi', '1li' ),
+  ( 'xV', u'¥¥', u'\uff69', u'¤¥', '(u)', '(u)', '1xu', '1lu' ),
+  ( 'xE', u'¥§', u'\uff6a', u'¤§', '(e)', '(e)', '1xe', '1le' ),
+  ( 'xR', u'¥©', u'\uff6b', u'¤©', '(o)', '(o)', '1xo', '1lo' ),
+  ( 'xA', u'¥ã', u'\uff6c', u'¤ã', '(ya)', '(ya)', '1xya', '1lya' ),
+  ( 'xU', u'¥å', u'\uff6d', u'¤å', '(yu)', '(yu)', '1xyu', '1lyu' ),
+  ( 'xO', u'¥ç', u'\uff6e', u'¤ç', '(yo)', '(yo)', '1xyo', '1lyo' ),
+  
+  ( '!v', u'¡«', u'\uff9e', u'¡«', '(dakuten)', '(dakuten)' ),
+  ( '!p', u'¡¬', u'\uff9f', u'¡¬', '(handakuten)', '(handakuten)' ),
+  ( '!.', u'¡£', u'\uff61', u'¡£', '.', '.', '3.' ),
+  ( '!,', u'¡¢', u'\uff64', u'¡¢', ',', ',', '3,' ),
+  ( '!_', u'¡¦', u'\uff65', u'¡¦', '(nakaguro)', '(nakaguro)', '1x.' ),
+  ( '![', u'¡Ö', u'\uff62', u'¡Ö', '[', '[', '3[' ),
+  ( '!]', u'¡×', u'\uff63', u'¡×', ']', ']', '3]' ),
+  
+  # chouon
+  ( '.-', u'¡¼', u'\uff70', u'¡¼', 'h', 'h', '1-', '2h' ),
+  
+  # choked sound (Sokuon)
+  ( '.t', u'¥Ã', u'\uff6f', u'¤Ã', '>', '>', '1xtu', '1ltu',
+    '3k:k', '3s:s', '3t:t', '3h:h', '3f:f', '3m:m', '3r:r', '3p:p',
+    '3g:g', '3z:z', '3j:j', '3d:d', '3b:b', '3v:v', '3b:c', '3t:c' ),
+  
+  # voiced (Dakuon)
+  ( 'ga', u'¥¬', u'\uff76\uff9e', u'¤¬', 'ga', 'ga', '3ga' ),
+  ( 'gi', u'¥®', u'\uff77\uff9e', u'¤®', 'gi', 'gi', '3gi', '2gy' ),
+  ( 'gu', u'¥°', u'\uff78\uff9e', u'¤°', 'gu', 'gu', '3gu', '2g'),
+  ( 'ge', u'¥²', u'\uff79\uff9e', u'¤²', 'ge', 'ge', '3ge' ),
+  ( 'go', u'¥´', u'\uff7a\uff9e', u'¤´', 'go', 'go', '3go' ),
+  
+  ( 'za', u'¥¶', u'\uff7b\uff9e', u'¤¶', 'za', 'za', '3za' ),
+  ( 'zi', u'¥¸', u'\uff7c\uff9e', u'¤¸', 'zi', 'ji', '3ji', '1zi' ),
+  ( 'zu', u'¥º', u'\uff7d\uff9e', u'¤º', 'zu', 'zu', '3zu', '2z' ),
+  ( 'ze', u'¥¼', u'\uff7e\uff9e', u'¤¼', 'ze', 'ze', '3ze' ),
+  ( 'zo', u'¥¾', u'\uff7f\uff9e', u'¤¾', 'zo', 'zo', '3zo' ),
+  
+  ( 'da', u'¥À', u'\uff80\uff9e', u'¤À', 'da', 'da', '3da' ),
+  ( 'di', u'¥Â', u'\uff81\uff9e', u'¤Â', 'di', 'dzi', '3dzi', '1di' ),
+  ( 'du', u'¥Å', u'\uff82\uff9e', u'¤Å', 'du', 'dzu', '3dzu', '1du' ),
+  ( 'de', u'¥Ç', u'\uff83\uff9e', u'¤Ç', 'de', 'de', '3de' ),
+  ( 'do', u'¥É', u'\uff84\uff9e', u'¤É', 'do', 'do', '3do', '2d' ),
+  
+  ( 'ba', u'¥Ð', u'\uff8a\uff9e', u'¤Ð', 'ba', 'ba', '3ba' ),
+  ( 'bi', u'¥Ó', u'\uff8b\uff9e', u'¤Ó', 'bi', 'bi', '3bi', '2by' ),
+  ( 'bu', u'¥Ö', u'\uff8c\uff9e', u'¤Ö', 'bu', 'bu', '3bu', '2b' ),
+  ( 'be', u'¥Ù', u'\uff8d\uff9e', u'¤Ù', 'be', 'be', '3be' ),
+  ( 'bo', u'¥Ü', u'\uff8e\uff9e', u'¤Ü', 'bo', 'bo', '3bo' ),
+  
+  # p- sound (Handakuon)
+  ( 'pa', u'¥Ñ', u'\uff8a\uff9f', u'¤Ñ', 'pa', 'pa', '3pa' ),
+  ( 'pi', u'¥Ô', u'\uff8b\uff9f', u'¤Ô', 'pi', 'pi', '3pi', '2py' ),
+  ( 'pu', u'¥×', u'\uff8c\uff9f', u'¤×', 'pu', 'pu', '3pu', '2p' ),
+  ( 'pe', u'¥Ú', u'\uff8d\uff9f', u'¤Ú', 'pe', 'pe', '3pe' ),
+  ( 'po', u'¥Ý', u'\uff8e\uff9f', u'¤Ý', 'po', 'po', '3po' ),
+
+  # double consonants (Youon)
+  ( 'KA', u'¥­¥ã', u'\uff77\uff6c', u'¤­¤ã', 'kya', 'kya', '3kya' ),
+  ( 'KU', u'¥­¥å', u'\uff77\uff6d', u'¤­¤å', 'kyu', 'kyu', '3kyu', '2cu' ),
+  ( 'KE', u'¥­¥§', u'\uff77\uff6a', u'¤­¤§', 'kye', 'kye', '3kye' ),
+  ( 'KO', u'¥­¥ç', u'\uff77\uff6e', u'¤­¤ç', 'kyo', 'kyo', '3kyo' ),
+
+  ( 'kA', u'¥¯¥¡', u'\uff78\uff67', u'¤¯¤¡', 'qa', 'qa', '3qa' ),
+  ( 'kI', u'¥¯¥£', u'\uff78\uff68', u'¤¯¤£', 'qi', 'qi', '3qi' ),
+  ( 'kE', u'¥¯¥§', u'\uff78\uff6a', u'¤¯¤§', 'qe', 'qe', '3qe' ),
+  ( 'kO', u'¥¯¥©', u'\uff78\uff6b', u'¤¯¤©', 'qo', 'qo', '3qo' ),
+  
+  ( 'SA', u'¥·¥ã', u'\uff7c\uff6c', u'¤·¤ã', 'sya', 'sha', '3sya', '3sha' ),
+  ( 'SU', u'¥·¥å', u'\uff7c\uff6d', u'¤·¤å', 'syu', 'shu', '3syu', '3shu', '2sh' ),
+  ( 'SE', u'¥·¥§', u'\uff7c\uff6a', u'¤·¤§', 'sye', 'she', '3sye', '3she' ),
+  ( 'SO', u'¥·¥ç', u'\uff7c\uff6e', u'¤·¤ç', 'syo', 'sho', '3syo', '3sho' ),
+  
+  ( 'CA', u'¥Á¥ã', u'\uff81\uff6c', u'¤Á¤ã', 'tya', 'cha', '3tya', '1cya', '3cha' ),
+  ( 'CU', u'¥Á¥å', u'\uff81\uff6d', u'¤Á¤å', 'tyu', 'chu', '3tyu', '1cyu', '3chu' ),
+  ( 'CE', u'¥Á¥§', u'\uff81\uff6a', u'¤Á¤§', 'tye', 'che', '3tye', '1cye', '3che' ),
+  ( 'CO', u'¥Á¥ç', u'\uff81\uff6e', u'¤Á¤ç', 'tyo', 'cho', '3tyo', '1cyo', '3cho' ),
+  ( 'TI', u'¥Æ¥£', u'\uff83\uff68', u'¤Æ¤£', 'tyi', 'ti', '3tyi', '3thi', '2ti' ),
+  ( 'TU', u'¥Æ¥å', u'\uff83\uff6d', u'¤Æ¤å', 'thu', 'tu', '3thu', '2tu' ),
+  ( 'TO', u'¥È¥¥', u'\uff84\uff69', u'¤È¤¥', 'to', 'to', '3tho', '2two' ),
+  
+  ( 'NA', u'¥Ë¥ã', u'\uff86\uff6c', u'¤Ë¤ã', 'nya', 'nya', '3nya' ),
+  ( 'NU', u'¥Ë¥å', u'\uff86\uff6d', u'¤Ë¤å', 'nyu', 'nyu', '3nyu' ),
+  ( 'NI', u'¥Ë¥§', u'\uff86\uff6a', u'¤Ë¤§', 'nye', 'nye', '3nye' ),
+  ( 'NO', u'¥Ë¥ç', u'\uff86\uff6e', u'¤Ë¤ç', 'nyo', 'nyo', '3nyo' ),
+  
+  ( 'HA', u'¥Ò¥ã', u'\uff8b\uff6c', u'¤Ò¤ã', 'hya', 'hya', '3hya' ),
+  ( 'HU', u'¥Ò¥å', u'\uff8b\uff6d', u'¤Ò¤å', 'hyu', 'hyu', '3hyu' ),
+  ( 'HE', u'¥Ò¥§', u'\uff8b\uff6a', u'¤Ò¤§', 'hye', 'hye', '3hye' ),
+  ( 'HO', u'¥Ò¥ç', u'\uff8b\uff6e', u'¤Ò¤ç', 'hyo', 'hyo', '3hyo' ),
+  
+  ( 'FA', u'¥Õ¥¡', u'\uff8c\uff67', u'¤Õ¤¡', 'fa', 'fa', '3fa' ),
+  ( 'FI', u'¥Õ¥£', u'\uff8c\uff68', u'¤Õ¤£', 'fi', 'fi', '3fi', '2fy' ),
+  ( 'FE', u'¥Õ¥§', u'\uff8c\uff6a', u'¤Õ¤§', 'fe', 'fe', '3fe' ),
+  ( 'FO', u'¥Õ¥©', u'\uff8c\uff6b', u'¤Õ¤©', 'fo', 'fo', '3fo' ),
+  ( 'FU', u'¥Õ¥å', u'\uff8c\uff6d', u'¤Õ¤å', 'fyu', 'fyu', '3fyu' ),
+  ( 'Fo', u'¥Õ¥ç', u'\uff8c\uff6e', u'¤Õ¤ç', 'fyo', 'fyo', '3fyo' ),
+  
+  ( 'MA', u'¥ß¥ã', u'\uff90\uff6c', u'¤ß¤ã', 'mya', 'mya', '3mya' ),
+  ( 'MU', u'¥ß¥å', u'\uff90\uff6d', u'¤ß¤å', 'myu', 'myu', '3myu' ),
+  ( 'ME', u'¥ß¥§', u'\uff90\uff6a', u'¤ß¤§', 'mye', 'mye', '3mye' ),
+  ( 'MO', u'¥ß¥ç', u'\uff90\uff6e', u'¤ß¤ç', 'myo', 'myo', '3myo' ),
+  
+  ( 'RA', u'¥ê¥ã', u'\uff98\uff6c', u'¤ê¤ã', 'rya', 'rya', '3rya', '2lya' ),
+  ( 'RU', u'¥ê¥å', u'\uff98\uff6d', u'¤ê¤å', 'ryu', 'ryu', '3ryu', '2lyu' ),
+  ( 'RE', u'¥ê¥§', u'\uff98\uff6a', u'¤ê¤§', 'rye', 'rye', '3rye', '2lye' ),
+  ( 'RO', u'¥ê¥ç', u'\uff98\uff6e', u'¤ê¤ç', 'ryo', 'ryo', '3ryo', '2lyo' ),
+  
+  # double consonants + voiced
+  ( 'GA', u'¥®¥ã', u'\uff77\uff9e\uff6c', u'¤®¤ã', 'gya', 'gya', '3gya' ),
+  ( 'GU', u'¥®¥å', u'\uff77\uff9e\uff6d', u'¤®¤å', 'gyu', 'gyu', '3gyu' ),
+  ( 'GE', u'¥®¥§', u'\uff77\uff9e\uff6a', u'¤®¤§', 'gye', 'gye', '3gye' ),
+  ( 'GO', u'¥®¥ç', u'\uff77\uff9e\uff6e', u'¤®¤ç', 'gyo', 'gyo', '3gyo' ),
+  
+  ( 'Ja', u'¥¸¥ã', u'\uff7c\uff9e\uff6c', u'¤¸¤ã', 'zya', 'ja', '3zya', '3ja', '3zha' ),
+  ( 'Ju', u'¥¸¥å', u'\uff7c\uff9e\uff6d', u'¤¸¤å', 'zyu', 'ju', '3zyu', '3ju', '3zhu' ),
+  ( 'Je', u'¥¸¥§', u'\uff7c\uff9e\uff6a', u'¤¸¤§', 'zye', 'je', '3zye', '3je', '3zhe' ),
+  ( 'Jo', u'¥¸¥ç', u'\uff7c\uff9e\uff6e', u'¤¸¤ç', 'zyo', 'jo', '3zyo', '3jo', '3zho' ),
+  
+  ( 'JA', u'¥Â¥ã', u'\uff81\uff9e\uff6c', u'¤Â¤ã', 'dya', 'dya', '3dya' ),
+  ( 'JU', u'¥Â¥å', u'\uff81\uff9e\uff6d', u'¤Â¤å', 'dyu', 'dyu', '3dyu' ),
+  ( 'JE', u'¥Â¥§', u'\uff81\uff9e\uff6a', u'¤Â¤§', 'dye', 'dye', '3dye' ),
+  ( 'JO', u'¥Â¥ç', u'\uff81\uff9e\uff6e', u'¤Â¤ç', 'dyo', 'dyo', '3dyo' ),
+
+  ( 'dI', u'¥Ç¥£', u'\uff83\uff9e\uff68', u'¤Ç¤£', 'dhi', 'di', '3dyi', '3dhi', '2di' ),
+  ( 'dU', u'¥Ç¥å', u'\uff83\uff9e\uff6d', u'¤Ç¤å', 'dhu', 'du', '3dhu', '2du' ),
+  ( 'dO', u'¥É¥¥', u'\uff84\uff9e\uff69', u'¤É¤¥', 'dho', 'dho', '3dho' ),
+  
+  ( 'BA', u'¥Ó¥ã', u'\uff8b\uff9e\uff6c', u'¤Ó¤ã', 'bya', 'bya', '3bya' ),
+  ( 'BU', u'¥Ó¥å', u'\uff8b\uff9e\uff6d', u'¤Ó¤å', 'byu', 'byu', '3byu' ),
+  ( 'BE', u'¥Ó¥§', u'\uff8b\uff9e\uff6a', u'¤Ó¤§', 'bye', 'bye', '3bye' ),
+  ( 'BO', u'¥Ó¥ç', u'\uff8b\uff9e\uff6e', u'¤Ó¤ç', 'byo', 'byo', '3byo' ),
+  
+  ( 'va', u'¥ô¥¡', u'\uff73\uff9e\uff67', u'¤¦¡«¤¡', 'va', 'va', '3va' ),
+  ( 'vi', u'¥ô¥£', u'\uff73\uff9e\uff68', u'¤¦¡«¤£', 'vi', 'vi', '3vi', '2vy' ),
+  ( 'vu', u'¥ô',   u'\uff73\uff9e',       u'¤¦¡«', 'vu', 'vu', '3vu', '2v' ),
+  ( 've', u'¥ô¥§', u'\uff73\uff9e\uff6a', u'¤¦¡«¤§', 've', 've', '3ve' ),
+  ( 'vo', u'¥ô¥©', u'\uff73\uff9e\uff6b', u'¤¦¡«¤©', 'vo', 'vo', '3vo' ),
+  
+  # double consonants + p-sound
+  ( 'PA', u'¥Ô¥ã', u'\uff8b\uff9f\uff6c', u'¤Ô¤ã', 'pya', 'pya', '3pya' ),
+  ( 'PU', u'¥Ô¥å', u'\uff8b\uff9f\uff6d', u'¤Ô¤å', 'pyu', 'pyu', '3pyu' ),
+  ( 'PE', u'¥Ô¥§', u'\uff8b\uff9f\uff6a', u'¤Ô¤§', 'pye', 'pye', '3pye' ),
+  ( 'PO', u'¥Ô¥ç', u'\uff8b\uff9f\uff6e', u'¤Ô¤ç', 'pyo', 'pyo', '3pyo' ),
+]
+
+SYMBOL = {
+  u'¡¡':' ', u'¡¢':',', u'¡£':'.', u'¡¤':',', u'¡¥':'.',
+  u'¡¦':'-', u'¡§':':', u'¡¨':';', u'¡©':'?', u'¡ª':'!',
+  u'¡«':'(dakuten)', u'¡¬':'(handakuten)', u'¡­':"'", u'¡®':'`',
+  u'¡¯':'"', u'¡°':'^', u'¡±':'~', u'¡²':'_', u'¡³':'(repeat)',
+  u'¡´':'(repeat-dakuten)', u'¡µ':'(repeat)', u'¡¶':'(repeat-dakuten)',
+  u'¡·':'"', u'¡º':'(shime)', u'¡»':'0', u'¡¼':'-', u'¡½':'--',
+  u'¡¾':' - ', u'¡¿':'/', u'¡À':'\\', u'¡Á':'-', u'¡Â':'||',
+  u'¡Ã':'|', u'¡Ä':'...', u'¡Å':'..', u'¡Æ':'`', u'¡Ç':"'",
+  u'¡È':'"', u'¡É':'"', u'¡Ê':'(', u'¡Ë':')', u'¡Ì':'[',
+  u'¡Í':']', u'¡Î':'[', u'¡Ï':']', u'¡Ð':'{', u'¡Ñ':'}',
+  u'¡Ò':'<', u'¡Ó':'>', u'¡Ô':'<<', u'¡Õ':'>>', u'¡Ö':'"',
+  u'¡×':'"', u'¡Ø':'[[', u'¡Ù':']]', u'¡Ú':'{{', u'¡Û':'}}',
+  u'¡Ü':'+', u'¡Ý':'-', u'¡Þ':'+-', u'¡ß':'*', u'¡à':'/',
+  u'¡á':'=', u'¡â':'!=', u'¡ã':'<', u'¡ä':'>', u'¡å':'<=',
+  u'¡æ':'>=', u'¡ç':'(inf)', u'¡è':'(3dot-therefore)', u'¡é':'(male)',
+  u'¡ê':'(female)', u'¡ë':'(degree)', u'¡ì':"'", u'¡í':"''",
+  u'¡î':'(Celsius)', u'¡ï':'(Yen)', u'¡ð':'$', u'¡ñ':'(Cent)',
+  u'¡ò':'(Pound)', u'¡ó':'%', u'¡ô':'#', u'¡õ':'&', u'¡ö':'*',
+  u'¡÷':'@', u'¡ø':'(section)', u'¡ù':'(star)', u'¡ú':'(STAR)',
+  u'¡û':'(circle)', u'¡ü':'(CIRCLE)', u'¡ý':'(circle2)', u'¡þ':'(dia)',
+  u'¢¡':'(DIA)', u'¢¢':'(box)', u'¢£':'(BOX)', u'¢¤':'(triangle)',
+  u'¢¥':'(TRIANGLE)', u'¢¦':'(tri2)', u'¢§':'(TRI2)', u'¢¨':'(*)',
+  u'¢©':'(Yuubin)', u'¢ª':'(right)', u'¢«':'(left)', u'¢¬':'(up)', u'¢­':'(down)',
+  u'¢®':'(geta)', u'¢º':'(included)', u'¢»':'(including)',
+  u'¢¼':'(subsumed-equal)', u'¢½':'(subsuming-equal)', u'¢¾':'(subsumed)',
+  u'¢¿':'(subsuming)', u'¢À':'(union)', u'¢Á':'(intersection)',
+  u'¢Ê':'(and)', u'¢Ë':'(or)', u'¢Ì':'(not)', u'¢Í':'(=>)',
+  u'¢Î':'(<=>)', u'¢Ï':'(forall)', u'¢Ð':'(exists)', u'¢Ü':'(angle)',
+  u'¢Ý':'(perpendicular)', u'¢Þ':'(arc)', u'¢ß':'(partial)',
+  u'¢à':'(nabra)', u'¢á':'(:=)', u'¢â':'(nearly=)', u'¢ã':'(<<)',
+  u'¢ä':'(>>)', u'¢å':'(sqrt)', u'¢æ':'(lazy)', u'¢ç':'(proportional)',
+  u'¢è':'(3dot-becasue)', u'¢é':'(integral)', u'¢ê':'(integral2)',
+  u'¢ò':'(angstrom)', u'¢ó':'(permil)', u'¢ô':'(sharp)', u'¢õ':'(flat)',
+  u'¢ö':'(note)', u'¢÷':'(dagger)', u'¢ø':'(ddagger)', u'¢ù':'(paragraph)',
+  u'¢þ':'(O)',
+
+  u'¥î':'(small-wa)',
+  u'¥õ':'(ka)', u'¥ö':'(ko)', 
+
+  u'¦¡':'(ALPHA)', u'¦¢':'(BETA)', u'¦£':'(GAMMA)', u'¦¤':'(DELTA)',
+  u'¦¥':'(EPSILON)', u'¦¦':'(ZETA)', u'¦§':'(ETA)', u'¦¨':'(THETA)',
+  u'¦©':'(IOTA)', u'¦ª':'(KAPPA)', u'¦«':'(LAMBDA)', u'¦¬':'(MU)',
+  u'¦­':'(NU)', u'¦®':'(XI)', u'¦¯':'(OMICRON)', u'¦°':'(PI)',
+  u'¦±':'(RHO)', u'¦²':'(SIGMA)', u'¦³':'(TAU)', u'¦´':'(UPSILON)',
+  u'¦µ':'(PHI)', u'¦¶':'(CHI)', u'¦·':'(PSI)', u'¦¸':'(OMEGA)',
+  u'¦Á':'(alpha)', u'¦Â':'(beta)', u'¦Ã':'(gamma)', u'¦Ä':'(delta)', 
+  u'¦Å':'(epsilon)', u'¦Æ':'(zeta)', u'¦Ç':'(eta)', u'¦È':'(theta)',
+  u'¦É':'(iota)', u'¦Ê':'(kappa)', u'¦Ë':'(lambda)', u'¦Ì':'(mu)',
+  u'¦Í':'(nu)', u'¦Î':'(xi)', u'¦Ï':'(omicron)', u'¦Ð':'(pi)',
+  u'¦Ñ':'(rho)', u'¦Ò':'(sigma)', u'¦Ó':'(tau)', u'¦Ô':'(upsilon)',
+  u'¦Õ':'(phi)', u'¦Ö':'(chi)', u'¦×':'(psi)', u'¦Ø':'(omega)',
+  
+  u'§¡':'(C-A)', u'§¢':'(C-B")', u'§£':'(C-V)', u'§¤':'(C-G)',
+  u'§¥':'(C-D)', u'§¦':'(C-YE)', u'§§':'(C-YO)', u'§¨':'(C-ZH)',
+  u'§©':'(C-Z)', u'§ª':'(C-II)', u'§«':'(C-II")', u'§¬':'(C-K)', 
+  u'§­':'(C-L)', u'§®':'(C-M)', u'§¯':'(C-N)', u'§°':'(C-O)', 
+  u'§±':'(C-P)', u'§²':'(C-R")', u'§³':'(C-S)', u'§´':'(C-T)',
+  u'§µ':'(C-U)', u'§¶':'(C-F)', u'§·':'(C-X)', u'§¸':'(C-TS)',
+  u'§¹':'(C-CH)', u'§º':'(C-SH)', u'§»':'(C-SCH)', u'§¼':'(C-SOFT)',
+  u'§½':'(C-I)', u'§¾':'(C-SEP)', u'§¿':'(C-EH)', u'§À':'(C-YU)',
+  u'§Á':'(C-YA)', 
+  
+  u'§Ñ':'(c-a)', u'§Ò':'(c-b)', u'§Ó':'(c-v)', u'§Ô':'(c-g)',
+  u'§Õ':'(c-g)', u'§Ö':'(c-ye)', u'§×':'(c-yo)', u'§Ø':'(c-zh)',
+  u'§Ù':'(c-z)', u'§Ú':'(c-ii)', u'§Û':'(c-ii:)', u'§Ü':'(c-k)',
+  u'§Ý':'(c-l)', u'§Þ':'(c-m)', u'§ß':'(c-n)', u'§à':'(c-o)',
+  u'§á':'(c-p)', u'§â':'(c-r)', u'§ã':'(c-s)', u'§ä':'(c-t)',
+  u'§å':'(c-u)', u'§æ':'(c-f)', u'§ç':'(c-x)', u'§è':'(c-ts)',
+  u'§é':'(c-ch)', u'§ê':'(c-sh)', u'§ë':'(c-sch)', u'§ì':'(c-soft)',
+  u'§í':'(c-i)', u'§î':'(c-sep)', u'§ï':'(c-eh)', u'§ð':'(c-yu)',
+  u'§ñ':'(c-ya)',
+  
+  u'¨¡':'-', u'¨¢':'|', u'¨£':'+', u'¨¤':'+', u'¨¥':'+',
+  u'¨¦':'+', u'¨§':'+', u'¨¨':'+', u'¨©':'+', u'¨ª':'+',
+  u'¨«':'+', u'¨¬':'=', u'¨­':'|', u'¨®':'+', u'¨¯':'+',
+  u'¨°':'+', u'¨±':'+', u'¨²':'+', u'¨³':'+', u'¨´':'+',
+  u'¨µ':'+', u'¨¶':'+', u'¨·':'+', u'¨¸':'+', u'¨¹':'+',
+  u'¨º':'+', u'¨»':'+', u'¨¼':'+', u'¨½':'+', u'¨¾':'+',
+  u'¨¿':'+', u'¨À':'+',
+  }
+
+# 0x20-0x7e:  !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+ZENKAKU = (
+  u'¡¡¡ª¡É¡ô¡ð¡ó¡õ¡Ç¡Ê¡Ë¡ö¡Ü¡¤¡Ý¡¥¡¿£°£±£²£³£´£µ£¶£·£¸£¹¡§¡¨¡ã¡á¡ä¡©'
+  u'¡÷£Á£Â£Ã£Ä£Å£Æ£Ç£È£É£Ê£Ë£Ì£Í£Î£Ï£Ð£Ñ£Ò£Ó£Ô£Õ£Ö£×£Ø£Ù£Ú¡Î¡À¡Ï¡°¡²'
+  u'¡Æ£á£â£ã£ä£å£æ£ç£è£é£ê£ë£ì£í£î£ï£ð£ñ£ò£ó£ô£õ£ö£÷£ø£ù£ú¡Ð¡Ã¡Ñ¡Á'
+  )
+
+HANKAKU = (
+  ' !"#'
+  "$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]"
+  '^_`abcdefghijklmnopqrstuvwxyz{|}~'
+  )
+
+z2hmap = dict(zip(ZENKAKU, HANKAKU))
+h2zmap = dict(zip(ZENKAKU, HANKAKU))
+
+def zen2han(z):
+  return ''.join( z2hmap.get(c,c) for c in z )
+
+# Mora Object
+class Mora:
+  
+  def __init__(self, mid, zenk, hank, zenh):
+    self.mid = mid
+    self.zenk = zenk
+    self.hank = hank
+    self.zenh = zenh
+    return
+
+  def __repr__(self):
+    return '<%s>' % self.mid
+
+  # unicode(m) or str(m) converts to katakana.
+  def __str__(self):
+    return self.zenk
+  
+
+##  Translation Table
+##
+
+# ParseTable
+class ParseTable:
+  
+  def __init__(self):
+    self.tbl = {}
+    return
+
+  def __contains__(self, k):
+    # Different from (self.tbl in k) --
+    # even if self.tbl[k] exists, it might be None.
+    return self.tbl.get(k)
+
+  def update(self, src):
+    self.tbl.update(src.tbl)
+    return
+
+  def add(self, s, mora, allowconflict=False):
+    if self.tbl.get(s) and not allowconflict:
+      raise ValueError('%r (%r) is already defined: %r' %
+                       (s, mora, self.tbl[s]))
+    if ':' in s:
+      (parselen, s) = (s.index(':'), s.replace(':',''))
+    else:
+      parselen = len(s)
+    for i in range(len(s)):
+      w = s[:i+1]
+      if w == s:
+        self.tbl[w] = (parselen, mora)
+      elif w not in self.tbl:
+        self.tbl[w] = None
+    return
+  
+  def parse(self, s, i=0):
+    while i < len(s):
+      n = 1
+      r = (1, s[i])
+      while i+n <= len(s):
+        w = zen2han(s[i:i+n]).lower()
+        if w not in self.tbl: break
+        x = self.tbl[w]
+        if x:
+          r = x
+        n += 1
+      (n, m) = r
+      yield m
+      i += n
+    return
+
+# GenTable
+class GenTable(dict):
+
+  def add(self, mora, s):
+    if mora in self:
+      raise ValueError('%r (%r) is already defined: %r' %
+                       (mora, s, self[mora]))
+    self[mora] = s
+    return
+    
+  def generate(self, morae, addrule=False, nreduce=False):
+    (m0,s0) = (None,'')
+    for x in morae:
+      if isinstance(x, Mora):
+        assert x in self, 'Invalid mora: %r' % x
+        (m1,s1) = (x, self[x])
+      else:
+        (m1,s1) = (None, x)
+      if m0:
+        if m0.mid == '.t':
+          if addrule and s1[0] == 'c':
+            s0 = 't'  # qT+"c" -> "tc"
+          else:
+            s0 = s1[0]
+        elif m0.mid == '.n':
+          if addrule and s1[0] == 'p':
+            s0 = 'm'  # NN+"p" -> "mp"
+          elif nreduce and (s1[0] not in 'auieon'):
+            s0 = 'n'  # NN+C -> "n"+C
+      yield s0
+      (m0,s0) = (m1,s1)
+    yield s0
+    return
+
+
+##  Initialization
+##
+MORA = {}
+PARSE_OFFICIAL = ParseTable()
+PARSE_OFFICIAL_ANNA = ParseTable()
+PARSE_ENGLISH = ParseTable()
+GEN_OFFICIAL = GenTable()
+GEN_OFFICIAL_ANNA = GenTable()
+GEN_ENGLISH = GenTable()
+def initialize():
+  NN = None
+  for m in MORA_DATA:
+    (mid, zenk, hank, zenh, p_off, p_eng) = m[:6]
+    assert mid not in MORA
+    assert isinstance(zenk, unicode)
+    assert isinstance(hank, unicode)
+    assert isinstance(zenh, unicode)
+    mora = Mora(mid, zenk, hank, zenh)
+    MORA[mid] = mora
+    PARSE_OFFICIAL.add(zenk, mora, True)
+    PARSE_OFFICIAL.add(hank, mora, True)
+    PARSE_OFFICIAL.add(zenh, mora, True)
+    PARSE_ENGLISH.add(zenk, mora, True)
+    PARSE_ENGLISH.add(hank, mora, True)
+    PARSE_ENGLISH.add(zenh, mora, True)
+    for x in m[6:]:
+      (c,k) = (ord(x[0])-48,x[1:])
+      if c & 1:
+        PARSE_OFFICIAL.add(k, mora)
+      if c & 2:
+        PARSE_ENGLISH.add(k, mora)
+    if mid == '.n':
+      NN = mora
+    else:
+      GEN_OFFICIAL.add(mora, p_off)
+    GEN_ENGLISH.add(mora, p_eng)
+  PARSE_OFFICIAL_ANNA.update(PARSE_OFFICIAL)
+  PARSE_OFFICIAL.add('nn', NN)
+  GEN_OFFICIAL_ANNA.update(GEN_OFFICIAL)
+  GEN_OFFICIAL_ANNA.add(NN, "n'")
+  GEN_OFFICIAL.add(NN, 'nn')
+  return
+initialize()
+
+
+##  Aliases
+##
+PARSE_DEFAULT = PARSE_OFFICIAL
+GEN_DEFAULT = GEN_OFFICIAL
+def romm2kana(s, ignore=False, parser=PARSE_DEFAULT):
+  morae = parser.parse(s)
+  if ignore:
+    morae = ( m for m in morae if isinstance(m, Mora) )
+  return ''.join( unicode(m) for m in morae )
+def kana2romm(s, ignore=False, parser=PARSE_DEFAULT, generator=GEN_DEFAULT):
+  morae = parser.parse(s)
+  if ignore:
+    morae = ( m for m in morae if isinstance(m, Mora) )
+  return ''.join(generator.generate(morae))
+
+def official2kana(s, ignore=False):
+  return romm2kana(s, ignore, PARSE_OFFICIAL)
+def official_anna2kana(s, ignore=False):
+  return romm2kana(s, ignore, PARSE_OFFICIAL_ANNA)
+def english2kana(s, ignore=False):
+  return romm2kana(s, ignore, PARSE_ENGLISH)
+
+def kana2official(s, ignore=False):
+  return kana2romm(s, ignore, PARSE_OFFICIAL, GEN_OFFICIAL)
+def kana2official_anna(s, ignore=False):
+  return kana2romm(s, ignore, PARSE_OFFICIAL_ANNA, GEN_OFFICIAL_ANNA)
+def kana2english(s, ignore=False):
+  return kana2romm(s, ignore, PARSE_ENGLISH, GEN_ENGLISH)
+
+# Test cases
+if __name__ == '__main__':
+  import unittest
+
+  class TestRoma(unittest.TestCase):
+
+    def checkParse(self, table, s, morae0):
+      morae = [ isinstance(m,Mora) and m.mid for m in table.parse(s) ]
+      self.assertEqual(morae0, morae)
+      
+    def test_00_parse_basic_official(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'akasatana',
+                      ['.a','ka','sa','ta','na'])
+    def test_01_parse_basic_official_anna(self):
+      self.checkParse(PARSE_OFFICIAL_ANNA,
+                      'akasatana',
+                      ['.a','ka','sa','ta','na'])
+    def test_02_parse_basic_english(self):
+      self.checkParse(PARSE_ENGLISH,
+                      'akasatana',
+                      ['.a','ka','sa','ta','na'])
+    def test_03_parse_official_ta1(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'tatituteto',
+                      ['ta','ti','tu','te','to'])
+      return
+    def test_03_parse_official_ta2(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'tachitsuteto',
+                      ['ta','ti','tu','te','to'])
+      return
+    def test_04_parse_official_nn1(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'sonna,anna',
+                      ['so','.n','.a','!,','.a','.n','.a'])
+      return
+    def test_04_parse_official_nn2(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'sonnna,annna',
+                      ['so','.n','na','!,','.a','.n','na'])
+      return
+    def test_05_parse_official_anna_nn1(self):
+      self.checkParse(PARSE_OFFICIAL_ANNA,
+                      'sonna,anna',
+                      ['so','.n','na','!,','.a','.n','na'])
+      return
+    def test_05_parse_official_anna_nn2(self):
+      self.checkParse(PARSE_OFFICIAL_ANNA,
+                      'sonnna,annna',
+                      ['so','.n','.n','na','!,','.a','.n','.n','na'])
+      return
+    def test_06_parse_official_youon(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'dosyaburi',
+                      ['do','SA','bu','ri'])
+      return
+    def test_06_parse_official_sokuon1(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'tyotto',
+                      ['CO','.t','to'])
+      return
+    def test_06_parse_official_sokuon2(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      'dotchimo',
+                      ['do','.t','ti','mo'])
+      return
+    def test_07_parse_mixed(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      u'aI£Õ¤¨¥ª',
+                      ['.a','.i','.u','.e','.o'])
+      return
+    def test_07_parse_ignore(self):
+      self.checkParse(PARSE_OFFICIAL,
+                      u'ai$u¦Åo',
+                      ['.a','.i',False,'.u',False,'.o'])
+      return
+
+    def checkGen(self, table, morae, s0):
+      s = ''.join(table.generate( MORA[x] for x in morae ))
+      self.assertEqual(s0, s)
+    def checkGenNReduce(self, table, morae, s0):
+      s = ''.join(table.generate(( MORA[x] for x in morae ), nreduce=True))
+      self.assertEqual(s0, s)
+    def checkGenAddRule(self, table, morae, s0):
+      s = ''.join(table.generate(( MORA[x] for x in morae ), addrule=True))
+      self.assertEqual(s0, s)
+    def checkGenRaw(self, table, morae, s0):
+      s = ''.join(table.generate(morae))
+      self.assertEqual(s0, s)
+
+    def test_10_gen_basic_official(self):
+      self.checkGen(GEN_OFFICIAL,
+                    ['.a','ka','sa','ta','na'],
+                    'akasatana')
+    def test_11_gen_basic_official_anna(self):
+      self.checkGen(GEN_OFFICIAL_ANNA,
+                    ['.a','ka','sa','ta','na'],
+                    'akasatana')
+    def test_12_gen_basic_english(self):
+      self.checkGen(GEN_ENGLISH,
+                    ['.a','ka','sa','ta','na'],
+                    'akasatana')
+    def test_13_gen_official_ta(self):
+      self.checkGen(GEN_OFFICIAL,
+                    ['ta','ti','tu','te','to'],
+                    'tatituteto')
+    def test_14_gen_english_ta(self):
+      self.checkGen(GEN_ENGLISH,
+                    ['ta','ti','tu','te','to'],
+                    'tachitsuteto')
+    def test_15_gen_official_nn1(self):
+      self.checkGen(GEN_OFFICIAL,
+                    ['so','.n','.a','!,','.a','.n','.a'],
+                    'sonna,anna')
+    def test_15_gen_official_nn2(self):
+      self.checkGen(GEN_OFFICIAL,
+                    ['so','.n','na','!,','.a','.n','na'],
+                    'sonnna,annna')
+    def test_16_gen_official_nn_noreduce(self):
+      self.checkGen(GEN_OFFICIAL,
+                    ['so','.n','ka','!,','.a','.n','ka'],
+                    'sonnka,annka')
+    def test_16_gen_official_nn_reduce(self):
+      self.checkGenNReduce(GEN_OFFICIAL,
+                           ['so','.n','ka','!,','.a','.n','ka'],
+                           'sonka,anka')
+    def test_17_gen_official_anna_nn1(self):
+      self.checkGen(GEN_OFFICIAL_ANNA,
+                    ['so','.n','.a','!,','.a','.n','.a'],
+                    "son'a,an'a")
+    def test_17_gen_official_anna_nn2(self):
+      self.checkGen(GEN_OFFICIAL_ANNA,
+                    ['so','.n','na','!,','.a','.n','na'],
+                    "son'na,an'na")
+    def test_18_gen_official_anna_nn_noreduce(self):
+      self.checkGen(GEN_OFFICIAL_ANNA,
+                    ['so','.n','ka','!,','.a','.n','ka'],
+                    "son'ka,an'ka")
+    def test_18_gen_official_anna_nn_reduce(self):
+      self.checkGenNReduce(GEN_OFFICIAL_ANNA,
+                           ['so','.n','ka','!,','.a','.n','ka'],
+                           'sonka,anka')
+    def test_19_gen_official_addrule(self):
+      self.checkGenAddRule(GEN_OFFICIAL,
+                           ['ka','.n','pu'],
+                           'kampu')
+    def test_19_gen_english_addrule(self):
+      self.checkGenAddRule(GEN_ENGLISH,
+                           ['do','.t','ti','mo'],
+                           'dotchimo')
+
+    def test_20_gen_mixed(self):
+      self.checkGenRaw(GEN_OFFICIAL,
+                       [MORA['.a'], u'£Éu', MORA['.e']],
+                       u'a£Éue')
+      
+    def checkKana2Official(self, kana, r0):
+      roma = kana2official(kana)
+      self.assertEqual(roma, r0)
+    def checkOfficial2Kana(self, roma, k0):
+      kana = official2kana(roma)
+      self.assertEqual(kana, k0)
+
+    def test_30_kana2official_basic1(self):
+      self.checkKana2Official(u'¤Á¤ç¤¤¤È¤¢¤ó¤¿¡¢¤½¤ó¤Ê¤³¤È¤¤¤Ã¤Æ¤Ã¤±¤É¤µ',
+                              u'tyoitoannta,sonnnakotoittekkedosa')
+    def test_30_kana2official_basic2(self):
+      self.checkKana2Official(u'¤Ë¤Ã¤Á¤â¤µ¤Ã¤Á¤â¡£',
+                              u'nittimosattimo.')
+    def test_31_kana2official_mixed(self):
+      self.checkKana2Official(u'¤Á¤ç¤¤¤È¤¢¤ó¤¿¥½¥ó¥Ê¥³¥È¤¤¤Ã¤Æ¤Ã¤±¤É¥µ¡£',
+                              u'tyoitoanntasonnnakotoittekkedosa.')
+    def test_32_kana2official_ignore(self):
+      self.checkKana2Official(u'¤Á¤ç¤¤¤È¤¢¤ó¤¿¡û£±£²£³£°¤½¤ó¤Ê¤³¤È¤¤¤Ã¤Æ¤Ã¤±¤É¤µ¡£',
+                              u'tyoitoannta¡û£±£²£³£°sonnnakotoittekkedosa.')
+    def test_33_official2kana_basic1(self):
+      self.checkOfficial2Kana(u'choitoanta,sonnnakotoittekkedosa',
+                              u'¥Á¥ç¥¤¥È¥¢¥ó¥¿¡¢¥½¥ó¥Ê¥³¥È¥¤¥Ã¥Æ¥Ã¥±¥É¥µ')
+    def test_33_official2kana_basic2(self):
+      self.checkOfficial2Kana(u'nitchimosatchimo.',
+                              u'¥Ë¥Ã¥Á¥â¥µ¥Ã¥Á¥â¡£')
+  
+  unittest.main()

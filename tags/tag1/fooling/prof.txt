@@ -1,0 +1,45 @@
+Index: basedir='', idxdir='/tmp/', max_docs_threshold=2000, max_terms_threshold=50000
+.................Building index '/tmp/idx00000.cdb'(17)...
+docs=17, keys=51498, refs=300013
+..................Building index '/tmp/idx00001.cdb'(18)...
+docs=18, keys=50701, refs=294474
+..Building index '/tmp/idx00002.cdb'(2)...
+docs=2, keys=4383, refs=8190
+Done.
+         3963363 function calls (3963349 primitive calls) in 22.968 CPU seconds
+
+   Ordered by: internal time, call count
+   List reduced from 109 to 100 due to restriction <100>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   658067    5.749    0.000    7.301    0.000 util.py:73(isplit)
+   658067    4.275    0.000   12.945    0.000 document.py:105(<generator expression>)
+   106659    2.503    0.000    4.447    0.000 pycdb.py:15(cdbhash)
+    32729    2.019    0.000   15.759    0.000 document.py:101(get_terms)
+   747176    1.944    0.000    1.944    0.000 pycdb.py:16(<lambda>)
+   717059    1.552    0.000    1.552    0.000 util.py:52(splitchars)
+   625412    1.369    0.000    1.369    0.000 util.py:66(encodew)
+   106659    0.806    0.000    5.252    0.000 pycdb.py:157(add)
+        3    0.761    0.254    0.762    0.254 pycdb.py:171(finish)
+        3    0.704    0.235    6.997    2.332 indexer.py:70(flush)
+    32692    0.534    0.000    0.748    0.000 document.py:204(get_sents)
+   106582    0.274    0.000    0.274    0.000 util.py:330(encode_array)
+       37    0.180    0.005   22.653    0.612 indexer.py:42(index_doc)
+    82334    0.128    0.000    0.128    0.000 document.py:42(splitsents)
+    55307    0.083    0.000    0.083    0.000 document.py:28(nonspace)
+    32655    0.046    0.000    0.046    0.000 util.py:26(zen2han)
+        1    0.017    0.017   22.968   22.968 indexer.py:113(index)
+        1    0.006    0.006    0.290    0.290 indexer.py:105(finish)
+        3    0.004    0.001    0.004    0.001 pycdb.py:145(__init__)
+       37    0.002    0.000    0.002    0.000 corpus.py:200(loc_fp)
+      771    0.001    0.000    0.001    0.000 pycdb.py:23(encode)
+     11/5    0.001    0.000    0.003    0.001 sre_compile.py:27(_compile)
+        1    0.001    0.001    0.001    0.001 sre_compile.py:296(_optimize_unicode)
+       74    0.001    0.000    0.001    0.000 corpus.py:204(loc_mtime)
+        1    0.001    0.001    0.001    0.001 corpus.py:2(?)
+       39    0.001    0.000    0.001    0.000 corpus.py:196(loc_exists)
+        6    0.001    0.000    0.002    0.000 sre_compile.py:202(_optimize_charset)
+      7/6    0.001    0.000    0.001    0.000 sre_parse.py:374(_parse)
+       37    0.000    0.000    0.001    0.000 corpus.py:132(get_doc)
+      154    0.000    0.000    0.000    0.000 posixpath.py:56(join)
+ 

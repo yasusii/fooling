@@ -1,0 +1,27 @@
+docid:0 -> loc:'foo.html'
+docid:1 -> loc:'bar.html'
+term(1):いい -> (1) 0:33
+term(1):いで -> (1) 0:33
+term(1):うに -> (1) 1:0
+term(1):とう -> (1) 1:0
+term(1):もい -> (1) 0:33
+term(1):んと -> (1) 1:0
+term(1):ーで -> (1) 0:33
+term(2):です -> (1) 0:33
+term(2):にね -> (1) 1:0
+term(2):んと -> (1) 0:67
+term(3):documentふ -> (1) 0:0
+term(3):でも -> (1) 0:33
+term(3):ほん -> (2) 1:0, 0:67
+term(4):document -> (1) 0:0
+term(4):gasagoso -> (1) 1:44
+term(4):pre1 -> (2) 1:29, 0:89
+term(4):pre2 -> (2) 1:29, 0:94
+term(4):pre3 -> (1) 0:94
+term(4):test -> (1) 0:0
+term(4):に -> (1) 0:74
+term(4):ふう -> (1) 0:0
+term(4):ドー -> (1) 0:33
+loc:'bar.html' -> docid:1
+loc:'foo.html' -> docid:0
+ndocs=2, nterms=25

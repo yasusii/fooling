@@ -1,0 +1,9 @@
+docid:0 -> loc:'baz.html'
+term(1):と最 -> (1) 0:0
+term(2):んと -> (1) 0:0
+term(3):ほん -> (1) 0:0
+term(4):新 -> (1) 0:0
+term(4):最 -> (1) 0:0
+term(4):最新 -> (1) 0:0
+loc:'baz.html' -> docid:0
+ndocs=1, nterms=9
