@@ -2,7 +2,7 @@
 # -*- coding: euc-jp -*-
 import re, sys
 from util import zen2han, rsplit, encodew, encodey
-from util import splitchars, rdatefeats
+from util import splitchars, rdatefeats, lowerbound
 from util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2loc
 from struct import pack
 from array import array
