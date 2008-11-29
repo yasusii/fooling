@@ -38,7 +38,7 @@ else:
 
 # cdbiter
 def cdbiter(fp, eod):
-  kloc = 2048
+  kloc = fp.tell()
   while kloc < eod:
     fp.seek(kloc)
     (klen, vlen) = unpack('<II', fp.read(8))
@@ -51,19 +51,15 @@ def cdbiter(fp, eod):
 
 
 # CDBReader
-class CDBReader:
+class CDBReader(object):
   
-  def __init__(self, cdbname, docache=1):
+  def __init__(self, cdbname):
     self.name = cdbname
     self._fp = file(cdbname, 'rb')
     hash0 = decode(self._fp.read(2048))
     self._hash0 = [ (hash0[i], hash0[i+1]) for i in xrange(0, 512, 2) ]
     self._hash1 = [ None ] * 256
     self._eod = self._hash0[0]
-    self._docache = docache
-    self._cache = {}
-    self._keyiter = None
-    self._eachiter = None
     return
 
   def __repr__(self):
@@ -77,7 +73,6 @@ class CDBReader:
 
   def __getitem__(self, k):
     k = str(k)
-    if k in self._cache: return self._cache[k]
     h = cdbhash(k)
     h1 = h & 0xff
     (pos_bucket, ncells) = self._hash0[h1]
@@ -94,12 +89,11 @@ class CDBReader:
       if p1 == 0: raise KeyError(k)
       if hs[i] == h:
         self._fp.seek(p1)
+        self._lastpos = self._fp.tell()
         (klen, vlen) = unpack('<II', self._fp.read(8))
         k1 = self._fp.read(klen)
         if k1 == k:
           v1 = self._fp.read(vlen)
-          if self._docache:
-            self._cache[k] = v1
           return v1
       i = (i+2) % n
     raise KeyError(k)
@@ -120,36 +114,31 @@ class CDBReader:
   def __contains__(self, k):
     return self.has_key(k)
 
-  def firstkey(self):
-    self._keyiter = None
-    return self.nextkey()
-  
-  def nextkey(self):
-    if not self._keyiter:
-      self._keyiter = ( k for (k,v) in cdbiter(self._fp, self._eod) )
-    try:
-      return self._keyiter.next()
-    except StopIteration:
-      return None
-
-  def each(self):
-    if not self._eachiter:
-      self._eachiter = cdbiter(self._fp, self._eod)
-    try:
-      return self._eachiter.next()
-    except StopIteration:
-      return None
-  
-  def iterkeys(self):
+  def iterkeys(self, startkey=None):
+    if startkey != None:
+      self[startkey]
+      self._fp.seek(self._lastpos)
+    else:
+      self._fp.seek(2048)
     return ( k for (k,v) in cdbiter(self._fp, self._eod) )
-  def itervalues(self):
+  def itervalues(self, startkey=None):
+    if startkey != None:
+      self[startkey]
+      self._fp.seek(self._lastpos)
+    else:
+      self._fp.seek(2048)
     return ( v for (k,v) in cdbiter(self._fp, self._eod) )
-  def iteritems(self):
+  def iteritems(self, startkey=None):
+    if startkey != None:
+      self[startkey]
+      self._fp.seek(self._lastpos)
+    else:
+      self._fp.seek(2048)
     return cdbiter(self._fp, self._eod)
 
 
 # CDBMaker
-class CDBMaker:
+class CDBMaker(object):
 
   def __init__(self, cdbname, tmpname):
     self.fn = cdbname
@@ -239,6 +228,7 @@ class CDBMaker:
 def cdbdump(cdbname):
   fp = file(cdbname, 'rb')
   (eor,) = unpack('<I', fp.read(4))
+  fp.seek(2048)
   return cdbiter(fp, eor)
 
 
@@ -369,8 +359,6 @@ class TCDBReader(CDBReader):
 
   def lookup1(self, k, parent=0L):
     k = str(k)
-    if self._docache and (parent,k) in self._cache:
-      return self._cache[(parent,k)]
     h = cdbhash(k, parent+5381L)
     self._fp.seek((h % 256) << 3)
     (pos_bucket, ncells) = unpack('<II', self._fp.read(8))
@@ -386,8 +374,6 @@ class TCDBReader(CDBReader):
         k1 = self._fp.read(klen)
         if k1 == k:
           v1 = self._fp.read(vlen)
-          if self._docache:
-            self._cache[(parent,k)] = (v1,p1)
           return (v1,p1)
     raise KeyError(k)
 

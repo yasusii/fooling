@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import sys, os, os.path, stat, re
 import pycdb as cdb
-from struct import pack, unpack
+from util import idx_info, idx_docid2loc, idx_loc2docid
 try:
   from cStringIO import StringIO
 except ImportError:
   from StringIO import StringIO
-stderr = sys.stderr
 
 
 __all__ = [ 'Corpus', 'FilesystemCorpus', 'BerkeleyDBCorpus',
@@ -15,24 +14,16 @@ __all__ = [ 'Corpus', 'FilesystemCorpus', 'BerkeleyDBCorpus',
 DEFAULT_ENCODING = 'euc-jp'
 
 
-##  Corpus (abstract)
+##  IndexDB
 ##
-##  A Corpus is an object that contains documents and their indices.
-##  A child class must at least override the loc_fp() method to
-##  obtain access for actual Documents.
-##
-class Corpus:
+class IndexDB(object):
 
   # Index filename pattern: "xxxNNNNN.cdb"
   IDX_PAT = re.compile(r'^...\d{5}\.cdb$')
   
-  def __init__(self, idxdir, prefix='', doctype=None, encoding=DEFAULT_ENCODING):
+  def __init__(self, idxdir, prefix=''):
     self.idxdir = idxdir
     self.prefix = prefix
-    # doctype and encoding can depend on a location,
-    # but if not, the default type and encoding are used.
-    self.default_doctype = doctype
-    self.default_encoding = encoding
     # mtime: index modification time.
     self.mtime = 0
     # cdb object cache. Should not be pickled.
@@ -42,17 +33,7 @@ class Corpus:
     return
 
   def __repr__(self):
-    return '<Corpus: idxdir=%r, prefix=%r, default_doctype=%r, default_encoding=%r>' % \
-           (self.idxdir, self.prefix, self.default_doctype, self.default_encoding)
-
-  # When you want to make sure a Corpus object as a singleton,
-  # unpickling two Selection objects might end up with
-  # two distinct Corpus objects. To prevent this, when
-  # a Corpus object is unpickled, this method is called
-  # on a "stub" Corpus object and it returns the "real"
-  # singleton Corpus object.
-  def _get_singleton(self):
-    return self
+    return '<IndexDB: idxdir=%r, prefix=%r>' % (self.idxdir, self.prefix)
 
   def __getstate__(self):
     # Avoid pickling cdb objects.
@@ -63,12 +44,6 @@ class Corpus:
   def __setstate__(self, dict):
     self.__dict__.update(dict)
     self._idxcache = {}
-    return
-
-  def open(self, mode='r'):
-    return
-  
-  def close(self):
     return
 
   # (Internal) Returns a new index file name.
@@ -114,8 +89,8 @@ class Corpus:
   def index_lastloc(self):
     lastloc = None
     for (_,idx) in self.iteridxs():
-      (ndocs,_) = unpack('>ii', idx[''])
-      lastloc = idx['\x00'+pack('>i',ndocs-1)]
+      (ndocs,_) = idx_info(idx)
+      lastloc = idx_docid2loc(ndocs-1)
       break
     return lastloc
 
@@ -123,29 +98,65 @@ class Corpus:
   def total_docs(self):
     total = 0
     for (_,idx) in self.iteridxs():
-      (ndocs,_) = unpack('>ii', idx[''])
+      (ndocs,_) = idx_info(idx)
       total += ndocs
     return total
+
+  # Returns (i,docid) if the location is already indexed.
+  def loc_indexed(self, loc):
+    for (idxid,idx) in self.iteridxs():
+      try:
+        return (idxid, idx_loc2docid(loc))
+      except KeyError:
+        pass
+    return None
+
+
+##  Corpus (abstract)
+##
+##  A Corpus is an object that contains documents and their indices.
+##  A child class must at least override the loc_fp() method to
+##  obtain access for actual Documents.
+##
+class Corpus(object):
+
+  def __init__(self, doctype=None, encoding=DEFAULT_ENCODING):
+    # doctype and encoding can depend on a location,
+    # but if not, the default type and encoding are used.
+    self.default_doctype = doctype
+    self.default_encoding = encoding
+    return
+
+  def __repr__(self):
+    return ('<Corpus: default_doctype=%r, default_encoding=%r>' % \
+            (self.default_doctype, self.default_encoding))
+
+  # When you want to make sure a Corpus object as a singleton,
+  # unpickling two Selection objects might end up with
+  # two distinct Corpus objects. To prevent this, when
+  # a Corpus object is unpickled, this method is called
+  # on a "stub" Corpus object and it returns the "real"
+  # singleton Corpus object.
+  def _get_singleton(self):
+    return self
+
+  # (overridable)
+  def open(self, mode='r'):
+    return
+  
+  # (overridable)
+  def close(self):
+    return
 
   # (overridable)
   # Returns a Document object for the location.
   def get_doc(self, loc):
     return self.default_doctype(self, loc)
 
-  # Returns (i,docid) if the location is already indexed.
-  def loc_indexed(self, loc):
-    k = '\xff'+loc
-    for (idxid,idx) in self.iteridxs():
-      try:
-        return (idxid, unpack('>i', idx[k])[0])
-      except KeyError:
-        pass
-    return None
-
   # (overridable)
   # Returns a default Document title.
-  def loc_default_title(self, loc):
-    return u'(title unknown)'
+  def loc_title(self, loc):
+    return None
 
   # (overridable)
   # Returns if the given document exists.
@@ -180,18 +191,15 @@ class Corpus:
 ##
 class FilesystemCorpus(Corpus):
 
-  def __init__(self, basedir, idxdir, prefix='', doctype=None, encoding=DEFAULT_ENCODING):
-    Corpus.__init__(self, idxdir, prefix, doctype, encoding)
+  def __init__(self, basedir, doctype=None, encoding=DEFAULT_ENCODING):
+    Corpus.__init__(self, doctype, encoding)
     self.basedir = basedir
     return
 
   def __repr__(self):
-    return '<FilesystemCorpus: basedir=%r, idxdir=%r, prefix=%r, default_doctype=%r, default_encoding=%r>' % \
-           (self.basedir, self.idxdir, self.prefix, self.default_doctype, self.default_encoding)
+    return '<FilesystemCorpus: basedir=%r, default_doctype=%r, default_encoding=%r>' % \
+           (self.basedir, self.default_doctype, self.default_encoding)
 
-  def loc_default_title(self, loc):
-    return os.path.basename(loc)
-  
   # Returns if the given document exists.
   def loc_exists(self, loc):
     return os.path.exists(os.path.join(self.basedir, loc))
@@ -208,6 +216,11 @@ class FilesystemCorpus(Corpus):
   def loc_size(self, loc):
     return os.stat(os.path.join(self.basedir, loc))[stat.ST_SIZE]
 
+class FilesystemCorpusWithDefaultTitle(FilesystemCorpus):
+
+  def loc_title(self, loc):
+    return os.path.basename(loc)
+  
 
 ##  BerkeleyDBCorpus
 ##
@@ -216,14 +229,14 @@ class FilesystemCorpus(Corpus):
 ##
 class BerkeleyDBCorpus(Corpus):
   
-  def __init__(self, dbfile, idxdir, prefix='', doctype=None, encoding=DEFAULT_ENCODING):
-    Corpus.__init__(self, idxdir, prefix, doctype, encoding)
+  def __init__(self, dbfile, doctype=None, encoding=DEFAULT_ENCODING):
+    Corpus.__init__(self, doctype, encoding)
     self.dbfile = dbfile
     return
 
   def __repr__(self):
-    return '<BerkeleyDBCorpus: dbfile=%r, idxdir=%r, prefix=%r, default_doctype=%r, default_encoding=%r>' % \
-           (self.dbfile, self.idxdir, self.prefix, self.default_doctype, self.default_encoding)
+    return '<BerkeleyDBCorpus: dbfile=%r, default_doctype=%r, default_encoding=%r>' % \
+           (self.dbfile, self.default_doctype, self.default_encoding)
 
   def __getstate__(self):
     odict = Corpus.__getstate__(self)
@@ -260,14 +273,14 @@ class BerkeleyDBCorpus(Corpus):
 ##
 class CDBCorpus(Corpus):
   
-  def __init__(self, dbfile, idxdir, prefix='', doctype=None, encoding=DEFAULT_ENCODING):
-    Corpus.__init__(self, idxdir, prefix, doctype, encoding)
+  def __init__(self, dbfile, doctype=None, encoding=DEFAULT_ENCODING):
+    Corpus.__init__(self, doctype, encoding)
     self.dbfile = dbfile
     return
 
   def __repr__(self):
-    return '<CDBCorpus: dbfile=%r, idxdir=%r, prefix=%r, default_doctype=%r, default_encoding=%r>' % \
-           (self.dbfile, self.idxdir, self.prefix, self.default_doctype, self.default_encoding)
+    return '<CDBCorpus: dbfile=%r, default_doctype=%r, default_encoding=%r>' % \
+           (self.dbfile, self.default_doctype, self.default_encoding)
 
   def __getstate__(self):
     odict = Corpus.__getstate__(self)
@@ -304,9 +317,9 @@ class CDBCorpus(Corpus):
 ##
 class SQLiteCorpus(Corpus):
   
-  def __init__(self, dbfile, idxdir, prefix='', doctype=None, encoding=DEFAULT_ENCODING,
+  def __init__(self, dbfile, doctype=None, encoding=DEFAULT_ENCODING,
                table='documents', key='docid', text='doctext', mtime='mtime'):
-    Corpus.__init__(self, idxdir, prefix, doctype, encoding)
+    Corpus.__init__(self, doctype, encoding)
     self.dbfile = dbfile
     # The field must be a string.
     self.sql_getdoc = 'select %s from %s where %s=?' % (text, table, key)
@@ -315,8 +328,8 @@ class SQLiteCorpus(Corpus):
     return
 
   def __repr__(self):
-    return '<SQLiteCorpus: dbfile=%r, idxdir=%r, prefix=%r, default_doctype=%r, default_encoding=%r>' % \
-           (self.dbfile, self.idxdir, self.prefix, self.default_doctype, self.default_encoding)
+    return '<SQLiteCorpus: dbfile=%r, default_doctype=%r, default_encoding=%r>' % \
+           (self.dbfile, self.default_doctype, self.default_encoding)
 
   def __getstate__(self):
     odict = Corpus.__getstate__(self)
@@ -337,6 +350,37 @@ class SQLiteCorpus(Corpus):
   def close(self):
     self._conn.close()
     return
+
+  def loc_exists(self, loc):
+    self._cur.execute(self.sql_getdoc, (loc,))
+    return bool(self._cur.fetchone())
+
+  def loc_fp(self, loc):
+    self._cur.execute(self.sql_getdoc, (loc,))
+    return StringIO(self._cur.fetchone()[0])
+
+  def loc_mtime(self, loc):
+    self._cur.execute(self.sql_getmtime, (loc,))
+    return self._cur.fetchone()[0]
+  
+  def loc_size(self, loc):
+    self._cur.execute(self.sql_getdoc, (loc,))
+    return len(self._cur.fetchone()[0])
+
+
+
+##  EMailMessageCorpus
+##
+class EMailMessageCorpus(Corpus):
+  
+  def __init__(self, doc, encoding=DEFAULT_ENCODING):
+    Corpus.__init__(self, None, encoding)
+    self.msg = msg
+    return
+
+  def __repr__(self):
+    return '<EMailMessageCorpus: msg=%r, default_doctype=%r, default_encoding=%r>' % \
+           (self.msg, self.default_doctype, self.default_encoding)
 
   def loc_exists(self, loc):
     self._cur.execute(self.sql_getdoc, (loc,))

@@ -1,15 +1,22 @@
 #!/usr/bin/env python
-# -*- encoding: euc_jp -*-
+# -*- coding: euc-jp -*-
 
-import re
+import re, time
 from array import array
 from struct import pack, unpack
 
+PROP_SENT  = '\x00'
+PROP_WORD  = 0x10
+PROP_YOMI  = '\x20'
+PROP_DATE  = '\xf0'
+PROP_DOCID = '\xfd'
+PROP_LOC   = '\xfe'
+PROP_INFO  = '\xff'
 
 
-# Detect endian.
-# We always follow little endian, so if the machine is big endian, we swap bytes.
-SWAP_ENDIAN = (pack('=i',1) == pack('>i',1)) # True if this is big endian.
+# Detect the endian.
+# We always follow the little endian, so if the machine is the big endian, we swap bytes.
+SWAP_ENDIAN = (pack('=i',1) == pack('>i',1)) # True if this is the big endian.
 
 ##  zenkaku -> hankaku converter
 ##
@@ -26,6 +33,11 @@ Z2HMAP = dict( (ord(zc), ord(hc)) for (zc,hc) in zip(FULLWIDTH, HALFWIDTH) )
 
 def zen2han(s):
   return unicode(s).translate(Z2HMAP)
+
+# remove redundant blanks
+RMSP_PAT = re.compile(r'\s+', re.UNICODE)
+def rmsp(s):
+  return RMSP_PAT.sub(' ', s.strip())
 
 
 ##  Basic tokenization
@@ -65,7 +77,9 @@ def dispw(r):
   return
 
 def encodew((b,w), encoding='utf-8'):
-  return chr(b+1) + w.encode(encoding)
+  return chr(b | PROP_WORD) + w.encode(encoding)
+def encodey(w):
+  return PROP_YOMI + w
 
 
 ##  isplit: Tokenization for indexing
@@ -350,3 +364,95 @@ def decode_array(bits):
     a.byteswap()
   return a
 
+# date features for indexing
+def idatefeats(t):
+  assert t != None
+  (yy,mm,dd,_,_,_,_,_,_) = time.localtime(t)
+  return (pack('>cH',PROP_DATE,yy),
+          pack('>cHB',PROP_DATE,yy,mm),
+          pack('>cHBB',PROP_DATE,yy,mm,dd))
+
+# retrieval date features
+DATE_PAT = re.compile(r'(\d+)(/\d+)?(/\d+)?')
+upperbound = min
+lowerbound = max
+def rdatefeats(dates):
+  r = []
+  
+  def getdate(x):
+    mc = DATE_PAT.match(x)
+    (y,m,d) = (0,0,0)
+    if mc:
+      if mc.group(3):
+        d = upperbound(lowerbound(int(mc.group(3)[1:]), 1), 31)
+      if mc.group(2):
+        m = upperbound(lowerbound(int(mc.group(2)[1:]), 1), 12)
+      y = upperbound(lowerbound(int(mc.group(1)), 1970), 2037)
+    return (y,m,d)
+  
+  def addrange((ya,ma,da),(yb,mb,db)):
+    if da and da:
+      r.extend( pack('>cHBB', PROP_DATE, ya, ma, d) for d in xrange(da,db+1) )
+    elif ma and mb:
+      r.extend( pack('>cHB', PROP_DATE, ya, m) for m in xrange(ma,mb+1) )
+    elif ya and yb:
+      r.extend( pack('>cH', PROP_DATE, y) for y in xrange(ya,yb+1) )
+    return
+    
+  for x in dates:
+    if '-' not in x:
+      (y,m,d) = getdate(x)
+      addrange((y,m,d), (y,m,d))
+      continue
+    x = x.split('-')
+    if len(x) != 2: continue
+    ((y1,m1,d1), (y2,m2,d2)) = (getdate(x[0]), getdate(x[1]))
+    if (y2,m2,d2) <= (y1,m1,d1): continue
+    if y1 == y2 and m1 == m2 and d1 and d2:
+      addrange((y1,m1,d1), (y2,m2,d2))
+      continue
+    if d1:
+      addrange((y1,m1,d1), (y1,m1,31))
+      m1 += 1
+    if d2:
+      addrange((y2,m2,1), (y2,m2,d2))
+      m2 -= 1
+    if y1 == y2 and m1 and m2:
+      addrange((y1,m1,0), (y2,m2,0))
+      continue
+    if m1:
+      addrange((y1,m1,0), (y1,12,0))
+      y1 += 1
+    if m2:
+      addrange((y2,1,0), (y2,m2,0))
+      y2 -= 1
+    addrange((y1,0,0), (y2,0,0))
+  return r
+
+def idx_sent(idx, docid, pos):
+  return unicode(idx[pack('>cii', PROP_SENT, docid, pos)], 'utf-8')
+def idx_sents(idx, docid, pos):
+  prefix = pack('>ci', PROP_SENT, docid)
+  for (k,s) in idx.iteritems(pack('>cii', PROP_SENT, docid, pos)):
+    if not k.startswith(prefix): break
+    yield unicode(s, 'utf-8')
+  return
+def idx_docid2loc(idx, docid):
+  return idx[pack('>ci', PROP_DOCID, docid)]
+def idx_loc2docid(idx, loc):
+  return unpack('>i', idx[PROP_LOC+loc])[0]
+def idx_info(idx):
+  return unpack('>ii', idx[PROP_INFO])
+
+def add_idx_sent(maker, docid, pos, sent):
+  maker.add(pack('>cii', PROP_SENT, docid, pos), sent.encode('utf-8'))
+  return
+def add_idx_docid2loc(maker, docid, loc):
+  maker.add(pack('>ci', PROP_DOCID, docid), loc)
+  return
+def add_idx_loc2docid(maker, loc, docid):
+  maker.add(PROP_LOC+loc, pack('>i', docid))
+  return
+def add_idx_info(maker, ndocs, nterms):
+  maker.add(PROP_INFO, pack('>ii', ndocs, nterms))
+  return

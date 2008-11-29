@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- encoding: euc_jp -*-
+# -*- coding: euc-jp -*-
 
 import sys, re, codecs
 from sgmlparser3 import SGMLParser3
@@ -26,9 +26,7 @@ class HTMLRipper(SGMLParser3):
     self.eos_pat = EOS_PAT_HTML
     self.text = u''
     self.para = []
-    self.pos0 = 0
     self.ignore = False
-    self.uniline = u''
     return
   
   def handle_start_tag(self, tag, attrs):
@@ -67,8 +65,7 @@ class HTMLRipper(SGMLParser3):
     return
   
   def flush(self, i=0):
-    self.para.append((self.pos0, self.text))
-    self.pos0 = self.linepos + self.bytepos(self.charpos+i)
+    self.para.append(self.text)
     self.text = u''
     return
   
@@ -85,31 +82,20 @@ class HTMLRipper(SGMLParser3):
       i = m.end(0)
     return
 
-  def feedfile(self, fp, encoding, pos=0):
-    fp.seek(pos)
-    encoder = codecs.getencoder(encoding)
+  def feedfile(self, fp, encoding):
     decoder = codecs.getdecoder(encoding)
-    self.bytepos = (lambda i: len(encoder(self.uniline[:i], 'replace')[0]))
-    self.linepos = pos
-    self.pos0 = pos
     for line in fp:
       self.para = []
-      self.uniline = decoder(line, 'replace')[0]
-      self.feed(self.uniline)
+      self.feed(decoder(line, 'replace')[0])
       for x in self.para:
         yield x
-      self.linepos += len(line)
     self.finish()
     for x in self.para:
       yield x
     return
   
-  def feedunicode(self, s, pos=0):
-    self.linepos = pos
-    self.bytepos = (lambda i: i)
-    self.pos0 = pos
-    self.para = []
-    self.feed(s[pos:])
+  def feedunicode(self, s):
+    self.feed(s)
     self.finish()
     return self.para
 
