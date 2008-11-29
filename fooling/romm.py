@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- encoding: euc_jp -*-
+# -*- coding: euc-jp -*-
 
 ##  romm.py - handles Roma-ji and kana.
 ##
@@ -323,7 +323,7 @@ def zen2han(z):
   return ''.join( z2hmap.get(c,c) for c in z )
 
 # Mora Object
-class Mora:
+class Mora(object):
   
   def __init__(self, mid, zenk, hank, zenh):
     self.mid = mid
@@ -344,7 +344,7 @@ class Mora:
 ##
 
 # ParseTable
-class ParseTable:
+class ParseTable(object):
   
   def __init__(self):
     self.tbl = {}

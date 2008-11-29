@@ -1,74 +1,211 @@
-docid:0 -> loc:'mail1.txt'
-docid:1 -> loc:'mail2.txt'
-docid:2 -> loc:'mail3.txt'
-term(1):とデ -> (3) 1:2, 1:1, 0:1
-term(1):はテ -> (1) 0:16777316
-term(1):トで -> (1) 0:16777316
-term(1):田引 -> (1) 1:100
-term(1):肉定 -> (1) 0:16777328
-term(2):すと -> (3) 1:2, 1:1, 0:1
-term(2):すよ -> (1) 0:16777316
-term(2):れは -> (1) 0:16777316
-term(2):スtest -> (1) 1:2
-term(2):スト -> (1) 0:16777316
-term(2):定食 -> (1) 0:16777328
-term(2):引水 -> (1) 1:100
-term(3):subjectて -> (2) 1:1, 0:1
-term(3):toて -> (1) 1:2
-term(3):これ -> (1) 0:16777316
-term(3):てす -> (3) 1:2, 1:1, 0:1
-term(3):です -> (1) 0:16777316
-term(3):テス -> (1) 0:16777316
-term(3):我田 -> (1) 1:100
-term(3):焼肉 -> (1) 0:16777328
-term(4):2022 -> (1) 2:0
-term(4):a -> (2) 0:33554532, 0:33554432
-term(4):any -> (1) 0:2
-term(4):anyone -> (1) 0:2
-term(4):attachment -> (1) 0:33554432
-term(4):b -> (1) 2:0
-term(4):content -> (1) 0:33554432
-term(4):disposition -> (1) 0:33554432
-term(4):dom -> (2) 1:0, 0:0
-term(4):filename -> (1) 0:33554432
-term(4):from -> (2) 1:0, 0:0
-term(4):gyrcjeykosrijuclorsoq -> (1) 2:0
-term(4):headerparsererror -> (1) 2:100
-term(4):html -> (1) 0:33554432
-term(4):is -> (1) 0:33554532
-term(4):iso -> (1) 2:0
-term(4):jp -> (1) 2:0
-term(4):nonexistent -> (2) 1:0, 0:0
-term(4):one -> (1) 0:2
-term(4):shinyama -> (2) 1:0, 0:0
-term(4):should -> (1) 2:100
-term(4):subject -> (3) 2:0, 1:1, 0:1
-term(4):test -> (2) 1:2, 0:33554532
-term(4):test2 -> (1) 0:33554562
-term(4):test3 -> (1) 0:33554562
-term(4):test4 -> (1) 0:33554577
-term(4):this -> (1) 0:33554532
-term(4):throw -> (1) 2:100
-term(4):to -> (2) 1:2, 0:2
-term(4):yusuke -> (3) 1:106, 1:0, 0:0
-term(4):デス -> (3) 1:2, 1:1, 0:1
-term(4):我 -> (1) 1:100
-term(4):水 -> (1) 1:100
-term(4):焼 -> (1) 0:16777328
-term(4):食 -> (1) 0:16777328
-term(16):'foobaamsg' -> (1) 1:0
-term(17):'abcde' -> (1) 1:0
-term(17):'replie' -> (1) 1:0
-term(17):'xyz123' -> (1) 1:0
-term(32):2006 -> (2) 1:0, 0:0
-term(32):2006/08 -> (1) 0:0
-term(32):2006/08/31 -> (1) 0:0
-term(32):2006/09 -> (1) 1:0
-term(32):2006/09/04 -> (1) 1:0
-term(32):2007 -> (1) 2:0
-term(32):2007/05 -> (1) 2:0
-term(32):2007/05/17 -> (1) 2:0
-loc:'mail1.txt' -> docid:0
-loc:'mail2.txt' -> docid:1
-loc:'mail3.txt' -> docid:2
-ndocs=3, nterms=67
+sent(0,0) -> ムーミン谷のみなさんへ
+sent(0,1) -> From: Yusuke Shinyama <yusuke@nonexistent.dom>
+sent(0,2) -> To: きょうから明日です <today@tomorrow>
+sent(0,3) -> Subject: ムーミン谷のみなさんへ
+sent(0,4) -> Date: Thu, 31 Aug 2004 03:06:09 +0900
+sent(0,100) -> その逆だ!
+sent(1,0) -> 何を見てるんだい?
+sent(1,1) -> From: えうすけ <euske@foo.baa>
+sent(1,2) -> To: だれでも <any@one>
+sent(1,3) -> Subject: 何を見てるんだい?
+sent(1,4) -> Date: Thu, 29 Feb 2004 19:23:34 +0500
+sent(2,0) -> unknown
+sent(2,100) -> ああそうか、
+sent(2,101) -> これは夢なんだ。
+sent(3,0) -> ふうばあ ばず
+sent(3,100) -> HEY!
+sent(3,101) -> do you wanna feel unconfortably energetic?
+sent(4,0) -> huh?
+sent(4,1) -> From: =?iso-2022-jp?b?Gy?= ÿª
+sent(4,2) -> Subject: huh?
+sent(4,3) -> Date: Tue, 25 Nov 2008 01:00:09 +0900
+sent(5,0) -> unknown
+sent(5,100) -> part1
+sent(6,0) -> unknown
+sent(6,100) -> part2
+sent(7,0) -> その先の日本へ
+sent(7,1) -> From: john doe <johndoe@heaven.gov>
+sent(7,2) -> To: どこだって? <where@where>
+sent(7,3) -> Subject: その先の日本へ
+sent(7,4) -> Date: Sun, 31 Aug 2008 12:20:33 +0900
+sent(7,100) -> ししかばう゛ー
+term(0x10):あそ -> (1) 2:100
+term(0x10):あば -> (1) 3:0
+term(0x10):うか -> (1) 0:2
+term(0x10):うす -> (1) 1:1
+term(0x10):うば -> (1) 3:0
+term(0x10):かば -> (1) 7:100
+term(0x10):こだ -> (1) 7:2
+term(0x10):さん -> (2) 0:3, 0:0
+term(0x10):しか -> (1) 7:100
+term(0x10):そう -> (1) 2:100
+term(0x10):だっ -> (1) 7:2
+term(0x10):なさ -> (2) 0:3, 0:0
+term(0x10):ばあ -> (1) 3:0
+term(0x10):ばう -> (1) 7:100
+term(0x10):みな -> (2) 0:3, 0:0
+term(0x10):ょう -> (1) 0:2
+term(0x10):ら明 -> (1) 0:2
+term(0x10):るん -> (2) 1:3, 1:0
+term(0x10):れで -> (1) 1:2
+term(0x10):んだ -> (2) 1:3, 1:0
+term(0x10):ーミ -> (2) 0:3, 0:0
+term(0x10):日で -> (1) 0:2
+term(0x11):うか -> (1) 2:100
+term(0x11):う゛ -> (1) 7:100
+term(0x11):から -> (1) 0:2
+term(0x11):けeuske -> (1) 1:1
+term(0x11):すtoday -> (1) 0:2
+term(0x11):すけ -> (1) 1:1
+term(0x11):だい -> (2) 1:3, 1:0
+term(0x11):って -> (1) 7:2
+term(0x11):てwhere -> (1) 7:2
+term(0x11):でも -> (1) 1:2
+term(0x11):の先 -> (2) 7:3, 7:0
+term(0x11):の逆 -> (1) 0:100
+term(0x11):は夢 -> (1) 2:101
+term(0x11):ばあ -> (1) 3:0
+term(0x11):ばず -> (1) 3:0
+term(0x11):もany -> (1) 1:2
+term(0x11):れは -> (1) 2:101
+term(0x11):んだ -> (1) 2:101
+term(0x11):んへ -> (2) 0:3, 0:0
+term(0x11):゛ー -> (1) 7:100
+term(0x11):ミン -> (2) 0:3, 0:0
+term(0x11):ン谷 -> (2) 0:3, 0:0
+term(0x11):本へ -> (2) 7:3, 7:0
+term(0x12):fromえ -> (1) 1:1
+term(0x12):subjectそ -> (1) 7:3
+term(0x12):subjectム -> (1) 0:3
+term(0x12):toき -> (1) 0:2
+term(0x12):toだ -> (1) 1:2
+term(0x12):toど -> (1) 7:2
+term(0x12):ああ -> (1) 2:100
+term(0x12):えう -> (1) 1:1
+term(0x12):きょ -> (1) 0:2
+term(0x12):これ -> (1) 2:101
+term(0x12):しし -> (1) 7:100
+term(0x12):だれ -> (1) 1:2
+term(0x12):てる -> (2) 1:3, 1:0
+term(0x12):どこ -> (1) 7:2
+term(0x12):なん -> (1) 2:101
+term(0x12):のみ -> (2) 0:3, 0:0
+term(0x12):の日 -> (2) 7:3, 7:0
+term(0x12):ふう -> (1) 3:0
+term(0x12):ムー -> (2) 0:3, 0:0
+term(0x12):夢な -> (1) 2:101
+term(0x12):見て -> (2) 1:3, 1:0
+term(0x12):谷の -> (2) 0:3, 0:0
+term(0x13):00 -> (1) 4:3
+term(0x13):01 -> (1) 4:3
+term(0x13):03 -> (1) 0:4
+term(0x13):0500 -> (1) 1:4
+term(0x13):06 -> (1) 0:4
+term(0x13):09 -> (2) 4:3, 0:4
+term(0x13):0900 -> (3) 7:4, 4:3, 0:4
+term(0x13):12 -> (1) 7:4
+term(0x13):19 -> (1) 1:4
+term(0x13):20 -> (1) 7:4
+term(0x13):2004 -> (2) 1:4, 0:4
+term(0x13):2008 -> (2) 7:4, 4:3
+term(0x13):2022 -> (1) 4:1
+term(0x13):23 -> (1) 1:4
+term(0x13):25 -> (1) 4:3
+term(0x13):29 -> (1) 1:4
+term(0x13):31 -> (2) 7:4, 0:4
+term(0x13):33 -> (1) 7:4
+term(0x13):34 -> (1) 1:4
+term(0x13):any -> (1) 1:2
+term(0x13):aug -> (2) 7:4, 0:4
+term(0x13):b -> (1) 4:1
+term(0x13):baa -> (1) 1:1
+term(0x13):date -> (4) 7:4, 4:3, 1:4, 0:4
+term(0x13):do -> (1) 3:101
+term(0x13):doe -> (1) 7:1
+term(0x13):dom -> (1) 0:1
+term(0x13):energetic -> (1) 3:101
+term(0x13):euske -> (1) 1:1
+term(0x13):feb -> (1) 1:4
+term(0x13):feel -> (1) 3:101
+term(0x13):foo -> (1) 1:1
+term(0x13):from -> (4) 7:1, 4:1, 1:1, 0:1
+term(0x13):gov -> (1) 7:1
+term(0x13):gy -> (1) 4:1
+term(0x13):heaven -> (1) 7:1
+term(0x13):hey -> (1) 3:100
+term(0x13):huh -> (2) 4:2, 4:0
+term(0x13):iso -> (1) 4:1
+term(0x13):john -> (1) 7:1
+term(0x13):johndoe -> (1) 7:1
+term(0x13):jp -> (1) 4:1
+term(0x13):nonexistent -> (1) 0:1
+term(0x13):nov -> (1) 4:3
+term(0x13):one -> (1) 1:2
+term(0x13):part1 -> (1) 5:100
+term(0x13):part2 -> (1) 6:100
+term(0x13):shinyama -> (1) 0:1
+term(0x13):subject -> (4) 7:3, 4:2, 1:3, 0:3
+term(0x13):subject何 -> (1) 1:3
+term(0x13):sun -> (1) 7:4
+term(0x13):thu -> (2) 1:4, 0:4
+term(0x13):to -> (3) 7:2, 1:2, 0:2
+term(0x13):today -> (1) 0:2
+term(0x13):tomorrow -> (1) 0:2
+term(0x13):tue -> (1) 4:3
+term(0x13):unconfortably -> (1) 3:101
+term(0x13):unknown -> (3) 6:0, 5:0, 2:0
+term(0x13):wanna -> (1) 3:101
+term(0x13):where -> (1) 7:2
+term(0x13):you -> (1) 3:101
+term(0x13):yusuke -> (1) 0:1
+term(0x13):ÿ -> (1) 4:1
+term(0x13):その -> (3) 7:3, 7:0, 0:100
+term(0x13):だ -> (1) 0:100
+term(0x13):です -> (1) 0:2
+term(0x13):の -> (2) 7:3, 7:0
+term(0x13):ばず -> (1) 3:0
+term(0x13):へ -> (2) 7:3, 7:0
+term(0x13):を -> (2) 1:3, 1:0
+term(0x13):を見 -> (2) 1:3, 1:0
+term(0x13):ー -> (1) 7:100
+term(0x13):何 -> (2) 1:3, 1:0
+term(0x13):何を -> (2) 1:3, 1:0
+term(0x13):先 -> (2) 7:3, 7:0
+term(0x13):先の -> (2) 7:3, 7:0
+term(0x13):夢 -> (1) 2:101
+term(0x13):日 -> (3) 7:3, 7:0, 0:2
+term(0x13):日本 -> (2) 7:3, 7:0
+term(0x13):明 -> (1) 0:2
+term(0x13):明日 -> (1) 0:2
+term(0x13):本 -> (2) 7:3, 7:0
+term(0x13):見 -> (2) 1:3, 1:0
+term(0x13):谷 -> (2) 0:3, 0:0
+term(0x13):逆 -> (1) 0:100
+term(0x13):逆だ -> (1) 0:100
+term(0xf0):2004 -> (4) 3:0, 2:0, 1:0, 0:0
+term(0xf0):2004/02 -> (3) 3:0, 2:0, 1:0
+term(0xf0):2004/02/29 -> (3) 3:0, 2:0, 1:0
+term(0xf0):2004/08 -> (1) 0:0
+term(0xf0):2004/08/31 -> (1) 0:0
+term(0xf0):2008 -> (4) 7:0, 6:0, 5:0, 4:0
+term(0xf0):2008/08 -> (1) 7:0
+term(0xf0):2008/08/31 -> (1) 7:0
+term(0xf0):2008/11 -> (3) 6:0, 5:0, 4:0
+term(0xf0):2008/11/25 -> (3) 6:0, 5:0, 4:0
+docid:0 -> loc:'email1.txt'
+docid:1 -> loc:'email2.txt'
+docid:2 -> loc:'email2.txt:1'
+docid:3 -> loc:'email2.txt:2'
+docid:4 -> loc:'email3.txt'
+docid:5 -> loc:'email3.txt:2'
+docid:6 -> loc:'email3.txt:3'
+docid:7 -> loc:'email3.txt:5'
+loc:'email1.txt' -> docid:0
+loc:'email2.txt' -> docid:1
+loc:'email2.txt:1' -> docid:2
+loc:'email2.txt:2' -> docid:3
+loc:'email3.txt' -> docid:4
+loc:'email3.txt:2' -> docid:5
+loc:'email3.txt:3' -> docid:6
+loc:'email3.txt:5' -> docid:7
+ndocs=8, nterms=163

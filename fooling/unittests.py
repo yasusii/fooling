@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- encoding: euc_jp -*-
+# -*- coding: euc-jp -*-
 
 import sys, unittest
 from util import dispw, zen2han, isplit, rsplit, intersect, union, merge
@@ -361,28 +361,28 @@ class TestHTMLRipper(unittest.TestCase):
   def assertHTML(self, html, sents):
     self.assertEqual(HTMLRipper().feedunicode(html), sents)
   def test_00(self):
-    self.assertHTML(u'<html><body></body></html>', [(0,u'')])
+    self.assertHTML(u'<html><body></body></html>', [u''])
     return
   def test_01(self):
-    self.assertHTML(u'<html><body>a</body></html>', [(0,u'a')])
+    self.assertHTML(u'<html><body>a</body></html>', [u'a'])
     return
   def test_02(self):
-    self.assertHTML(u'<html><style>foo</style>a</body></html>', [(0,u'a')])
+    self.assertHTML(u'<html><style>foo</style>a</body></html>', [u'a'])
     return
   def test_03(self):
-    self.assertHTML(u'<html>&amp;a</html>', [(0,u'&a')])
+    self.assertHTML(u'<html>&amp;a</html>', [u'&a'])
     return
   def test_04(self):
-    self.assertHTML(u'<body><p>abc<p>def</html>', [(0,u''),(6,u'abc'), (12,u'def')])
+    self.assertHTML(u'<body><p>abc<p>def</html>', [u'', u'abc', u'def'])
     return
   def test_05(self):
-    self.assertHTML(u'<body>abc\ndef</body>', [(0,u'abc\ndef')])
+    self.assertHTML(u'<body>abc\ndef</body>', [u'abc\ndef'])
     return
   def test_06(self):
-    self.assertHTML(u'<pre>abc\ndef</pre>', [(0,u''),(0,u'abc\n'),(9,u'def'),(12,u'')])
+    self.assertHTML(u'<pre>abc\ndef</pre>', [u'', u'abc\n', u'def', u''])
     return
   def test_07(self):
-    self.assertHTML(u'<p>abc\n<img src="foo" alt="baa">', [(0,u''),(0,u'abc\n[baa]')])
+    self.assertHTML(u'<p>abc\n<img src="foo" alt="baa">', [u'', u'abc\n[baa]'])
     return
 
 

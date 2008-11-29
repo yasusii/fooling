@@ -1,6 +1,0 @@
-Subject: =?iso-2022-jp?b?GyRCJEYkOSRIJUclORsoQ==?= がーがー
-MIME-Version: 1.0
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
-
-should throw HeaderParserError.

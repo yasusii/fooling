@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- encoding: euc-jp -*-
+# -*- coding: euc-jp -*-
 import sys, re
 from os.path import join, dirname
 import pycdb
@@ -19,14 +19,13 @@ HIRA2KATA = dict( (unichr(c),unichr(c+96)) for c in xrange(0x3041,0x3094) )
 def tokata(s):
   return ''.join( HIRA2KATA.get(c,c) for c in s )
 
-TRANS_TABLE = dict( (chr(ord(k)-0x3000), chr(ord(v)-0x3000)) for (k,v) in
-  [
-  (u'¥Â', u'¥¸'),  # ¥Â ¢ª ¥¸
-  (u'¥Å', u'¥º'),  # ¥Å ¢ª ¥º
-  #(u'¥ò', u'¥ª'),  # ¥ò ¢ª ¥ª
-  #(u'¥ô', u'¥Ö'),  # ¥ô ¢ª ¥Ö
-  ] )
-CAN_TRANS = ''.join( TRANS_TABLE.get(chr(c),chr(c)) for c in xrange(256) )
+TRANS_TABLE = {
+  u'¥Â': u'¥¸',  # ¥Â ¢ª ¥¸
+  u'¥Å': u'¥º',  # ¥Å ¢ª ¥º
+  #u'¥ò': u'¥ª',  # ¥ò ¢ª ¥ª
+  #u'¥ô': u'¥Ö',  # ¥ô ¢ª ¥Ö
+  }
+CAN_TRANS = ''.join( chr(ord(TRANS_TABLE.get(unichr(c+0x3000),unichr(c+0x3000)))-0x3000) for c in xrange(256) )
 def canonicalize_yomi(y):
   return y.translate(CAN_TRANS)
 
@@ -105,8 +104,7 @@ def index_yomi(sent):
     if t == 0:
       raise ValueError(sent)
     elif t == 1:                        ### KANA (katakana)
-      cur = chr(c - 0x3000)
-      cur = TRANS_TABLE.get(cur, cur)   # canonicalize
+      cur = canonicalize_yomi(chr(c - 0x3000))
       context[i].add(cur)
       if 0 < i:
         for prev in context[i-1]:
@@ -170,8 +168,7 @@ def grep_yomi(yomi, sent, start=0):
     if t == 0:
       raise ValueError(sent)
     elif t == 1:                        ### KANA (katakana)
-      cur = chr(c - 0x3000)
-      cur = TRANS_TABLE.get(cur, cur)   # canonicalize
+      cur = canonicalize_yomi(chr(c - 0x3000))
       r = match[pos+1]
       for (i0,b) in match[pos]:
         if len(yomi) <= b: continue
@@ -211,9 +208,9 @@ def grep_yomi(yomi, sent, start=0):
 
 ##  Pattern and Match object
 ##
-class YomiPattern:
+class YomiPattern(object):
 
-  class Match:
+  class Match(object):
 
     def __init__(self, re, string, spans):
       self.re = re

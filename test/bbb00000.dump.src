@@ -1,9 +1,13 @@
-docid:0 -> loc:'baz.html'
-term(1):と最 -> (1) 0:0
-term(2):んと -> (1) 0:0
-term(3):ほん -> (1) 0:0
-term(4):新 -> (1) 0:0
-term(4):最 -> (1) 0:0
-term(4):最新 -> (1) 0:0
-loc:'baz.html' -> docid:0
+sent(0,0) -> ほんと 最新
+term(0x10):と最 -> (1) 0:0
+term(0x11):んと -> (1) 0:0
+term(0x12):ほん -> (1) 0:0
+term(0x13):新 -> (1) 0:0
+term(0x13):最 -> (1) 0:0
+term(0x13):最新 -> (1) 0:0
+term(0xf0):2007 -> (1) 0:0
+term(0xf0):2007/05 -> (1) 0:0
+term(0xf0):2007/05/17 -> (1) 0:0
+docid:0 -> loc:'html3.html'
+loc:'html3.html' -> docid:0
 ndocs=1, nterms=9

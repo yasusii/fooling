@@ -1,14 +1,11 @@
 #!/usr/bin/env python
-# -*- encoding: euc-jp -*-
+# -*- coding: euc-jp -*-
 import re, sys
-from util import zen2han, rsplit, encodew
-from util import splitchars
-from util import intersect, merge, union, decode_array
-from struct import pack, unpack
+from util import zen2han, rsplit, encodew, encodey
+from util import splitchars, rdatefeats
+from util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2loc
+from struct import pack
 from array import array
-
-upperbound = min
-lowerbound = max
 
 __all__ = [
   'Predicate',
@@ -27,65 +24,9 @@ __all__ = [
   ]
 
 
-# retrieval date features
-DATE_PAT = re.compile(r'(\d+)(/\d+)?(/\d+)?')
-def rdatefeats(dates):
-  r = []
-  
-  def getdate(x):
-    mc = DATE_PAT.match(x)
-    (y,m,d) = (0,0,0)
-    if mc:
-      if mc.group(3):
-        d = upperbound(lowerbound(int(mc.group(3)[1:]), 1), 31)
-      if mc.group(2):
-        m = upperbound(lowerbound(int(mc.group(2)[1:]), 1), 12)
-      y = upperbound(lowerbound(int(mc.group(1)), 1970), 2037)
-    return (y,m,d)
-  
-  def addrange((ya,ma,da),(yb,mb,db)):
-    if da and da:
-      r.extend( '\x20'+pack('>hbb', ya, ma, d) for d in xrange(da,db+1) )
-    elif ma and mb:
-      r.extend( '\x20'+pack('>hb', ya, m) for m in xrange(ma,mb+1) )
-    elif ya and yb:
-      r.extend( '\x20'+pack('>h', y) for y in xrange(ya,yb+1) )
-    return
-    
-  for x in dates:
-    if '-' not in x:
-      (y,m,d) = getdate(x)
-      addrange((y,m,d), (y,m,d))
-      continue
-    x = x.split('-')
-    if len(x) != 2: continue
-    ((y1,m1,d1), (y2,m2,d2)) = (getdate(x[0]), getdate(x[1]))
-    if (y2,m2,d2) <= (y1,m1,d1): continue
-    if y1 == y2 and m1 == m2 and d1 and d2:
-      addrange((y1,m1,d1), (y2,m2,d2))
-      continue
-    if d1:
-      addrange((y1,m1,d1), (y1,m1,31))
-      m1 += 1
-    if d2:
-      addrange((y2,m2,1), (y2,m2,d2))
-      m2 -= 1
-    if y1 == y2 and m1 and m2:
-      addrange((y1,m1,0), (y2,m2,0))
-      continue
-    if m1:
-      addrange((y1,m1,0), (y1,12,0))
-      y1 += 1
-    if m2:
-      addrange((y2,1,0), (y2,m2,0))
-      y2 -= 1
-    addrange((y1,0,0), (y2,0,0))
-  return r
-  
-
 ##  Predicate
 ##
-class Predicate:
+class Predicate(object):
 
   def __init__(self):
     self.priority = 0
@@ -101,7 +42,7 @@ class Predicate:
     return []
 
 
-class IsZeroPos:
+class IsZeroPos(object):
   def __call__(self, pos):
     return pos == 0
 
@@ -175,7 +116,7 @@ class KeywordPredicate(Predicate):
 
 ##  EMailPredicate
 ##
-class IsHeaderPos:
+class IsHeaderPos(object):
   def __call__(self, pos):
     return pos < 100
 
@@ -220,7 +161,7 @@ class EMailPredicate(KeywordPredicate):
 
 ##  YomiMixin
 ##
-class YomiMixin:
+class YomiMixin(object):
   
   def __str__(self):
     return '{%s}' % self.q
@@ -230,7 +171,7 @@ class YomiMixin:
     morae = romm.PARSE_DEFAULT.parse(s)
     q = ''.join( unicode(m) for m in morae if isinstance(m, romm.Mora) )
     y = yomi.canonicalize_yomi(yomi.encode_yomi(q))
-    self.r1 = [ '\x05'+c1+c2 for (c1,c2) in zip(y[:-1],y[1:]) ]
+    self.r1 = [ encodey(c1+c2) for (c1,c2) in zip(y[:-1],y[1:]) ]
     self.extpat = yomi.YomiPattern(y)
     self.checkpat = self.extpat
     return
@@ -238,7 +179,7 @@ class YomiMixin:
 
 ##  StrictMixin
 ##
-class StrictMixin:
+class StrictMixin(object):
 
   ALL_ALPHABET = re.compile(ur'^\|?[\w\s]+\|?$', re.I | re.UNICODE)
 
@@ -270,12 +211,12 @@ class StrictEMailPredicate(StrictMixin, EMailPredicate): pass
 ##  Selection
 ##
 class SearchTimeout(Exception): pass
-class Selection:
+class Selection(object):
 
-  def __init__(self, corpus, term_preds, doc_preds=None,
+  def __init__(self, indexdb, term_preds, doc_preds=None,
                safe=True, start_loc=None, end_loc=None,
                disjunctive=False):
-    self._corpus = corpus
+    self._indexdb = indexdb
 
     # Predicates: term_preds = [ positive ] + [ negative ]
     self.pos_preds = sorted(( pred for pred in term_preds if not pred.neg ),
@@ -288,12 +229,12 @@ class Selection:
     
     # Starting position:
     if start_loc:
-      self.start_loc = corpus.loc_indexed(start_loc)
+      self.start_loc = indexdb.loc_indexed(start_loc)
     else:
       self.start_loc = (0, sys.maxint)
     # Ending position:
     if end_loc:
-      self.end_loc = corpus.loc_indexed(end_loc)
+      self.end_loc = indexdb.loc_indexed(end_loc)
     else:
       self.end_loc = (sys.maxint-1, 0)
     
@@ -304,19 +245,14 @@ class Selection:
     # (We don't store Document objects to avoid having them pickled!)
     self.narrowed = 0
     self.found_locs = []                # [loc, ...]
-    self.contexts = {}                  # { loc:[pos, ...], ... }
+    self.snippets = {}                  # { loc:[pos, ...], ... }
     return
 
   def __repr__(self):
-    return ('<Selection: corpus=%r, term_preds=%r, doc_preds=%r, '
+    return ('<Selection: indexdb=%r, term_preds=%r, doc_preds=%r, '
             'start_loc=%r, end_loc=%r, found_locs=%r>') % \
-           (self._corpus, self.pos_preds+self.neg_preds, self.doc_preds,
+           (self._indexdb, self.pos_preds+self.neg_preds, self.doc_preds,
             self.start_loc, self.end_loc, self.found_locs)
-
-  def __setstate__(self, dict):
-    self.__dict__.update(dict)
-    self._corpus = self._corpus._get_singleton()
-    return
 
   def __len__(self):
     return len(self.found_locs)
@@ -327,66 +263,34 @@ class Selection:
   def __iter__(self):
     return self.iter()
 
-  def get_corpus(self):
-    return self._corpus
-
   def get_preds(self):
     return (self.pos_preds + self.neg_preds)
-
-  def get_context(self, loc):
-    return self.contexts.get(loc, [])
-
-  def matched_range(self, s):
-    r = []
-    for pred in self.pos_preds:
-      pat = pred.extpat
-      if not pat: continue
-      for m in pat.finditer(s):
-        if isinstance(m, tuple):
-          (p0,p1) = m
-        else:
-          (p0,p1) = (m.start(0), m.end(0))
-        if p0 < p1:
-          r.append((p0,1))
-          r.append((p1,-1))
-    if not r:
-      return [(0, s)]
-    r.sort()
-    x = []
-    (state,p0) = (0, 0)
-    for (p1,i) in r:
-      x.append((state, s[p0:p1]))
-      p0 = p1
-      state += i
-    assert state == 0
-    x.append((0, s[p1:]))
-    return x
 
   def get(self, i, timeout=0):
     if len(self.found_locs) <= i:
       j = None
-      for (j,doc) in self.iter_start(timeout):
+      for (j,loc) in self.start_search(timeout):
         if i <= j: break
       if i == j:
-        return doc
-    # might cause KeyError
-    return self._corpus.get_doc(self.found_locs[i])
+        return loc
+    # might cause IndexError
+    return self.found_locs[i]
   
   def iter(self, start=0, timeout=0):
     if len(self.found_locs) < start:
       raise ValueError('invalid start index: %d' % start)
     # Return the existing results first.
     for i in xrange(start, len(self.found_locs)):
-      yield (i, self.get(i))
+      yield (i, self.found_locs[i])
     # Now retrieve new results.
-    for x in self.iter_start(timeout):
+    for x in self.start_search(timeout):
       yield x
     return
     
   def status(self):
     # Get the number of all documents.
     found_docs = len(self.found_locs)
-    total_docs = self._corpus.total_docs()
+    total_docs = self._indexdb.total_docs()
     (searched_docs0, searched_docs1) = self.searched_docs
     searched_docs = searched_docs0 + searched_docs1
     if searched_docs == total_docs:
@@ -417,8 +321,8 @@ class Selection:
 
     #  start_idx <= idxid <= end_idx.
     #  start_docid-1 >= docid >= end_docid.
-    for (idxid,idx) in self._corpus.iteridxs(start_idx, end_idx):
-      (idx_docs, _) = unpack('>ii', idx[''])
+    for (idxid,idx) in self._indexdb.iteridxs(start_idx, end_idx):
+      (idx_docs, _) = idx_info(idx)
       if idxid == start_idx:
         start_docid = min(start_docid0, idx_docs)
       else:
@@ -453,19 +357,19 @@ class Selection:
           docs1 = {}
           for (docid,pos) in locs:
             if docid not in docs1:
-              context = array('i')
-              docs1[docid] = context
+              contexts = array('i')
+              docs1[docid] = contexts
             else:
-              context = docs1[docid]
-            context.append(pos)
+              contexts = docs1[docid]
+            contexts.append(pos)
           # combine with the previous docs.
-          for (docid,context) in docs1.iteritems():
+          for (docid,contexts) in docs1.iteritems():
             if docid not in docs:
               r = []
               docs[docid] = r
             else:
               r = docs[docid]
-            r.append((context, pred.checkpat))
+            r.append((contexts, pred.checkpat))
 
         elif pred.neg:
           # negative conjunctive (-AND) search.
@@ -479,16 +383,16 @@ class Selection:
           for (docid,pos) in locs:
             if conj and (docid not in docs): continue
             if docid not in docs1:
-              context = array('i')
-              docs1[docid] = context
+              contexts = array('i')
+              docs1[docid] = contexts
             else:
-              context = docs1[docid]
-            context.append(pos)
+              contexts = docs1[docid]
+            contexts.append(pos)
           if conj:
             # intersect with the previous docs.
-            for (docid,context) in docs1.iteritems():
+            for (docid,contexts) in docs1.iteritems():
               r = docs[docid]
-              r.append((context, pred.checkpat))
+              r.append((contexts, pred.checkpat))
               docs1[docid] = r
             docs = docs1
           else:
@@ -503,53 +407,146 @@ class Selection:
         self.start_loc = (idxid, docid)
         self.searched_docs = (searched_docs0, idx_docs-docid)
         try:
-          loc = idx['\x00'+pack('>i',docid)]
+          loc = idx_docid2loc(idx, docid)
         except KeyError:
           continue
         # Skip if the document is already in the cache.
-        if loc in self.contexts: continue
-        # Skip if the document does not exist.
-        if not self._corpus.loc_exists(loc): continue
+        if loc in self.snippets: continue
         # Apply the document predicates.
         pol = 0
         for pred in self.doc_preds:
-          pol = pred(loc, self._corpus)
+          pol = pred(loc)
           if pol: break
         # pol < 0: rejected immediately.
         # pol > 0: accepted immediately.
         # pol = 0: not decided (further examination required).
         if 0 <= pol:
-          yield (pol,loc,contexts)
+          yield (pol,loc,idx,docid,contexts)
 
       # Finished this index.
       searched_docs0 += idx_docs
       self.searched_docs = (searched_docs0, 0)
     return
-    
-  def iter_start(self, timeout=0):
+
+  def start_search(self, timeout=0):
     from time import time
     limit_time = 0
     if timeout:
       limit_time = time() + timeout
 
-    for (pol,loc,contexts) in self.get_docids():
-      # open each candidate document.
-      doc = self._corpus.get_doc(loc)
-      # Skip if the document is newer than the index.
-      if self.safe and self._corpus.mtime < doc.get_mtime(): continue
+    for (pol,loc,idx,docid,contexts) in self.get_docids():
       self.narrowed += 1
-      if not pol:
-        filtered = doc.filter_context(contexts, self.disjunctive)
-        if len(filtered) == len(contexts) or (self.disjunctive and filtered):
-          pol = 1
-          self.contexts[loc] = filtered
+      if pol == 0:
+        # contexts (a list of pos) is stored in descending order in an index file.
+        filtered = []
+        # Receives a list of pairs of positions and regexp patterns: [([pos],regpat), ...]
+        # and returns a position list that actually matches to the patterns.
+        # Unless ALL the patterns match, it returns a null.
+        for (posseq,pat) in contexts:
+          # make the list in ascending order.
+          posseq.reverse()
+          for pos in posseq:
+            try:
+              sent = idx_sent(idx, docid, pos)
+            except KeyError:
+              continue
+            if not pat or pat.search(sent):
+              filtered.append(pos)
+              break
+          else:
+            if not self.disjunctive:
+              pol = -1
+              break
+        else:
+          if filtered:
+            pol = 1
+            self.snippets[loc] = (idx, docid, filtered)
       if 0 < pol:
         self.found_locs.append(loc)
-        yield (len(self.found_locs)-1, doc)
+        yield (len(self.found_locs)-1, loc)
       # Abort if the specified time is passed.
       if limit_time and limit_time < time():
         raise SearchTimeout(self)
     return
+
+  # Receives a Selection object that has a list of position (contexts)
+  # of hit words, and returns a snippet string where highlighted parts
+  # are processed by "highlight" func. and normal parts by "normal" func.
+  def get_snippet(self, loc, 
+                  normal=lambda x:x, highlight=lambda x:x,
+                  maxsents=3, maxchars=100, maxlr=20, 
+                  default_snippet_pos=0):
+    # Normally it assumes that self.iter() is already called 
+    # so the contexts for this location is not empty. When it is empty,
+    # fill out with the default snippet string.
+    (idx, docid, contexts) = self.snippets.get(loc, [default_snippet_pos])
+    try:
+      title = idx_sent(idx, docid, 0)
+    except KeyError:
+      title = 'unknown' # XXX
+    snippet = u''
+    pos0 = None
+    for pos in sorted(contexts):
+      # Avoid repeating.
+      if pos0 == pos: continue
+      # For each position, we take maxsents sentences.
+      sents = []
+      chars = 0
+      for s in idx_sents(idx, docid, pos):
+        sents.append(s)
+        chars += len(s)
+        if maxsents <= len(sents) or maxchars <= chars: break
+      sents = ' '.join(sents)
+      x = self.matched_range(sents)
+      if len(x) == 1:
+        # No highlight (no pattern specified).
+        snippet += normal(sents[:maxchars]) + u'...'
+      else:
+        # Highlight the matched parts.
+        assert 3 <= len(x)
+        # prepend the leftmost context.
+        (state,left) = x[0]
+        if not state:
+          snippet += u'... ' + normal(left[-maxlr:])
+        for (state,s) in x[1:-1]:
+          if not s: continue
+          if state:
+            snippet += highlight(s)
+          else:
+            snippet += normal(s)
+        # append the rightmost context.
+        (state,right) = x[-1]
+        if not state:
+          snippet += normal(right[:maxlr]) + u'...'
+      if maxchars-len(snippet) < maxlr: break
+      pos0 = pos
+    return (title, snippet)
+
+  def matched_range(self, s):
+    r = []
+    for pred in self.pos_preds:
+      pat = pred.extpat
+      if not pat: continue
+      for m in pat.finditer(s):
+        if isinstance(m, tuple):
+          (p0,p1) = m
+        else:
+          (p0,p1) = (m.start(0), m.end(0))
+        if p0 < p1:
+          r.append((p0,1))
+          r.append((p1,-1))
+    if not r:
+      return [(0, s)]
+    r.sort()
+    x = []
+    (state,p0) = (0, 0)
+    for (p1,i) in r:
+      x.append((state, s[p0:p1]))
+      p0 = p1
+      state += i
+    assert state == 0
+    x.append((0, s[p1:]))
+    return x
 
 
 ##  SelectionWithContinuation
@@ -559,7 +556,7 @@ class SelectionWithContinuation(Selection):
   def iter(self, start=0, timeout=0):
     if start != len(self.found_locs):
       raise ValueError('Cannot retrieve previous results.')
-    return self.iter_start(timeout)
+    return self.start_search(timeout)
   
   def save_continuation(self):
     from base64 import b64encode
@@ -576,8 +573,8 @@ class SelectionWithContinuation(Selection):
     self.start_loc = (idxid0, docid0)
     self.found_locs = [None] * found_docs
     searched_docs0 = 0
-    for (idxid,idx) in self._corpus.iteridxs(end=idxid0-1):
-      (idx_docs, _) = unpack('>ii', idx[''])
+    for (idxid,idx) in self._indexdb.iteridxs(end=idxid0-1):
+      (idx_docs, _) = idx_info(idx)
       searched_docs0 += idx_docs
     self.searched_docs = (searched_docs0, idx_docs-docid0)
     return
@@ -585,15 +582,14 @@ class SelectionWithContinuation(Selection):
 
 ##  DummySelection
 ##
-class DummySelection:
+class DummySelection(object):
   
-  def __init__(self, corpus, locs):
-    self._corpus = corpus
+  def __init__(self, locs):
     self.locs = locs
     return
   
   def __repr__(self):
-    return '<DummySelection: corpus=%r, locs=%r>' % (self._corpus, self.locs)
+    return '<DummySelection: locs=%r>' % (self.locs)
   
   def __len__(self):
     return len(self.locs)
@@ -601,33 +597,21 @@ class DummySelection:
   def __getitem__(self, i):
     return self.get(i)
 
-  def __setstate__(self, dict):
-    self.__dict__.update(dict)
-    self._corpus = self._corpus._get_singleton()
-    return
-
   def __iter__(self):
     return self.iter()
 
-  def get_corpus(self):
-    return self._corpus
-
   def get_preds(self):
-    return []
-
-  def get_context(self, _):
     return []
 
   def matched_range(self, s):
     return [(False, s)]
 
   def get(self, i):
-    return self._corpus.get_doc(self.locs[i])
+    return self.locs[i]
 
-  def iter(self, i=0, timeout=0):
-    while i < len(self.locs):
-      yield (i, self.get(i))
-      i += 1
+  def iter(self, start=0, timeout=0):
+    for i in xrange(start, len(self.locs)):
+      yield (i, self.locs[i])
     return
 
   def status(self):
@@ -671,11 +655,11 @@ def parse_preds(query, max_preds=10,
 def show_results(selection, n, encoding, timeout=0):
   def e(s): return s.encode(encoding, 'replace')
   window = []
-  for (found,doc) in selection.iter(timeout=timeout):
-    s = doc.get_snippet(selection,
-                        highlight=lambda x: '\033[31m%s\033[m' % x,
-                        maxchars=200, maxcontext=100)
-    print '%d: [%s] %s' % (found+1, e(doc.get_title()), e(s))
+  for (found,loc) in selection.iter(timeout=timeout):
+    (title, s) = selection.get_snippet(loc,
+                                       highlight=lambda x: '\033[31m%s\033[m' % x,
+                                       maxchars=200, maxlr=100)
+    print '%d: [%s] %s' % (found+1, e(title), e(s))
     window.append(found)
     if len(window) == n: break
   (finished, estimated) = selection.status()
@@ -708,7 +692,7 @@ def load_selection(fname):
 def search(argv):
   import getopt, locale, time
   import document
-  from corpus import FilesystemCorpus
+  from corpus import IndexDB
   def usage():
     print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] [-a] '
            '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '
@@ -752,10 +736,9 @@ def search(argv):
   if args:
     idxdir = args[0]
     keywords = args[1:]
-    corpus = FilesystemCorpus(basedir, idxdir, prefix, doctype, encoding)
-    corpus.open()
+    indexdb = IndexDB(idxdir, prefix)
     preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
-    selection = Selection(corpus, preds, safe=safe, disjunctive=disjunctive)
+    selection = Selection(indexdb, preds, safe=safe, disjunctive=disjunctive)
     try:
       show_results(selection, n, encoding, timeout)
     except SearchTimeout:

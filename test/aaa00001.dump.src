@@ -1,11 +1,17 @@
-docid:0 -> loc:'bar.html'
-term(1):うに -> (1) 0:0
-term(1):とう -> (1) 0:0
-term(1):んと -> (1) 0:0
-term(2):にね -> (1) 0:0
-term(3):ほん -> (1) 0:0
-term(4):gasagoso -> (1) 0:44
-term(4):pre1 -> (1) 0:29
-term(4):pre2 -> (1) 0:29
-loc:'bar.html' -> docid:0
+sent(0,0) -> ほんとうにね。
+sent(0,1) -> pre1 pre2
+sent(0,2) -> [gasagoso]
+term(0x10):うに -> (1) 0:0
+term(0x10):とう -> (1) 0:0
+term(0x10):んと -> (1) 0:0
+term(0x11):にね -> (1) 0:0
+term(0x12):ほん -> (1) 0:0
+term(0x13):gasagoso -> (1) 0:2
+term(0x13):pre1 -> (1) 0:1
+term(0x13):pre2 -> (1) 0:1
+term(0xf0):2007 -> (1) 0:0
+term(0xf0):2007/05 -> (1) 0:0
+term(0xf0):2007/05/17 -> (1) 0:0
+docid:0 -> loc:'html2.html'
+loc:'html2.html' -> docid:0
 ndocs=1, nterms=11

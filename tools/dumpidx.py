@@ -20,22 +20,27 @@ def dumpidx(cdbname):
     k = fp.read(klen)
     v = fp.read(vlen)
     pos += 4+4+klen+vlen
-    if not k:
-      (ndocs,nterms) = unpack('>ll', v)
-      print 'ndocs=%d, nterms=%d' % (ndocs,nterms)
-    elif k[0] == '\x00':
-      (docid,) = unpack('>l', k[1:])
-      print 'docid:%d -> loc:%r' % (docid, v)
-    elif k[0] == '\xff':
+    if k[0] == '\x00':
+      (docid,sentid) = unpack('>xll', k)
+      v = unicode(v, 'utf-8')
+      print 'sent(%d,%d) -> %s' % (docid,sentid,v.encode(ENCODING, 'ignore'))
+    elif k[0] == '\xfd':
+      if len(k) == 5:
+        (docid,) = unpack('>xl', k)
+        print 'docid:%d -> loc:%r' % (docid, v)
+    elif k[0] == '\xfe':
       (docid,) = unpack('>l', v)
       print 'loc:%r -> docid:%d' % (k[1:], docid)
+    elif k == '\xff':
+      (ndocs,nterms) = unpack('>ll', v)
+      print 'ndocs=%d, nterms=%d' % (ndocs,nterms)
     else:
       (c,k) = (k[0], k[1:])
-      if '\x01' <= c and c <= '\x04':
-        w = unicode(k, 'utf-8').encode(ENCODING)
-      elif c == '\x05':
-        w = u''.join( unichr(0x3000+ord(c)) for c in k ).encode(ENCODING)
+      if '\x10' <= c and c <= '\x13':
+        w = unicode(k, 'utf-8').encode(ENCODING, 'ignore')
       elif c == '\x20':
+        w = u''.join( unichr(0x3000+ord(c)) for c in k ).encode(ENCODING, 'ignore')
+      elif c == '\xf0':
         if len(k) == 2:
           w = '%04d' % unpack('>h', k)
         elif len(k) == 3:
@@ -54,8 +59,8 @@ def dumpidx(cdbname):
         a.fromstring(v[4:])
       if SWAP_ENDIAN:
         a.byteswap()
-      print 'term(%d):%s -> (%d) %s' % (ord(c), w, len(a)/2,
-                                        ', '.join('%d:%d' % (a[i], a[i+1]) for i in xrange(0, len(a), 2)))
+      print 'term(0x%02x):%s -> (%d) %s' % (ord(c), w, len(a)/2,
+                                            ', '.join('%d:%d' % (a[i], a[i+1]) for i in xrange(0, len(a), 2)))
   fp.close()
   return
 

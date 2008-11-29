@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys, os, os.path
 import pycdb as cdb
-from util import encode_array, decode_array
+from util import encode_array, decode_array, idx_info, add_idx_docid2loc, add_idx_loc2docid, add_idx_info, PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 from struct import pack, unpack
 stderr = sys.stderr
 
@@ -16,49 +16,56 @@ def estimate_terms(nterms):
 
 ##  IndexFile
 ##
-class IndexFile:
+class IndexFile(object):
   
   def __init__(self, fname):
     self.fname = fname
-    self.db = cdb.init(fname)
-    (self.ndocs, self.nterms) = unpack('>II', self.db[''])
+    self.cdb = cdb.init(fname)
+    (self.ndocs, self.nterms) = idx_info(self.cdb)
     self.offset = 0L
+    self.key = None
+    self.iter = None
     return
 
   def __repr__(self):
     return '<%s (docs=%d, terms=%d)>' % (self.fname, self.ndocs, self.nterms)
-  
-  def each(self):
-    return self.db.each()
+
+  def iteritems(self):
+    self.iter = self.cdb.iteritems(startkey=self.key)
+    return self.iter
 
 
-##  cdbmerge
-##
-def cdbmerge(dbs):
-  poss = [ (db.each(), db) for db in dbs ]
+# cdbmerge
+def cdbmerge(idxs):
+  q = []
+  for idx in idxs:
+    try:
+      idx.iteritems()
+      q.append((idx.iter.next(), idx))
+    except StopIteration:
+      pass
   k0 = None
   vs = None
-  while poss:
-    poss.sort()
-    (x,db) = poss.pop(0)
-    if not x: continue
-    (k,v) = x
+  while q:
+    q.sort()
+    ((k,v), idx) = q.pop(0)
     if k0 != k:
-      if vs:
-        yield (k0,vs)
+      if vs: yield (k0,vs)
       vs = []
-    vs.append((v,db))
-    poss.append((db.each(), db))
+    vs.append((v, idx))
     k0 = k
-  if vs:
-    yield (k0,vs)
+    try:
+      q.append((idx.iter.next(), idx))
+    except StopIteration:
+      continue
+  if vs: yield (k0,vs)
   return
 
 
 ##  idxmerge
 ##
 def idxmerge(cdbname, idxs, verbose=0):
-  m = cdb.cdbmake(cdbname, cdbname+'.tmp')
+  maker = cdb.cdbmake(cdbname, cdbname+'.tmp')
   offset = 0L
   for idx in idxs:
     idx.offset = offset
@@ -76,63 +83,69 @@ def idxmerge(cdbname, idxs, verbose=0):
       a[i] += offset
     return (offset,a)
 
-  total = 0
+  # copy sentences to a new idx with unique ids.
+  for idx in idxs:
+    for (k,v) in idx.iteritems():
+      if k[0] != PROP_SENT:
+        idx.key = k
+        break
+      (docid, pos) = unpack('>xii', k)
+      maker.add(pack('>cii', PROP_SENT, idx.offset+docid, pos), v)
+
   nterms = 0
+  total = 0
   docid2loc = []
   loc2docid = {}
   for (k,vs) in cdbmerge(idxs):
-    # ignore loc->docid mapping
-    if not k: continue
-    if k[0] == '\xff': break
-    if k[0] == '\x00':
+    if k[0] == PROP_LOC or k[0] == PROP_INFO:
+      break
+    if k[0] == PROP_DOCID: 
       # read a docid->loc mapping
-      (docid,) = unpack('>I', k[1:])
+      (docid,) = unpack('>xi', k)
       for (loc,idx) in vs:
         docid1 = docid+idx.offset
         docid2loc.append((docid1, loc))
         if verbose and loc in loc2docid:
           print >>stderr, 'Skip duplicated: %r' % loc
         loc2docid[loc] = docid1
-      continue
-    elif nterms == 0:
-      # write docid->loc mappings (avoiding dupes)
-      docid2loc.sort()
-      for (docid,loc) in docid2loc:
-        m.add('\x00'+pack('>I', docid), loc)
+    else:
+      # merge docid+pos sets
+      vs = sorted(( merge1(v, idx) for (v,idx) in vs ), reverse=True)
+      ents = sum( len(a) for (base,a) in vs )/2
+      (_,all) = vs.pop(0)
+      for (base,a) in vs:
+        all.extend(a)
+      nterms += 1
+      total += ents
+      maker.add(k, encode_array(ents, all))
+      if verbose and nterms % 1000 == 0:
+        sys.stderr.write('.'); sys.stderr.flush()
 
-    # merge docid+pos sets
-    vs = sorted(( merge1(v, idx) for (v,idx) in vs ), reverse=True)
-    ents = sum( len(a) for (base,a) in vs )/2
-    (_,all) = vs.pop(0)
-    for (base,a) in vs:
-      all.extend(a)
-    nterms += 1
-    total += ents
-    m.add(k, encode_array(ents, all))
-    if verbose and nterms % 1000 == 0:
-      sys.stderr.write('.'); sys.stderr.flush()
-
+  # write docid->loc mappings (avoiding dupes)
+  docid2loc.sort()
+  for (docid,loc) in docid2loc:
+    add_idx_docid2loc(maker, docid, loc)
   # write loc->docid mappings (avoiding dupes)
   for (loc,docid) in sorted(loc2docid.iteritems()):
-    m.add('\xff'+loc, pack('>I', docid))
+    add_idx_loc2docid(maker, loc, docid)
 
   if verbose:
     print >>stderr, 'done: docs=%d, terms=%d, ents=%d' % \
           (len(docid2loc), nterms, total)
-  m.add('', pack('>II', len(docid2loc), nterms))
-  m.finish()
+  add_idx_info(maker, len(docid2loc), nterms)
+  maker.finish()
   return
 
 
 ##  Merger
 ##
-class Merger:
+class Merger(object):
 
-  def __init__(self, corpus,
+  def __init__(self, indexdb,
                max_docs_threshold=2000,
                max_terms_threshold=50000,
                verbose=0):
-    self.corpus = corpus
+    self.indexdb = indexdb
     self.max_docs_threshold = max_docs_threshold
     self.max_terms_threshold = max_terms_threshold
     self.verbose = verbose
@@ -140,7 +153,7 @@ class Merger:
 
   def flush(self, idxid, merged):
     if not merged: return
-    fname = self.corpus.gen_idx_fname(idxid)
+    fname = self.indexdb.gen_idx_fname(idxid)
     if 1 < len(merged):
       idxmerge(fname+'.new', merged, self.verbose)
       for idx in merged:
@@ -156,7 +169,7 @@ class Merger:
     return
 
   def run(self, cleanup=False):
-    idxs = [ IndexFile(os.path.join(self.corpus.idxdir, fname)) for fname in reversed(self.corpus.idxs) ]
+    idxs = [ IndexFile(os.path.join(self.indexdb.idxdir, fname)) for fname in reversed(self.indexdb.idxs) ]
     (ndocs, nterms) = (0, [])
     newidx = 0
     merged = []
@@ -172,13 +185,13 @@ class Merger:
       merged.append(idx)
     self.flush(newidx, merged)
     if cleanup:
-      for fname in os.listdir(self.corpus.idxdir):
+      for fname in os.listdir(self.indexdb.idxdir):
         if fname.endswith('.cdb.bak'):
-          fname = os.path.join(self.corpus.idxdir, fname)
+          fname = os.path.join(self.indexdb.idxdir, fname)
           if self.verbose:
             print >>stderr, 'Removing: %r' % fname
           os.unlink(fname)
-    self.corpus.refresh()
+    self.indexdb.refresh()
     return
 
 
@@ -186,7 +199,7 @@ class Merger:
 ##
 def merge(argv):
   import getopt
-  from corpus import FilesystemCorpus
+  from corpus import IndexDB
   def usage():
     print 'usage: %s [-v] [-p prefix] [-D maxdocs] [-T maxterms] idxdir' % argv[0]
     sys.exit(2)
@@ -203,8 +216,8 @@ def merge(argv):
   if not args: usage()
   assert len(prefix) == 3
   idxdir = args[0]
-  corpus = FilesystemCorpus('', idxdir, prefix)
-  Merger(corpus, max_docs_threshold, max_terms_threshold, verbose).run()
+  indexdb = IndexDB(idxdir, prefix)
+  Merger(indexdb, max_docs_threshold, max_terms_threshold, verbose).run()
   return
 
 # main

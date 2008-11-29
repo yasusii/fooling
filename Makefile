@@ -1,7 +1,7 @@
 # Makefile
 
 PACKAGE=fooling
-PYTHON=python2.4 -E
+PYTHON=python -E
 VERSION=`$(PYTHON) fooling/__init__.py`
 BUILD_DICT=$(PYTHON) ./tools/build_tcdb_dict.py
 TAR=tar

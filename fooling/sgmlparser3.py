@@ -43,7 +43,7 @@ END_VALUE_SQ = re.compile(r'[\'&]')
 
 ##  SGMLParser3
 ##
-class SGMLParser3:
+class SGMLParser3(object):
   """
   Robust feed based SGML parser.
   Mainly for instantiating HTMLParser3.

@@ -1,27 +1,39 @@
-docid:0 -> loc:'foo.html'
-docid:1 -> loc:'bar.html'
-term(1):いい -> (1) 0:33
-term(1):いで -> (1) 0:33
-term(1):うに -> (1) 1:0
-term(1):とう -> (1) 1:0
-term(1):もい -> (1) 0:33
-term(1):んと -> (1) 1:0
-term(1):ーで -> (1) 0:33
-term(2):です -> (1) 0:33
-term(2):にね -> (1) 1:0
-term(2):んと -> (1) 0:67
-term(3):documentふ -> (1) 0:0
-term(3):でも -> (1) 0:33
-term(3):ほん -> (2) 1:0, 0:67
-term(4):document -> (1) 0:0
-term(4):gasagoso -> (1) 1:44
-term(4):pre1 -> (2) 1:29, 0:89
-term(4):pre2 -> (2) 1:29, 0:94
-term(4):pre3 -> (1) 0:94
-term(4):test -> (1) 0:0
-term(4):に -> (1) 0:74
-term(4):ふう -> (1) 0:0
-term(4):ドー -> (1) 0:33
-loc:'bar.html' -> docid:1
-loc:'foo.html' -> docid:0
+sent(0,0) -> Test document: ふう
+sent(0,1) -> ドーでもいいです。
+sent(0,2) -> ほんと
+sent(0,3) -> に。
+sent(0,4) -> pre1
+sent(0,5) -> pre2 pre3
+sent(1,0) -> ほんとうにね。
+sent(1,1) -> pre1 pre2
+sent(1,2) -> [gasagoso]
+term(0x10):いい -> (1) 0:1
+term(0x10):いで -> (1) 0:1
+term(0x10):うに -> (1) 1:0
+term(0x10):とう -> (1) 1:0
+term(0x10):もい -> (1) 0:1
+term(0x10):んと -> (1) 1:0
+term(0x10):ーで -> (1) 0:1
+term(0x11):です -> (1) 0:1
+term(0x11):にね -> (1) 1:0
+term(0x11):んと -> (1) 0:2
+term(0x12):documentふ -> (1) 0:0
+term(0x12):でも -> (1) 0:1
+term(0x12):ほん -> (2) 1:0, 0:2
+term(0x13):document -> (1) 0:0
+term(0x13):gasagoso -> (1) 1:2
+term(0x13):pre1 -> (2) 1:1, 0:4
+term(0x13):pre2 -> (2) 1:1, 0:5
+term(0x13):pre3 -> (1) 0:5
+term(0x13):test -> (1) 0:0
+term(0x13):に -> (1) 0:3
+term(0x13):ふう -> (1) 0:0
+term(0x13):ドー -> (1) 0:1
+term(0xf0):2007 -> (2) 1:0, 0:0
+term(0xf0):2007/05 -> (2) 1:0, 0:0
+term(0xf0):2007/05/17 -> (2) 1:0, 0:0
+docid:0 -> loc:'html1.html'
+docid:1 -> loc:'html2.html'
+loc:'html1.html' -> docid:0
+loc:'html2.html' -> docid:1
 ndocs=2, nterms=25
