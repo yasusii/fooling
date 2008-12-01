@@ -431,28 +431,38 @@ def rdatefeats(dates):
 
 def idx_sent(idx, docid, pos):
   return unicode(idx[pack('>cii', PROP_SENT, docid, pos)], 'utf-8')
+
 def idx_sents(idx, docid, pos):
   prefix = pack('>ci', PROP_SENT, docid)
   for (k,s) in idx.iteritems(pack('>cii', PROP_SENT, docid, pos)):
     if not k.startswith(prefix): break
     yield unicode(s, 'utf-8')
   return
-def idx_docid2loc(idx, docid):
-  return idx[pack('>ci', PROP_DOCID, docid)]
+
+def idx_docid2info(idx, docid):
+  v = idx[pack('>ci', PROP_DOCID, docid)]
+  (mtime,) = unpack('>i', v[:4])
+  loc = v[4:]
+  return (mtime, loc)
+
 def idx_loc2docid(idx, loc):
   return unpack('>i', idx[PROP_LOC+loc])[0]
+
 def idx_info(idx):
   return unpack('>ii', idx[PROP_INFO])
 
 def add_idx_sent(maker, docid, pos, sent):
   maker.add(pack('>cii', PROP_SENT, docid, pos), sent.encode('utf-8'))
   return
-def add_idx_docid2loc(maker, docid, loc):
-  maker.add(pack('>ci', PROP_DOCID, docid), loc)
+
+def add_idx_docid2info(maker, docid, mtime, loc):
+  maker.add(pack('>ci', PROP_DOCID, docid), pack('>i', mtime)+loc)
   return
+
 def add_idx_loc2docid(maker, loc, docid):
   maker.add(PROP_LOC+loc, pack('>i', docid))
   return
+
 def add_idx_info(maker, ndocs, nterms):
   maker.add(PROP_INFO, pack('>ii', ndocs, nterms))
   return

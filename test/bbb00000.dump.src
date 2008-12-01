@@ -8,6 +8,6 @@ term(0x13):ºÇ¿· -> (1) 0:0
 term(0xf0):2007 -> (1) 0:0
 term(0xf0):2007/05 -> (1) 0:0
 term(0xf0):2007/05/17 -> (1) 0:0
-docid:0 -> loc:'html3.html'
+docid:0 -> mtime:1179330180, loc:'html3.html'
 loc:'html3.html' -> docid:0
 ndocs=1, nterms=9

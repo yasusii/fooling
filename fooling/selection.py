@@ -3,8 +3,8 @@
 import re, sys
 from util import zen2han, rsplit, encodew, encodey
 from util import splitchars, rdatefeats, lowerbound
-from util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2loc
-from struct import pack
+from util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2info
+from struct import pack, unpack
 from array import array
 
 __all__ = [
@@ -244,18 +244,18 @@ class Selection(object):
     # Found documents:
     # (We don't store Document objects to avoid having them pickled!)
     self.narrowed = 0
-    self.found_locs = []                # [loc, ...]
+    self.found_docs = []                # [loc, ...]
     self.snippets = {}                  # { loc:[pos, ...], ... }
     return
 
   def __repr__(self):
     return ('<Selection: indexdb=%r, term_preds=%r, doc_preds=%r, '
-            'start_loc=%r, end_loc=%r, found_locs=%r>') % \
+            'start_loc=%r, end_loc=%r, found_docs=%r>') % \
            (self._indexdb, self.pos_preds+self.neg_preds, self.doc_preds,
-            self.start_loc, self.end_loc, self.found_locs)
+            self.start_loc, self.end_loc, self.found_docs)
 
   def __len__(self):
-    return len(self.found_locs)
+    return len(self.found_docs)
 
   def __getitem__(self, i):
     return self.get(i)
@@ -267,21 +267,21 @@ class Selection(object):
     return (self.pos_preds + self.neg_preds)
 
   def get(self, i, timeout=0):
-    if len(self.found_locs) <= i:
+    if len(self.found_docs) <= i:
       j = None
       for (j,loc) in self.start_search(timeout):
         if i <= j: break
       if i == j:
         return loc
     # might cause IndexError
-    return self.found_locs[i]
+    return self.found_docs[i]
   
   def iter(self, start=0, timeout=0):
-    if len(self.found_locs) < start:
+    if len(self.found_docs) < start:
       raise ValueError('invalid start index: %d' % start)
     # Return the existing results first.
-    for i in xrange(start, len(self.found_locs)):
-      yield (i, self.found_locs[i])
+    for i in xrange(start, len(self.found_docs)):
+      yield (i, self.found_docs[i])
     # Now retrieve new results.
     for x in self.start_search(timeout):
       yield x
@@ -289,7 +289,7 @@ class Selection(object):
     
   def status(self):
     # Get the number of all documents.
-    found_docs = len(self.found_locs)
+    found_docs = len(self.found_docs)
     total_docs = self._indexdb.total_docs()
     (searched_docs0, searched_docs1) = self.searched_docs
     searched_docs = searched_docs0 + searched_docs1
@@ -403,25 +403,14 @@ class Selection(object):
       # docs: the candidate documents in the current index file.
       docs = docs.items()
       docs.sort(reverse=True)
+      found = set()
       for (docid,contexts) in docs:
         self.start_loc = (idxid, docid)
         self.searched_docs = (searched_docs0, idx_docs-docid)
-        try:
-          loc = idx_docid2loc(idx, docid)
-        except KeyError:
-          continue
-        # Skip if the document is already in the cache.
-        if loc in self.snippets: continue
-        # Apply the document predicates.
-        pol = 0
-        for pred in self.doc_preds:
-          pol = pred(loc)
-          if pol: break
-        # pol < 0: rejected immediately.
-        # pol > 0: accepted immediately.
-        # pol = 0: not decided (further examination required).
-        if 0 <= pol:
-          yield (pol,loc,idx,docid,contexts)
+        # Skip if the document is already in the list.
+        if docid in found: continue
+        found.add(docid)
+        yield (idx,docid,contexts)
 
       # Finished this index.
       searched_docs0 += idx_docs
@@ -434,7 +423,17 @@ class Selection(object):
     if timeout:
       limit_time = time() + timeout
 
-    for (pol,loc,idx,docid,contexts) in self.get_docids():
+    for (idx,docid,contexts) in self.get_docids():
+      pol = 0
+      if self.doc_preds:
+        # Apply the document predicates.
+        (_,loc) = idx_docid2info(idx, docid)
+        for pred in self.doc_preds:
+          pol = pred(loc)
+          if pol: break
+      # pol < 0: rejected immediately.
+      # pol > 0: accepted immediately.
+      # pol = 0: not decided (further examination required).
       self.narrowed += 1
       if pol == 0:
         # contexts (a list of pos) is stored in descending order in an index file.
@@ -460,10 +459,11 @@ class Selection(object):
         else:
           if filtered:
             pol = 1
-            self.snippets[loc] = (idx, docid, filtered)
+            self.snippets[(idx,docid)] = filtered
       if 0 < pol:
-        self.found_locs.append(loc)
-        yield (len(self.found_locs)-1, loc)
+        loc = (idx,docid)
+        self.found_docs.append(loc)
+        yield (len(self.found_docs)-1, loc)
       # Abort if the specified time is passed.
       if limit_time and limit_time < time():
         raise SearchTimeout(self)
@@ -479,11 +479,12 @@ class Selection(object):
     # Normally it assumes that self.iter() is already called 
     # so the contexts for this location is not empty. When it is empty,
     # fill out with the default snippet string.
-    (idx, docid, contexts) = self.snippets.get(loc, [default_snippet_pos])
+    (idx, docid) = loc
+    contexts = self.snippets.get(loc, [default_snippet_pos])
     try:
       title = idx_sent(idx, docid, 0)
     except KeyError:
-      title = 'unknown' # XXX
+      title = None
     snippet = u''
     pos0 = None
     for pos in sorted(contexts):
@@ -520,7 +521,8 @@ class Selection(object):
           snippet += normal(right[:maxlr]) + u'...'
       if maxchars-len(snippet) < maxlr: break
       pos0 = pos
-    return (title, snippet)
+    (mtime, loc) = idx_docid2info(idx, docid)
+    return (mtime, loc, title, snippet)
 
   def matched_range(self, s):
     r = []
@@ -554,14 +556,14 @@ class Selection(object):
 class SelectionWithContinuation(Selection):
   
   def iter(self, start=0, timeout=0):
-    if start != len(self.found_locs):
+    if start != len(self.found_docs):
       raise ValueError('Cannot retrieve previous results.')
     return self.start_search(timeout)
   
   def save_continuation(self):
     from base64 import b64encode
     (idxid, docid) = self.start_loc
-    return b64encode(pack('>HiH', idxid, docid, len(self.found_locs)))
+    return b64encode(pack('>HiH', idxid, docid, len(self.found_docs)))
 
   def load_continuation(self, x):
     from base64 import b64decode
@@ -571,7 +573,7 @@ class SelectionWithContinuation(Selection):
       return
     # put dummy locs (max. 65535)
     self.start_loc = (idxid0, docid0)
-    self.found_locs = [None] * found_docs
+    self.found_docs = [None] * found_docs
     searched_docs0 = 0
     for (idxid,idx) in self._indexdb.iteridxs(end=idxid0-1):
       (idx_docs, _) = idx_info(idx)
@@ -656,10 +658,10 @@ def show_results(selection, n, encoding, timeout=0):
   def e(s): return s.encode(encoding, 'replace')
   window = []
   for (found,loc) in selection.iter(timeout=timeout):
-    (title, s) = selection.get_snippet(loc,
-                                       highlight=lambda x: '\033[31m%s\033[m' % x,
-                                       maxchars=200, maxlr=100)
-    print '%d: [%s] %s' % (found+1, e(title), e(s))
+    (mtime, loc, title, s) = selection.get_snippet(loc,
+                                                   highlight=lambda x: '\033[31m%s\033[m' % x,
+                                                   maxchars=200, maxlr=100)
+    print '%d: [%s] %s' % (found+1, e(title or 'unknown'), e(s))
     window.append(found)
     if len(window) == n: break
   (finished, estimated) = selection.status()
@@ -756,7 +758,7 @@ def search(argv):
     save_selection(savefile, selection)
 
   if stat:
-    print '%.2f sec, %d/%d hit' % (time.time()-t0, len(selection.found_locs), selection.narrowed)
+    print '%.2f sec, %d/%d hit' % (time.time()-t0, len(selection.found_docs), selection.narrowed)
   return
 
 # main
