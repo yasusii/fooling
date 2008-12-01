@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys, os, os.path, stat, re
 import pycdb as cdb
-from util import idx_info, idx_docid2loc, idx_loc2docid
+from util import idx_info, idx_docid2info, idx_loc2docid
 try:
   from cStringIO import StringIO
 except ImportError:
@@ -90,7 +90,8 @@ class IndexDB(object):
     lastloc = None
     for (_,idx) in self.iteridxs():
       (ndocs,_) = idx_info(idx)
-      lastloc = idx_docid2loc(ndocs-1)
+      (_,lastloc) = idx_docid2info(idx, ndocs-1)
+      # the first index must be newest, so we stop here.
       break
     return lastloc
 
@@ -106,7 +107,7 @@ class IndexDB(object):
   def loc_indexed(self, loc):
     for (idxid,idx) in self.iteridxs():
       try:
-        return (idxid, idx_loc2docid(loc))
+        return (idxid, idx_loc2docid(idx, loc))
       except KeyError:
         pass
     return None
@@ -366,35 +367,3 @@ class SQLiteCorpus(Corpus):
   def loc_size(self, loc):
     self._cur.execute(self.sql_getdoc, (loc,))
     return len(self._cur.fetchone()[0])
-
-
-
-##  EMailMessageCorpus
-##
-class EMailMessageCorpus(Corpus):
-  
-  def __init__(self, doc, encoding=DEFAULT_ENCODING):
-    Corpus.__init__(self, None, encoding)
-    self.msg = msg
-    return
-
-  def __repr__(self):
-    return '<EMailMessageCorpus: msg=%r, default_doctype=%r, default_encoding=%r>' % \
-           (self.msg, self.default_doctype, self.default_encoding)
-
-  def loc_exists(self, loc):
-    self._cur.execute(self.sql_getdoc, (loc,))
-    return bool(self._cur.fetchone())
-
-  def loc_fp(self, loc):
-    self._cur.execute(self.sql_getdoc, (loc,))
-    return StringIO(self._cur.fetchone()[0])
-
-  def loc_mtime(self, loc):
-    self._cur.execute(self.sql_getmtime, (loc,))
-    return self._cur.fetchone()[0]
-  
-  def loc_size(self, loc):
-    self._cur.execute(self.sql_getdoc, (loc,))
-    return len(self._cur.fetchone()[0])
-

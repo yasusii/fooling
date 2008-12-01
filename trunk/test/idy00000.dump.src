@@ -135,6 +135,6 @@ term(0x20):б╝ея -> (1) 0:1
 term(0xf0):2008 -> (1) 0:0
 term(0xf0):2008/05 -> (1) 0:0
 term(0xf0):2008/05/31 -> (1) 0:0
-docid:0 -> loc:'plainyomi1.txt'
+docid:0 -> mtime:1212225370, loc:'plainyomi1.txt'
 loc:'plainyomi1.txt' -> docid:0
 ndocs=1, nterms=133

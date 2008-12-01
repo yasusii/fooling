@@ -158,13 +158,12 @@ class EMailPartMixin(object):
     return self.mtime
   
   def get_title(self):
-    return self.title or 'unknown'
+    return self.title
 
   def get_headers(self):
     for (h,v) in self.headers:
       if h.lower() in self.INDEX_HEADERS:
         yield '%s: %s' % (h, v)
-    yield 100
     return
   
   def get_encoding(self):

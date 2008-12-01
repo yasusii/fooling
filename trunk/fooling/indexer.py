@@ -3,13 +3,37 @@ import sys, time
 import pycdb as cdb
 from struct import pack
 from array import array
-from util import isplit, encodew, encodey, encode_array, \
-    add_idx_sent, add_idx_docid2loc, add_idx_loc2docid, add_idx_info, zen2han, rmsp
+from util import isplit, encodew, encodey, encode_array, zen2han, rmsp, \
+    add_idx_sent, add_idx_docid2info, add_idx_loc2docid, add_idx_info
 from corpus import IndexDB
 stderr = sys.stderr
 
 
 __all__ = [ 'Indexer' ]
+
+def add_features(terms, docid, sentid, feats):
+  for w in feats:
+    if w not in terms:
+      occs = []
+      terms[w] = occs
+    else:
+      occs = terms[w]
+    occs.append((docid, sentid))
+  return
+
+def splitterms_normal(s):
+  for x in isplit(s):
+    yield encodew(x)
+  return
+
+def splitterms_yomi(s):
+  from yomi import index_yomi
+  for x in isplit(s):
+    yield encodew(x)
+  for x in index_yomi(s):
+    yield encodey(x)
+  return
+  
 
 
 ##  Indexer
@@ -27,9 +51,9 @@ class Indexer(object):
     self.max_docs_threshold = max_docs_threshold
     self.max_terms_threshold = max_terms_threshold
     self.verbose = verbose
-    # (docid,loc) mappings in the current index.
+    # (docid,doc) mappings in the current index.
     # docid is local to each index.
-    self.docid2loc = []
+    self.docinfo = []
     # terms indexed in the current index.
     self.terms = {}
     # cdbmaker
@@ -54,60 +78,35 @@ class Indexer(object):
   def index_doc(self, doc, maxsents=100000, indexyomi=False):
     if self.maker == None:
       self.create_new_idx()
-    docid = len(self.docid2loc)
-    self.docid2loc.append((docid, doc.loc))
+    docid = len(self.docinfo)
+    self.docinfo.append((docid, doc))
     if 2 <= self.verbose:
       print >>stderr, 'Reading: %r' % doc
     elif 1 <= self.verbose:
       stderr.write('.'); stderr.flush()
     if indexyomi:
-      from yomi import index_yomi
-      def splitterms(s):
-        for x in isplit(s):
-          yield encodew(x)
-        for x in index_yomi(s):
-          yield encodey(x)
-        return
+      splitterms = splitterms_yomi
     else:
-      def splitterms(s):
-        for x in isplit(s):
-          yield encodew(x)
-        return
+      splitterms = splitterms_normal
     terms = self.terms
     # other features
-    for w in doc.get_feats():
-      if w not in terms:
-        occs = []
-        terms[w] = occs
-      else:
-        occs = terms[w]
-      occs.append((docid, 0))
+    add_features(terms, docid, 0, doc.get_feats())
     # sents
-    def enumsents():
-      title = doc.get_title()
-      if title: 
-        yield title
-      for x in doc.get_sents():
-        yield x
     sentid = 0
-    for sent in enumsents():
-      if isinstance(sent, int):
-        sentid = max(sentid, sent)
-        continue
+    title = doc.get_title()
+    if title:
+      title = zen2han(rmsp(title))
+      add_idx_sent(self.maker, docid, sentid, title)
+      add_features(terms, docid, sentid, set(splitterms(title)))
+      sentid += 1
+    for sent in doc.get_sents():
       sent = zen2han(rmsp(sent))
-      if not sent: 
-        continue
+      if not sent: continue
       add_idx_sent(self.maker, docid, sentid, sent)
-      for w in set(splitterms(sent)):
-        if w not in terms:
-          occs = []
-          terms[w] = occs
-        else:
-          occs = terms[w]
-        occs.append((docid, sentid))
+      add_features(terms, docid, sentid, set(splitterms(sent)))
       sentid += 1
       if maxsents <= sentid: break
-    if ((self.max_docs_threshold and self.max_docs_threshold < len(self.docid2loc)) or 
+    if ((self.max_docs_threshold and self.max_docs_threshold < len(self.docinfo)) or 
         (self.max_terms_threshold and self.max_terms_threshold < len(terms))):
       self.flush()
     for subdoc in doc.get_subdocs():
@@ -117,12 +116,12 @@ class Indexer(object):
 
   # Build a cdb file.
   def flush(self):
-    if not self.docid2loc: return
+    if not self.docinfo: return
     assert self.maker
     t0 = time.time()
     # All keys must be lexically sorted except the last one.
-    # DocID -> location.
-    self.docid2loc.sort(key=lambda (docid,loc): docid)
+    # DocID -> Document.
+    self.docinfo.sort(key=lambda (docid,_): docid)
     # Term -> pos.
     nrefs = 0
     for w in sorted(self.terms.iterkeys()):
@@ -135,21 +134,21 @@ class Indexer(object):
       self.maker.add(w, encode_array(len(occs), a))
       nrefs += len(occs)
     # location -> DocID
-    for (docid,loc) in self.docid2loc:
-      add_idx_docid2loc(self.maker, docid, loc)
-    self.docid2loc.sort(key=lambda (docid,loc): loc)
-    for (docid,loc) in self.docid2loc:
-      add_idx_loc2docid(self.maker, loc, docid)
+    for (docid,doc) in self.docinfo:
+      add_idx_docid2info(self.maker, docid, doc.get_mtime(), doc.loc)
+    self.docinfo.sort(key=lambda (_,doc): doc.loc)
+    for (docid,doc) in self.docinfo:
+      add_idx_loc2docid(self.maker, doc.loc, docid)
     # The number of documents
-    add_idx_info(self.maker, len(self.docid2loc), len(self.terms))
+    add_idx_info(self.maker, len(self.docinfo), len(self.terms))
     self.maker.finish()
     self.maker = None
     if self.verbose:
       t = time.time() - t0
       print >>stderr, 'docs=%d, keys=%d, refs=%d, time=%.1fs(%.1fdocs/s)' % \
-            (len(self.docid2loc), len(self.terms), nrefs, t, len(self.docid2loc)/t)
+            (len(self.docinfo), len(self.terms), nrefs, t, len(self.docinfo)/t)
     # Clear the files and terms.
-    self.docid2loc = []
+    self.docinfo = []
     self.terms.clear()
     return
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import sys, os, os.path
 import pycdb as cdb
-from util import encode_array, decode_array, idx_info, add_idx_docid2loc, add_idx_loc2docid, add_idx_info, PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
+from util import encode_array, decode_array, idx_info, \
+     PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 from struct import pack, unpack
 stderr = sys.stderr
 
@@ -94,7 +95,7 @@ def idxmerge(cdbname, idxs, verbose=0):
 
   nterms = 0
   total = 0
-  docid2loc = []
+  docid2info = []
   loc2docid = {}
   for (k,vs) in cdbmerge(idxs):
     if k[0] == PROP_LOC or k[0] == PROP_INFO:
@@ -102,9 +103,10 @@ def idxmerge(cdbname, idxs, verbose=0):
     if k[0] == PROP_DOCID: 
       # read a docid->loc mapping
       (docid,) = unpack('>xi', k)
-      for (loc,idx) in vs:
+      for (info,idx) in vs:
         docid1 = docid+idx.offset
-        docid2loc.append((docid1, loc))
+        docid2info.append((docid1, info))
+        loc = info[4:]
         if verbose and loc in loc2docid:
           print >>stderr, 'Skip duplicated: %r' % loc
         loc2docid[loc] = docid1
@@ -122,17 +124,17 @@ def idxmerge(cdbname, idxs, verbose=0):
         sys.stderr.write('.'); sys.stderr.flush()
 
   # write docid->loc mappings (avoiding dupes)
-  docid2loc.sort()
-  for (docid,loc) in docid2loc:
-    add_idx_docid2loc(maker, docid, loc)
+  docid2info.sort()
+  for (docid,info) in docid2info:
+    maker.add(pack('>ci', PROP_DOCID, docid), info)
   # write loc->docid mappings (avoiding dupes)
   for (loc,docid) in sorted(loc2docid.iteritems()):
-    add_idx_loc2docid(maker, loc, docid)
+    maker.add(PROP_LOC+loc, pack('>i', docid))
 
   if verbose:
     print >>stderr, 'done: docs=%d, terms=%d, ents=%d' % \
-          (len(docid2loc), nterms, total)
-  add_idx_info(maker, len(docid2loc), nterms)
+          (len(docid2info), nterms, total)
+  maker.add(PROP_INFO, pack('>ii', len(docid2info), nterms))
   maker.finish()
   return
 

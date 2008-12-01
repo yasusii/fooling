@@ -27,7 +27,9 @@ def dumpidx(cdbname):
     elif k[0] == '\xfd':
       if len(k) == 5:
         (docid,) = unpack('>xl', k)
-        print 'docid:%d -> loc:%r' % (docid, v)
+        (mtime,) = unpack('>i', v[:4])
+        loc = v[4:]
+        print 'docid:%d -> mtime:%d, loc:%r' % (docid, mtime, loc)
     elif k[0] == '\xfe':
       (docid,) = unpack('>l', v)
       print 'loc:%r -> docid:%d' % (k[1:], docid)
