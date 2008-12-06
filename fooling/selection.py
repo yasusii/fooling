@@ -340,11 +340,11 @@ class Selection(object):
         conj = True
         docs = dict( (docid,[]) for docid in xrange(start_docid-1,-1,-1) )
       
-      # Obtain a set of candidate documents for each predicate.
+      # Get a set of narrowed documents for each predicate.
       for pred in (self.pos_preds + self.neg_preds):
-        locs = pred.narrow(idx)
-        locs = [ (docid,pos) for (docid,pos) in locs
-                 if start_docid > docid and docid >= end_docid ]
+        # locs: docids must be in decending order. (ie. start_docid > end_docid)
+        locs = [ (docid,pos) for (docid,pos) in pred.narrow(idx)
+                 if start_docid >= docid and docid > end_docid ]
         if not locs:
           if pred.neg:
             continue

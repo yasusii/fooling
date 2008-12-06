@@ -1,13 +1,13 @@
-sent(0,0) -> ほんと 最新
-term(0x10):と最 -> (1) 0:0
-term(0x11):んと -> (1) 0:0
-term(0x12):ほん -> (1) 0:0
-term(0x13):新 -> (1) 0:0
-term(0x13):最 -> (1) 0:0
-term(0x13):最新 -> (1) 0:0
-term(0xf0):2007 -> (1) 0:0
-term(0xf0):2007/05 -> (1) 0:0
-term(0xf0):2007/05/17 -> (1) 0:0
-docid:0 -> mtime:1179330180, loc:'html3.html'
-loc:'html3.html' -> docid:0
+sent(1,0) -> ほんと 最新
+term(0x10):と最 -> (1) 1:0
+term(0x11):んと -> (1) 1:0
+term(0x12):ほん -> (1) 1:0
+term(0x13):新 -> (1) 1:0
+term(0x13):最 -> (1) 1:0
+term(0x13):最新 -> (1) 1:0
+term(0xf0):2007 -> (1) 1:0
+term(0xf0):2007/05 -> (1) 1:0
+term(0xf0):2007/05/17 -> (1) 1:0
+docid:1 -> mtime:1179330180, loc:'html3.html'
+loc:'html3.html' -> docid:1
 ndocs=1, nterms=9

@@ -1,29 +1,36 @@
-sent(0,0) -> Test document: ふう
-sent(0,1) -> ドーでもいいです。
-sent(0,2) -> ほんと
-sent(0,3) -> に。
-sent(0,4) -> pre1
-sent(0,5) -> pre2 pre3
-term(0x10):いい -> (1) 0:1
-term(0x10):いで -> (1) 0:1
-term(0x10):もい -> (1) 0:1
-term(0x10):ーで -> (1) 0:1
-term(0x11):です -> (1) 0:1
-term(0x11):んと -> (1) 0:2
-term(0x12):documentふ -> (1) 0:0
-term(0x12):でも -> (1) 0:1
-term(0x12):ほん -> (1) 0:2
-term(0x13):document -> (1) 0:0
-term(0x13):pre1 -> (1) 0:4
-term(0x13):pre2 -> (1) 0:5
-term(0x13):pre3 -> (1) 0:5
-term(0x13):test -> (1) 0:0
-term(0x13):に -> (1) 0:3
-term(0x13):ふう -> (1) 0:0
-term(0x13):ドー -> (1) 0:1
-term(0xf0):2007 -> (1) 0:0
-term(0xf0):2007/05 -> (1) 0:0
-term(0xf0):2007/05/17 -> (1) 0:0
-docid:0 -> mtime:1179330180, loc:'html1.html'
-loc:'html1.html' -> docid:0
-ndocs=1, nterms=20
+sent(1,0) -> Test document: ふう
+sent(1,1) -> ドーでもいいです。
+sent(1,2) -> ほんと
+sent(1,3) -> に。
+sent(1,4) -> pre1
+sent(1,5) -> pre2 pre3
+sent(2,0) -> html4
+term(0x10):いい -> (1) 1:1
+term(0x10):いで -> (1) 1:1
+term(0x10):もい -> (1) 1:1
+term(0x10):ーで -> (1) 1:1
+term(0x11):です -> (1) 1:1
+term(0x11):んと -> (1) 1:2
+term(0x12):documentふ -> (1) 1:0
+term(0x12):でも -> (1) 1:1
+term(0x12):ほん -> (1) 1:2
+term(0x13):document -> (1) 1:0
+term(0x13):html4 -> (1) 2:0
+term(0x13):pre1 -> (1) 1:4
+term(0x13):pre2 -> (1) 1:5
+term(0x13):pre3 -> (1) 1:5
+term(0x13):test -> (1) 1:0
+term(0x13):に -> (1) 1:3
+term(0x13):ふう -> (1) 1:0
+term(0x13):ドー -> (1) 1:1
+term(0xf0):2007 -> (1) 1:0
+term(0xf0):2007/05 -> (1) 1:0
+term(0xf0):2007/05/17 -> (1) 1:0
+term(0xf0):2008 -> (1) 2:0
+term(0xf0):2008/12 -> (1) 2:0
+term(0xf0):2008/12/06 -> (1) 2:0
+docid:1 -> mtime:1179330180, loc:'html1.html'
+docid:2 -> mtime:1228571862, loc:'html4.html'
+loc:'html1.html' -> docid:1
+loc:'html4.html' -> docid:2
+ndocs=2, nterms=24

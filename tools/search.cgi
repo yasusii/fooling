@@ -1,11 +1,10 @@
 #!/bin/cgipython
 # -*- python -*- coding: euc-jp -*-
 import sys
-sys.path.append('.')
 import cgitb; cgitb.enable()
-import os, re, cgi, random, os.path, time, codecs
+import os, re, cgi, random, os.path, time, codecs, stat
+from fooling.corpus import IndexDB
 from fooling.document import HTMLDocument, SourceCodeDocument
-from fooling.corpus import FilesystemCorpus
 from fooling.selection import SelectionWithContinuation, SearchTimeout, KeywordPredicate, YomiKeywordPredicate, parse_preds
 from urlparse import urljoin
 
@@ -90,16 +89,18 @@ class SearchApp:
   def search(self, query, cname, start):
     (name, dirname, doctype, baseurl) = self.CORPUS[cname]
     if not os.path.exists(dirname): return
-    corpus = FilesystemCorpus(os.path.join(dirname, 'doc'),
-                              os.path.join(dirname, 'idx'), doctype=doctype)
+    indexdb = IndexDB(dirname)
     (disj, preds) = parse_preds(query, max_preds=self.MAX_QUERY_PREDS,
                                 yomipredtype=YomiKeywordPredicate)
-    selection = SelectionWithContinuation(corpus, preds, disjunctive=disj)
-    try:
-      if len(start) == 12:
+    selection = SelectionWithContinuation(indexdb, preds, disjunctive=disj)
+    if len(start) == 12:
+      try:
         selection.load_continuation(start)
-    except:
-      pass
+        start = len(selection.found_docs)
+      except:
+        start = 0
+    else:
+      start = 0
 
     self.out(u'<hr noshade><p><q>',
              [' '.join( pred.q for pred in preds )],
@@ -107,18 +108,18 @@ class SearchApp:
              u'<dl>\n')
     window = []
     try:
-      for (found,doc) in selection.iter_start(timeout=self.TIMEOUT):
-        s = doc.get_snippet(selection,
-                            normal=q, highlight=lambda x: u'<b>%s</b>' % q(x),
-                            maxchars=200, maxcontext=50)
+      for (found,loc) in selection.iter(start=start, timeout=self.TIMEOUT):
+        (mtime, loc, title, s) = selection.get_snippet(loc,
+                                                       normal=q, highlight=lambda x: u'<b>%s</b>' % q(x),
+                                                       maxchars=200, maxlr=50)
         self.out(u'<dt><small><i>',
                  [found+1],
                  u'.</i></small> <a href="',
-                 [urljoin(baseurl, doc.loc)],
+                 [urljoin(baseurl, loc)],
                  u'">',
-                 [doc.get_title()],
+                 [title],
                  u'</a> &nbsp; <small class=t>\n',
-                 [tm(doc.get_mtime())],
+                 [tm(mtime)],
                  u'</small><dd><small>',
                  s,
                  u'</small>\n')
@@ -152,9 +153,9 @@ class SearchApp:
                  [url('?', q=query, s=cont)],
                  u'">つぎ? &gt;&gt;</a>')
     self.out(u'<br><small>総文書数: ',
-             [corpus.total_docs()],
+             [indexdb.total_docs()],
              u' (',
-             [time.strftime('%Y/%m/%d', time.localtime(corpus.mtime))],
+             [time.strftime('%Y/%m/%d', time.localtime(indexdb.index_mtime()))],
              u' 更新), 検索にかかった時間: ',
              [random.randint(1,10)],
              random.choice(self.UNITS),
@@ -168,7 +169,7 @@ class SearchApp:
     if query:
       query = ' - '+query
     self.out(u'<html><head><meta http-equiv="Content-Type" content="text/html; charset=euc-jp">\n',
-             #u'<meta name="robots" content="noindex,nofollow">\n',
+             u'<meta name="robots" content="noindex,nofollow">\n',
              u'<style type="text/css"><!--\n',
              u'body { line-height: 150%; }\n',
              u'b { color: red; }\n',
