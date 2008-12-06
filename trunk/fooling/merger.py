@@ -3,6 +3,7 @@ import sys, os, os.path
 import pycdb as cdb
 from util import encode_array, decode_array, idx_info, \
      PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
+from array import array
 from struct import pack, unpack
 stderr = sys.stderr
 
@@ -23,13 +24,32 @@ class IndexFile(object):
     self.fname = fname
     self.cdb = cdb.init(fname)
     (self.ndocs, self.nterms) = idx_info(self.cdb)
-    self.offset = 0L
+    docs = {}
+    for (k,v) in self.cdb.iteritems(startkey=pack('>ci', PROP_DOCID, 1)):
+      if k[0] == PROP_LOC: break
+      loc = v[4:]
+      (docid,) = unpack('>xi', k)
+      docs[loc] = docid
+    self.docs = docs
+    self.docidoffset = 0L
     self.key = None
     self.iter = None
     return
 
   def __repr__(self):
     return '<%s (docs=%d, terms=%d)>' % (self.fname, self.ndocs, self.nterms)
+
+  def countalive(self, locs):
+    self.alivedocids = set()
+    for (loc,docid) in self.docs.iteritems():
+      if loc in locs: continue
+      locs.add(loc)
+      self.alivedocids.add(docid)
+    return
+  
+  def fixate(self, docidoffset):
+    self.docidoffset = docidoffset
+    return docidoffset + len(self.alivedocids)
 
   def iteritems(self):
     self.iter = self.cdb.iteritems(startkey=self.key)
@@ -66,45 +86,54 @@ def cdbmerge(idxs):
 ##  idxmerge
 ##
 def idxmerge(cdbname, idxs, verbose=0):
-  maker = cdb.cdbmake(cdbname, cdbname+'.tmp')
-  offset = 0L
+  # idxs: the oldest index first.
+  locs = set()
+  for idx in reversed(idxs):
+    idx.countalive(locs)
+  docidoffset = 0L
   for idx in idxs:
-    idx.offset = offset
-    offset += idx.ndocs
-  idxs.sort(key=lambda idx:idx.offset)
+    docidoffset = idx.fixate(docidoffset)
+
+  maker = cdb.cdbmake(cdbname, cdbname+'.tmp')
   if verbose:
     print >>stderr, 'Merging: %r (docs=%d, est. terms=%d): %r' % \
-          (cdbname, sum( idx.ndocs for idx in idxs ),
+          (cdbname, sum( len(idx.docs) for idx in idxs ),
            estimate_terms( idx.nterms for idx in idxs ), idxs)
   
   def merge1(bits, idx):
-    offset = idx.offset
+    docidoffset = idx.docidoffset
+    docids = idx.alivedocids
     a = decode_array(bits)
+    r = array('i')
     for i in xrange(0, len(a), 2):
-      a[i] += offset
-    return (offset,a)
+      if a[i] in docids:
+        r.append(a[i] + docidoffset)
+        r.append(a[i+1])
+    return r
 
   # copy sentences to a new idx with unique ids.
   for idx in idxs:
+    docids = idx.alivedocids
     for (k,v) in idx.iteritems():
       if k[0] != PROP_SENT:
         idx.key = k
         break
       (docid, pos) = unpack('>xii', k)
-      maker.add(pack('>cii', PROP_SENT, idx.offset+docid, pos), v)
+      if docid in docids:
+        maker.add(pack('>cii', PROP_SENT, idx.docidoffset+docid, pos), v)
 
   nterms = 0
   total = 0
   docid2info = []
   loc2docid = {}
   for (k,vs) in cdbmerge(idxs):
-    if k[0] == PROP_LOC or k[0] == PROP_INFO:
-      break
+    if k[0] == PROP_LOC or k[0] == PROP_INFO: break
     if k[0] == PROP_DOCID: 
       # read a docid->loc mapping
       (docid,) = unpack('>xi', k)
       for (info,idx) in vs:
-        docid1 = docid+idx.offset
+        if docid not in idx.alivedocids: continue
+        docid1 = docid+idx.docidoffset
         docid2info.append((docid1, info))
         loc = info[4:]
         if verbose and loc in loc2docid:
@@ -112,7 +141,7 @@ def idxmerge(cdbname, idxs, verbose=0):
         loc2docid[loc] = docid1
     else:
       # merge docid+pos sets
-      vs = sorted(( merge1(v, idx) for (v,idx) in vs ), reverse=True)
+      vs = sorted(( (idx.docidoffset, merge1(v, idx)) for (v,idx) in vs ), reverse=True)
       ents = sum( len(a) for (base,a) in vs )/2
       (_,all) = vs.pop(0)
       for (base,a) in vs:
@@ -171,18 +200,21 @@ class Merger(object):
     return
 
   def run(self, cleanup=False):
+    # idxs: the oldest index comes first.
     idxs = [ IndexFile(os.path.join(self.indexdb.idxdir, fname)) for fname in reversed(self.indexdb.idxs) ]
-    (ndocs, nterms) = (0, [])
+    nterms = []
+    docs = set()
     newidx = 0
     merged = []
     for idx in idxs:
-      if ((self.max_docs_threshold and self.max_docs_threshold < ndocs) or
+      if ((self.max_docs_threshold and self.max_docs_threshold < len(docs)) or
           (self.max_terms_threshold and self.max_terms_threshold < estimate_terms(nterms))):
         self.flush(newidx, merged)
         newidx += 1
         merged = []
-        (ndocs, nterms) = (0, [])
-      ndocs += idx.ndocs
+        docs.clear()
+        nterms = []
+      docs.update(idx.docs.iterkeys())
       nterms.append(idx.nterms)
       merged.append(idx)
     self.flush(newidx, merged)

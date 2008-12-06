@@ -1,17 +1,24 @@
-sent(0,0) -> ほんとうにね。
-sent(0,1) -> pre1 pre2
-sent(0,2) -> [gasagoso]
-term(0x10):うに -> (1) 0:0
-term(0x10):とう -> (1) 0:0
-term(0x10):んと -> (1) 0:0
-term(0x11):にね -> (1) 0:0
-term(0x12):ほん -> (1) 0:0
-term(0x13):gasagoso -> (1) 0:2
-term(0x13):pre1 -> (1) 0:1
-term(0x13):pre2 -> (1) 0:1
-term(0xf0):2007 -> (1) 0:0
-term(0xf0):2007/05 -> (1) 0:0
-term(0xf0):2007/05/17 -> (1) 0:0
-docid:0 -> mtime:1179330180, loc:'html2.html'
-loc:'html2.html' -> docid:0
-ndocs=1, nterms=11
+sent(1,0) -> ほんとうにね。
+sent(1,1) -> pre1 pre2
+sent(1,2) -> [gasagoso]
+sent(2,0) -> html4
+term(0x10):うに -> (1) 1:0
+term(0x10):とう -> (1) 1:0
+term(0x10):んと -> (1) 1:0
+term(0x11):にね -> (1) 1:0
+term(0x12):ほん -> (1) 1:0
+term(0x13):gasagoso -> (1) 1:2
+term(0x13):html4 -> (1) 2:0
+term(0x13):pre1 -> (1) 1:1
+term(0x13):pre2 -> (1) 1:1
+term(0xf0):2007 -> (1) 1:0
+term(0xf0):2007/05 -> (1) 1:0
+term(0xf0):2007/05/17 -> (1) 1:0
+term(0xf0):2008 -> (1) 2:0
+term(0xf0):2008/12 -> (1) 2:0
+term(0xf0):2008/12/06 -> (1) 2:0
+docid:1 -> mtime:1179330180, loc:'html2.html'
+docid:2 -> mtime:1228571862, loc:'html4.html'
+loc:'html2.html' -> docid:1
+loc:'html4.html' -> docid:2
+ndocs=2, nterms=15

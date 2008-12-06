@@ -450,19 +450,3 @@ def idx_loc2docid(idx, loc):
 
 def idx_info(idx):
   return unpack('>ii', idx[PROP_INFO])
-
-def add_idx_sent(maker, docid, pos, sent):
-  maker.add(pack('>cii', PROP_SENT, docid, pos), sent.encode('utf-8'))
-  return
-
-def add_idx_docid2info(maker, docid, mtime, loc):
-  maker.add(pack('>ci', PROP_DOCID, docid), pack('>i', mtime)+loc)
-  return
-
-def add_idx_loc2docid(maker, loc, docid):
-  maker.add(PROP_LOC+loc, pack('>i', docid))
-  return
-
-def add_idx_info(maker, ndocs, nterms):
-  maker.add(PROP_INFO, pack('>ii', ndocs, nterms))
-  return

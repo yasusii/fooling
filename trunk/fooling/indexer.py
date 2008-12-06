@@ -4,7 +4,7 @@ import pycdb as cdb
 from struct import pack
 from array import array
 from util import isplit, encodew, encodey, encode_array, zen2han, rmsp, \
-    add_idx_sent, add_idx_docid2info, add_idx_loc2docid, add_idx_info
+     PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 from corpus import IndexDB
 stderr = sys.stderr
 
@@ -78,7 +78,7 @@ class Indexer(object):
   def index_doc(self, doc, maxsents=100000, indexyomi=False):
     if self.maker == None:
       self.create_new_idx()
-    docid = len(self.docinfo)
+    docid = len(self.docinfo)+1
     self.docinfo.append((docid, doc))
     if 2 <= self.verbose:
       print >>stderr, 'Reading: %r' % doc
@@ -96,13 +96,13 @@ class Indexer(object):
     title = doc.get_title()
     if title:
       title = zen2han(rmsp(title))
-      add_idx_sent(self.maker, docid, sentid, title)
+      self.maker.add(pack('>cii', PROP_SENT, docid, sentid), title.encode('utf-8'))
       add_features(terms, docid, sentid, set(splitterms(title)))
       sentid += 1
     for sent in doc.get_sents():
       sent = zen2han(rmsp(sent))
       if not sent: continue
-      add_idx_sent(self.maker, docid, sentid, sent)
+      self.maker.add(pack('>cii', PROP_SENT, docid, sentid), sent.encode('utf-8'))
       add_features(terms, docid, sentid, set(splitterms(sent)))
       sentid += 1
       if maxsents <= sentid: break
@@ -135,12 +135,13 @@ class Indexer(object):
       nrefs += len(occs)
     # location -> DocID
     for (docid,doc) in self.docinfo:
-      add_idx_docid2info(self.maker, docid, doc.get_mtime(), doc.loc)
+      self.maker.add(pack('>ci', PROP_DOCID, docid), pack('>i', doc.get_mtime())+doc.loc)
     self.docinfo.sort(key=lambda (_,doc): doc.loc)
+    # DocID -> location
     for (docid,doc) in self.docinfo:
-      add_idx_loc2docid(self.maker, doc.loc, docid)
+      self.maker.add(PROP_LOC+doc.loc, pack('>i', docid))
     # The number of documents
-    add_idx_info(self.maker, len(self.docinfo), len(self.terms))
+    self.maker.add(PROP_INFO, pack('>ii', len(self.docinfo), len(self.terms)))
     self.maker.finish()
     self.maker = None
     if self.verbose:
