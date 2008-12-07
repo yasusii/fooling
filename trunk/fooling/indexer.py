@@ -33,6 +33,18 @@ def splitterms_yomi(s):
   for x in index_yomi(s):
     yield encodey(x)
   return
+
+def linux_process_memory():
+  v = None
+  try:
+    fp = file('/proc/self/status')
+    for line in fp:
+      if line.startswith('VmRSS:'):
+        v = line[6:].strip()
+    fp.close()
+  except IOError:
+    pass
+  return v
   
 
 
@@ -41,7 +53,7 @@ def splitterms_yomi(s):
 class Indexer(object):
   
   def __init__(self, indexdb, corpus, 
-               max_docs_threshold=2000,
+               max_docs_threshold=1000,
                max_terms_threshold=50000,
                verbose=0):
     assert len(indexdb.prefix) == 3
@@ -106,8 +118,8 @@ class Indexer(object):
       add_features(terms, docid, sentid, set(splitterms(sent)))
       sentid += 1
       if maxsents <= sentid: break
-    if ((self.max_docs_threshold and self.max_docs_threshold < len(self.docinfo)) or 
-        (self.max_terms_threshold and self.max_terms_threshold < len(terms))):
+    if ((self.max_docs_threshold and self.max_docs_threshold <= len(self.docinfo)) or 
+        (self.max_terms_threshold and self.max_terms_threshold <= len(terms))):
       self.flush()
     for subdoc in doc.get_subdocs():
       if subdoc:
@@ -146,8 +158,9 @@ class Indexer(object):
     self.maker = None
     if self.verbose:
       t = time.time() - t0
-      print >>stderr, 'docs=%d, keys=%d, refs=%d, time=%.1fs(%.1fdocs/s)' % \
-            (len(self.docinfo), len(self.terms), nrefs, t, len(self.docinfo)/t)
+      print >>stderr, 'docs=%d, keys=%d, refs=%d, time=%.1fs(%.1fdocs/s), memory=%s' % \
+            (len(self.docinfo), len(self.terms), nrefs, t, len(self.docinfo)/t,
+             linux_process_memory())
     # Clear the files and terms.
     self.docinfo = []
     self.terms.clear()
@@ -178,8 +191,8 @@ def index(argv):
   prefix = 'idx'
   doctype = document.PlainTextDocument
   encoding = locale.getdefaultlocale()[1] or 'euc-jp'
-  maxdocs = 2000
-  maxterms = 100000
+  maxdocs = 1000
+  maxterms = 50000
   indexyomi = False
   for (k, v) in opts:
     if k == '-d': verbose += 1

@@ -50,7 +50,8 @@ Fooling (É÷Îë) ¤Ï <a href="http://www.python.org/">Python</a>ÍÑ¤ÎÊ¸»úÎó¸¡º÷¥Õ¥ì¡
 <li> <a href="#license">¥é¥¤¥»¥ó¥¹</a>
 <li> <a href="commands.html">Fooling ¥³¥Þ¥ó¥É°ìÍ÷</a>
 <li> <a href="api.html">Fooling API ¤È¼ÂÁõ</a>
-<li> <a href="yomi.html">»ë³Ð¾ã³²¼Ô¤Î¤¿¤á¤ÎÆÉ¤ß¤¬¤Ê¤Ë¤è¤ëÁ´Ê¸¸¡º÷¥·¥¹¥Æ¥à¡¢¤½¤ÎÄó°Æ¤È¼ÂÁõ</a> (¤ª¤Þ¤±¡¢ÆÉ¤ß¤¬¤Ê¸¡º÷¤Î¥¢¥ë¥´¥ê¥º¥à¤Ë¤Ä¤¤¤Æ²òÀâ¤·¤¿¤â¤Î)
+<li> <a href="yomi.html">»ë³Ð¾ã³²¼Ô¤Î¤¿¤á¤ÎÆÉ¤ß¤¬¤Ê¤Ë¤è¤ëÁ´Ê¸¸¡º÷¥·¥¹¥Æ¥à¡¢¤½¤ÎÄó°Æ¤È¼ÂÁõ</a>
+ (¤ª¤Þ¤±¡¢ÆÉ¤ß¤¬¤Ê¸¡º÷¤Î¥¢¥ë¥´¥ê¥º¥à¤Ë¤Ä¤¤¤Æ²òÀâ¤·¤¿¤â¤Î)
 </ul>
 
 <hr noshade>
@@ -138,7 +139,7 @@ Python ¤Î¥â¥¸¥å¡¼¥ë¤È¤·¤ÆÈ¯¸«¤Ç¤­¤ë¤è¤¦¤Ë¤·¤Æ¤ª¤­¤Þ¤¹¡£
 ¤¢¤ë¤¤¤Ï <code>PYTHONPATH</code> ¤ò»È¤Ã¤Æ¤â¤«¤Þ¤¤¤Þ¤»¤ó¡£
 
 <blockquote><pre>
-$ <strong>cp -Rp fooling/ /usr/local/lib/python2.4/site-packages/</strong>
+$ <strong>cp -Rp fooling/ /usr/lib/python2.5/site-packages/</strong>
 </pre></blockquote>
 
 <P>
@@ -157,15 +158,15 @@ $ make
 <h4>2. ½ôÃí°Õ</h4>
 
 <ul>
-<li> Fooling ¤Ç¤Ï¡¢snippet ¤ÎÀ¸À®»þ¤Ë¸µ¤ÎÊ¸½ñ¥Õ¥¡¥¤¥ë¤ò»²¾È¤¹¤ë¤¿¤á¡¢
-¸¡º÷¤Ë¤Ï¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤È¤È¤â¤Ë<strong>¸µ¤ÎÊ¸½ñ¥Õ¥¡¥¤¥ë¤¬É¬Í×</strong>¤Ç¤¹¡£
-(¼ÂºÝ¤Ë¤Ï¡¢¸Ä¡¹¤ÎÊ¸½ñ¤ÏÆÈÎ©¤·¤¿¥Õ¥¡¥¤¥ë¤Ç¤¢¤ëÉ¬Í×¤Ï¤¢¤ê¤Þ¤»¤ó¡£
-<a href="api.html#class-corpus"><code>Corpus</code>¥¯¥é¥¹¤ò»²¾È</a>)
 <li> Fooling ¤ÏÊ¸½ñ½¸¹ç¤òÆüÉÕ½ç¤ËÊ¬³ä¤·¡¢<strong>Ê£¿ô¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë</strong>¤òÀ¸À®¤·¤Þ¤¹¡£
 ¤³¤ì¤é¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ò¿·¤·¤¤Êý¤«¤éÃà¼¡Åª¤Ë¸¡º÷¤¹¤ë¤³¤È¤ÇÆüÉÕ½ç¤Î¸¡º÷¤ò¤ª¤³¤Ê¤¤¤Þ¤¹¡£
+<li> Fooling ¤Ç»È¤ï¤ì¤ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë (<code>.cdb</code> ¥Õ¥¡¥¤¥ë) ¤Ï¤½¤ì¤¾¤ì´°Á´¤ËÆÈÎ©¤·¤Æ¤¤¤Þ¤¹¡£
+¤¢¤ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤¬¼º¤ï¤ì¤¿¾ì¹ç¡¢¤½¤³¤ËÅÐÏ¿¤µ¤ì¤Æ¤¤¤¿Ê¸½ñ¤Ï¸¡º÷¤Ç¤­¤Ê¤¯¤Ê¤ê¤Þ¤¹¤¬¡¢
+¤½¤ì°Ê³°¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ë´Þ¤Þ¤ì¤Æ¤¤¤ëÊ¸½ñ¤Ï¤Ò¤­¤Ä¤Å¤­¸¡º÷¤Ç¤­¤Þ¤¹¡£
+¤â¤Á¤í¤ó¡¢¼º¤ï¤ì¤¿¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ï¸µ¤ÎÊ¸½ñ¤«¤éºÆÅÙºî¤ê¤Ê¤ª¤¹¤³¤È¤¬²ÄÇ½¤Ç¤¹¡£
 <li> ¸Ä¡¹¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ï<strong>ÆÉ¤ß¹þ¤ßÀìÍÑ</strong>¤Ç¤¢¤ê¡¢¤¤¤Á¤ÉºîÀ®¤·¤¿¤éºÆÅÙ¥¤¥ó¥Ç¥Ã¥¯¥¹¤¹¤ë¤Þ¤Ç
-ÊÑ¹¹¤Ç¤­¤Þ¤»¤ó¡£¿·¤·¤¯Ê¸½ñ¤¬ÄÉ²Ã¤µ¤ì¤¿¾ì¹ç¤Ï¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¼«ÂÎ¤òÄÉ²Ã¤¹¤ë¤³¤È¤Ë¤è¤Ã¤ÆÂÐ±þ¤·¤Þ¤¹¡£
-<li> ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ëÃæ¤Î¿ôÃÍ¤Ï¥ê¥È¥ë¥¨¥ó¥Ç¥£¥¢¥ó¤Ç³ÊÇ¼¤µ¤ì¤Þ¤¹¡£
+ÊÑ¹¹¤Ç¤­¤Þ¤»¤ó¡£¿·¤·¤¯Ê¸½ñ¤¬ÄÉ²Ã¤µ¤ì¤¿¾ì¹ç¤Ï¡¢¿·¤·¤¤¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤òºîÀ®¤·¡¢
+¤½¤ì¤òÄÉ²Ã¤¹¤ë¤³¤È¤Ë¤è¤Ã¤ÆÂÐ±þ¤·¤Þ¤¹¡£
 </ul>
 
 <a name="howto-index"></a>
@@ -177,15 +178,15 @@ $ make
 <P>
 <blockquote><pre>
 $ <strong>ls /doc/Python-2.4-ja/</strong>
-about.html  api   doc  icons       inst  mac            ref  whatsnew
-acks.html   dist  ext  index.html  lib   modindex.html  tut
+about.html  acks.html  api  dist  doc            ext  icons
+index.html  inst       lib  mac   modindex.html  ref  tut    whatsnew
 </pre></blockquote>
 <P>
 ¼¡¤Ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ëÍÑ¤Î¥Ç¥£¥ì¥¯¥È¥ê (¤³¤³¤Ç¤Ï <code>/tmp/index/</code> ¤È¤·¤Þ¤¹) ¤ò¤Ä¤¯¤ê¡¢
 °Ê²¼¤Î¤è¤¦¤ËÆþÎÏ¤·¤Þ¤¹:
 <P>
 <blockquote><pre>
-$ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ [<em>¥¤¥ó¥Ç¥Ã¥¯¥¹¤¹¤ë¥Õ¥¡¥¤¥ëÌ¾</em> ...]</strong>
+$ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ [<em>HTML¥Õ¥¡¥¤¥ëÌ¾</em> ...]</strong>
 </pre></blockquote>
 <p>
 <a href="commands.html#indexer.py"><code>indexer.py</code></a> ¥³¥Þ¥ó¥É¤Ï
@@ -196,11 +197,15 @@ $ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ [<em>¥¤¥
 ¡Ö°ú¿ô¥ê¥¹¥È¤¬Ä¹¤¹¤®¤ë (Argument list too long)¡×¤È¤¤¤ï¤ì¤Þ¤¹¤Î¤Ç¡¢°Ê²¼¤Î¤è¤¦¤Ë°ú¿ô¤Î¥Õ¥¡¥¤¥ëÌ¾¤ò¾ÊÎ¬¤·¡¢
 <code>find</code> ¥³¥Þ¥ó¥É¤Ê¤É¤ÇÉ¸½àÆþÎÏ¤«¤é¥Õ¥¡¥¤¥ëÌ¾¤Î°ìÍ÷¤òÍ¿¤¨¤Æ¤¯¤À¤µ¤¤¡£
 <blockquote><pre>
-$ <strong>( cd /doc/Python-2.4-ja/; find . -type f -name '*.html' ) | indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/</strong>
-Index: basedir='/doc/Python-2.4-ja/', idxdir='/tmp/index/', max_docs_threshold=2000, max_terms_threshold=50000
-...<em>(ÃæÎ¬)</em>...................Building index '/tmp/index/idx00000.cdb'(504)...
-...<em>(ÃæÎ¬)</em>.............Building index '/tmp/index/idx00001.cdb'(419)...
-...<em>(ÃæÎ¬)</em>.....................Building index '/tmp/index/idx00002.cdb'(513)...
+$ <strong>( cd /doc/Python-2.4-ja/; find . -type f -name '*.html' ) |
+  indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument -e euc-jp /tmp/index/</strong>
+Index: basedir='/doc/Python-2.4-ja/', idxdir='/tmp/index/', max_docs_threshold=1000, max_terms_threshold=50000
+Building index '/tmp/index/idx00000.cdb'(1)...
+...<em>(ÃæÎ¬)</em>...docs=630, keys=50486, refs=786010, time=4.0s(157.8docs/s), memory=40320 kB
+Building index '/tmp/index/idx00001.cdb'(2)...
+...<em>(ÃæÎ¬)</em>...docs=456, keys=50018, refs=648848, time=3.7s(124.3docs/s), memory=39648 kB
+Building index '/tmp/index/idx00002.cdb'(3)...
+...<em>(ÃæÎ¬)</em>...docs=350, keys=44197, refs=499953, time=3.0s(116.3docs/s), memory=39648 kB
 Done.
 </pre></blockquote>
 <p>
@@ -210,13 +215,14 @@ Done.
 <p>
 °Ê¾å¤Ç¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤¬¤Ç¤­¤¢¤¬¤ê¤Þ¤¹¡£
 Fooling ¤Ç¤Ï¡¢ÂçÎÌ¤ÎÊ¸½ñ¤ò¤¤¤¯¤Ä¤«¤Î½¸¹ç¤ËÊ¬³ä¤·¤ÆÊ£¿ô¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤òºî¤ê¤Þ¤¹¡£
-³Æ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÏÆÈÎ©¤·¤Æ¤ª¤ê¡¢¤½¤ì¤¾¤ì¤¬ºÇÂç 2000¸Ä (¥Ç¥Õ¥©¥ë¥È) ¤ÎÊ¸½ñ¤Ë
+³Æ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÏÆÈÎ©¤·¤Æ¤ª¤ê¡¢¤½¤ì¤¾¤ì¤¬ºÇÂç 1000¸Ä (¥Ç¥Õ¥©¥ë¥È) ¤ÎÊ¸½ñ¤Ë
 ´Ø¤¹¤ë¾ðÊó¤ò³ÊÇ¼¤·¤Æ¤¤¤Þ¤¹¡£
 <blockquote><pre>
 $ <strong>ls -l /tmp/index/</strong>
--rw-r--r--    1 yusuke   users     5081895 Sep  3 13:18 idx00000.cdb
--rw-r--r--    1 yusuke   users     4673407 Sep  3 13:19 idx00001.cdb
--rw-r--r--    1 yusuke   users     4319317 Sep  3 13:20 idx00002.cdb
+total 21048
+-rw-r--r-- 1 euske euske 8437144 Dec  7 11:45 idx00000.cdb
+-rw-r--r-- 1 euske euske 7317255 Dec  7 11:45 idx00001.cdb
+-rw-r--r-- 1 euske euske 5755592 Dec  7 11:45 idx00002.cdb
 </pre></blockquote>
 <p>
 ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ï "<code><em>xxxNNNNN</em>.cdb</code>" ¤Î¤è¤¦¤ÊÌ¾Á°¤Ë¤Ê¤ê¤Þ¤¹¡£
@@ -232,19 +238,16 @@ Fooling ¤Ï¤³¤ì¤é¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ò¼­½ñ½ç¤Î¸å¤í¤«¤é¸¡º÷¤·¤Þ¤¹¡£¤Ä¤Þ¤ê¡¢
 ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÎÃÖ¤«¤ì¤Æ¤¤¤ë¥Ç¥£¥ì¥¯¥È¥ê (<code>/tmp/index/</code>) ¤ò
 Î¾Êý»ØÄê¤¹¤ëÉ¬Í×¤¬¤¢¤ê¤Þ¤¹:
 <blockquote><pre>
-$ <strong>selection.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ "python" "¥ª¥Ö¥¸¥§¥¯¥È"</strong>
-1: [<font color=red>Python</font> ¥Á¥å¡¼¥È¥ê¥¢¥ë] ... 7.2.1 ¥Õ¥¡¥¤¥ë<font color=red>¥ª¥Ö¥¸¥§¥¯¥È</font>¤Î¥á¥½¥Ã¥É 7.2.2 pickle ¥â¥¸¥å¡¼¥ë 8. ¥¨¥é¡¼¤ÈÎã³°...
+$ <strong>selection.py -b /doc/Python-2.4-ja/ -t HTMLDocument -e euc-jp /tmp/index/ "python" "¥ª¥Ö¥¸¥§¥¯¥È"</strong>
+1: [11.22.8 Êä½õ´Ø¿ô] ... <font color=red>Python</font> ¥é¥¤¥Ö¥é¥ê¥ê¥Õ¥¡¥ì¥ó¥¹ [Contents] [Module Index]...
+  ... Previous: 11.22.7 MultiCall <font color=red>¥ª¥Ö¥¸¥§¥¯¥È</font> Up: 11.22 xmlrpclib Next: 11.22.9
+  ¥¯¥é¥¤¥¢¥ó¥È¤Î¥µ¥ó¥×¥ë 11.22.8 Êä½õ´Ø¿ô boolean(...
 ...
-10: [11. É¸½à¥é¥¤¥Ö¥é¥ê¥ß¥Ë¥Ä¥¢¡¼ - ¤½¤Î 2] ... <font color=red>Python</font> ¥Á¥å¡¼¥È¥ê¥¢¥ë ... ¥¹¥ì¥Ã¥É´Ö¤ÎÄÌ¿®¤äÄ´À°¤ËQueue <font color=red>¥ª¥Ö¥¸¥§¥¯¥È</font>¤ò»È¤¦¤È¡¢...
-1-10 of about 388 results.
+10: [6.11 time -- »þ¹ï¥Ç¡¼¥¿¤Ø¤Î¥¢¥¯¥»¥¹¤ÈÊÑ´¹] ... <font color=red>Python</font> ¥é¥¤¥Ö¥é¥ê¥ê¥Õ¥¡¥ì¥ó¥¹
+  [Contents] [Module Index]...... ÆüÉÕ¤È»þ¹ï¤ËÂÐ¤¹¤ë¡¢ ¤è¤ê<font color=red>¥ª¥Ö¥¸¥§¥¯¥È</font>»Ø¸þ¤Î¥¤¥ó
+  ¥¿¥Õ¥§¡¼¥¹¤Ç¤¹¡£ . locale:¥â¥¸¥å¡¼¥ë...
+1-10 of about 897 results.
 </pre></blockquote>
-
-<h5>¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ï¤É¤ì¤¯¤é¤¤·øÏ´¤«?</h5>
-<p>
-Fooling ¤Ç»È¤ï¤ì¤ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë (<code>.cdb</code> ¥Õ¥¡¥¤¥ë) ¤Ï¤½¤ì¤¾¤ì´°Á´¤ËÆÈÎ©¤·¤Æ¤¤¤Þ¤¹¡£
-¤¢¤ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤¬¼º¤ï¤ì¤¿¾ì¹ç¡¢¤½¤³¤ËÅÐÏ¿¤µ¤ì¤Æ¤¤¤¿Ê¸½ñ¤Ï¸¡º÷¤Ç¤­¤Ê¤¯¤Ê¤ê¤Þ¤¹¤¬¡¢
-¤½¤ì°Ê³°¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ë´Þ¤Þ¤ì¤Æ¤¤¤ëÊ¸½ñ¤Ï±Æ¶Á¤ò¼õ¤±¤Þ¤»¤ó¡£
-¤â¤Á¤í¤ó¡¢¼º¤ï¤ì¤¿¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ï¸µ¤ÎÊ¸½ñ¤«¤éºÆÅÙºî¤ê¤Ê¤ª¤¹¤³¤È¤¬²ÄÇ½¤Ç¤¹¡£
 
 
 <a name="howto-add"></a>
@@ -254,15 +257,17 @@ Fooling ¤Ç»È¤ï¤ì¤ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë (<code>.cdb</code> ¥Õ¥¡¥¤¥ë) ¤Ï¤½¤ì¤¾¤ì´°
 <code>indexer.py</code> ¥³¥Þ¥ó¥É¤ËÄÉ²Ã¤¹¤ë¥Õ¥¡¥¤¥ëÌ¾¤ò»ØÄê¤·¤Þ¤¹¡£
 ¹½Ê¸¤ÏÆ±¤¸¤Ç¤¹:
 <blockquote><pre>
-$ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument /tmp/index/ newfile1.html newfile2.html</strong>
-Index: basedir='/doc/Python-2.4-ja/', idxdir='/tmp/index/', max_docs_threshold=2000, max_terms_threshold=50000
-..Building index '/tmp/index/idx00003.cdb'(2)...
+$ <strong>indexer.py -b /doc/Python-2.4-ja/ -t HTMLDocument -e euc-jp /tmp/index/ newfile1.html newfile2.html</strong>
+Index: basedir='/doc/Python-2.4-ja/', idxdir='/tmp/index/', max_docs_threshold=1000, max_terms_threshold=50000
+Building index '/tmp/index/idx00003.cdb'(4)...
+..docs=2, keys=5150, refs=21312, time=0.2s(8.4docs/s), memory=5332 kB
 Done.
 $ <strong>ls -l /tmp/index/</strong>
--rw-r--r--    1 yusuke   users     5081895 Sep  3 13:18 idx00000.cdb
--rw-r--r--    1 yusuke   users     4673407 Sep  3 13:19 idx00001.cdb
--rw-r--r--    1 yusuke   users     4319317 Sep  3 13:20 idx00002.cdb
--rw-r--r--    1 yusuke   users       40410 Sep  3 13:30 idx00003.cdb
+total 21412
+-rw-r--r-- 1 euske euske 8437144 Dec  7 11:45 idx00000.cdb
+-rw-r--r-- 1 euske euske 7317255 Dec  7 11:45 idx00001.cdb
+-rw-r--r-- 1 euske euske 5755592 Dec  7 11:45 idx00002.cdb
+-rw-r--r-- 1 euske euske  367271 Dec  7 12:00 idx00003.cdb
 </pre></blockquote>
 <p>
 <code>indexer.py</code> ¥³¥Þ¥ó¥É¤Ï¡¢¤¹¤Ç¤Ë <code>/tmp/index/</code> Æâ¤Ë
@@ -282,14 +287,16 @@ Fooling ¤Ç¤Ï¡¢¿·¤·¤¯Ê¸½ñ¤òÄÉ²Ã¤¹¤ë¤¿¤Ó¤´¤È¤Ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤¬
 $ <strong>merger.py /tmp/index/</strong>
 Remain: '/tmp/index/idx00000.cdb'
 Remain: '/tmp/index/idx00001.cdb'
-Merging: '/tmp/index/idx00002.cdb.new' (docs=515, est. terms=44382): [&lt;/tmp/index/idx00002.cdb (docs=513, terms=44382)&gt;, &lt;/tmp/index/idx00003.cdb (docs=2, terms=872)&gt;]
-............................................done: docs=515, terms=44893, ents=582242
+Merging: '/tmp/index/idx00002.cdb.new' (docs=352, est. terms=44197):
+  [&lt;/tmp/index/idx00002.cdb (docs=350, terms=44197)&gt;, &lt;/tmp/index/idx00003.cdb (docs=2, terms=5150)&gt;]
+.............................................done: docs=352, terms=45703, ents=521265
 $ <strong>ls -l /tmp/index/</strong>
--rw-r--r--    1 yusuke   users     5081895 Sep  3 13:18 idx00000.cdb
--rw-r--r--    1 yusuke   users     4673407 Sep  3 13:19 idx00001.cdb
--rw-r--r--    1 yusuke   users     4344626 Sep  3 13:31 idx00002.cdb
--rw-r--r--    1 yusuke   users     4319317 Sep  3 13:20 idx00002.cdb.bak
--rw-r--r--    1 yusuke   users       40410 Sep  3 13:30 idx00003.cdb.bak
+total 27248
+-rw-r--r-- 1 euske euske 8437144 Dec  7 11:45 idx00000.cdb
+-rw-r--r-- 1 euske euske 7317255 Dec  7 11:45 idx00001.cdb
+-rw-r--r-- 1 euske euske 5961204 Dec  7 12:01 idx00002.cdb
+-rw-r--r-- 1 euske euske 5755592 Dec  7 11:45 idx00002.cdb.bak
+-rw-r--r-- 1 euske euske  367271 Dec  7 12:00 idx00003.cdb.bak
 </pre></blockquote>
 <p>
 <code>merger.py</code> ¥³¥Þ¥ó¥É¤ÏÊ£¿ô¤Î¾®¤µ¤¤¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ë´Þ¤Þ¤ì¤ëÊ¸½ñ¤ò
@@ -297,15 +304,15 @@ $ <strong>ls -l /tmp/index/</strong>
 <code>idx00003.cdb</code> ¤Ë´Þ¤Þ¤ì¤Æ¤¤¤¿ 2¤Ä¤ÎÊ¸½ñ¤¬ <code>idx00002.cdb</code> ¤ËÅý¹ç¤µ¤ì¡¢
 ¸Å¤¤¥Õ¥¡¥¤¥ë¤Ï¤½¤ì¤¾¤ì <code>idx00002.cdb.bak</code> ¤È <code>idx00003.cdb.bak</code> ¤È¤¤¤¦Ì¾Á°¤Ç
 »Ä¤µ¤ì¤Æ¤¤¤Þ¤¹¡£¸Å¤¤¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ï¤¹¤°¤Ë <code>rm</code> ¤·¤Æ¤«¤Þ¤¤¤Þ¤»¤ó¡£
-¥Ç¥Õ¥©¥ë¥È¤Ç¤Ï <code>merger.py</code> ¤ÏºÇÂç 2000·ï¤ÎÊ¸½ñ¤Þ¤Ç¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤òºîÀ®¤·¤Þ¤¹
+¥Ç¥Õ¥©¥ë¥È¤Ç¤Ï <code>merger.py</code> ¤ÏºÇÂç 1000·ï¤ÎÊ¸½ñ¤Þ¤Ç¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤òºîÀ®¤·¤Þ¤¹
 (¤³¤ì°Ê¾å¤ÎÊ¸½ñ¤Ï¼¡¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ËÊ¬³ä¤µ¤ì¤Þ¤¹)¡£
 <p>
 ¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÎÅý¹ç¤Ï¤Ê¤ë¤Ù¤¯¤³¤Þ¤á¤Ë¹Ô¤Ã¤¿¤Û¤¦¤¬¤è¤¤¤Î¤Ç¤¹¤¬¡¢
-¤³¤ÎÁàºî¤Ï 1¥Õ¥¡¥¤¥ëÃæ¤Ë´Þ¤Þ¤ì¤ëÊ¸½ñ¿ô¤¬Â¿¤¯¤Ê¤ë¤È»þ´Ö¤¬¤«¤«¤ê¤Þ¤¹
+¤³¤ÎÁàºî¤Ï 1¥Õ¥¡¥¤¥ëÃæ¤Ë´Þ¤Þ¤ì¤ëÊ¸½ñ¿ô¤¬Â¿¤¯¤Ê¤ë¤È¡¢¤½¤ì¤ËÈæÎã¤·¤Æ»þ´Ö¤¬¤«¤«¤ê¤Þ¤¹
 (¹ç·×10000Ê¸½ñ¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¤òÅý¹ç¤¹¤ë¤Ë¤Ï 10Ê¬¤°¤é¤¤¤«¤«¤ë)¡£
 ¤½¤Î¤¿¤á¡¢1Æü¤Î¤¦¤Á¤Ë²¿½½·ï¤â¿·¤·¤¤Ê¸½ñ¤¬ÄÉ²Ã¤µ¤ì¤ë¤è¤¦¤Ê¾ì¹ç¤Ï¡¢
 1»þ´Ö¤Ë 1²óÄøÅÙ¤Î¡ÖºÙ¤«¤¤ (100Ê¸½ñÄøÅÙ¤Î)¡×Åý¹ç¤ò¤ª¤³¤Ê¤¤¡¢
-¡ÖÂç¤­¤Ê (2000Ê¸½ñÄøÅÙ¤Î)¡×Åý¹ç¤Ï 1Æü¤Ë 1²ó¤À¤±¤ª¤³¤Ê¤¦¤è¤¦¤Ë¤¹¤ì¤Ð¤è¤¤¤Ç¤·¤ç¤¦¡£
+¡ÖÂç¤­¤Ê (1000Ê¸½ñÄøÅÙ¤Î)¡×Åý¹ç¤Ï 1Æü¤Ë 1²ó¤À¤±¤ª¤³¤Ê¤¦¤è¤¦¤Ë¤¹¤ì¤Ð¤è¤¤¤Ç¤·¤ç¤¦¡£
 ¤Ê¤ª¡¢¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÎÅý¹çÃæ¤Ë¤â¸¡º÷¤Ï¤Ç¤­¤Þ¤¹¤¬¡¢
 <strong>¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÎÅý¹ç¤ÈÄÉ²Ã¤òÆ±»þ¤Ë¹Ô¤ï¤Ê¤¤¤Ç¤¯¤À¤µ¤¤</strong>¡£
 <p>
@@ -366,10 +373,10 @@ Fooling ¤Ç»È¤ï¤ì¤Æ¤¤¤ë¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Î·Á¼°¤Ï¡¢°ìÅÙºîÀ®¤·¤¿¤é
 
 <blockquote><pre>
 (ºÇ½é¤Î 1²ó¤À¤±¼Â¹Ô)
-$ <strong>cat <em>¤Û¤È¤ó¤É¹¹¿·¤µ¤ì¤Ê¤¤Ê¸½ñ¤Î°ìÍ÷</em> | sortbymtime.py | indexer.py -paaa /tmp/index/</strong>
+$ <strong>cat <em>¤Û¤È¤ó¤É¹¹¿·¤µ¤ì¤Ê¤¤¥Õ¥¡¥¤¥ë°ìÍ÷</em> | sortbymtime.py | indexer.py -paaa /tmp/index/</strong>
 
 (Äê´üÅª¤Ë¼Â¹Ô)
-$ <strong>cat <em>ÉÑÈË¤Ë¹¹¿·¤µ¤ì¤ëÊ¸½ñ¤Î°ìÍ÷</em> | sortbymtime.py | indexer.py -R -pbbb /tmp/index/</strong>
+$ <strong>cat <em>ÉÑÈË¤Ë¹¹¿·¤µ¤ì¤ë¥Õ¥¡¥¤¥ë°ìÍ÷</em> | sortbymtime.py | indexer.py -R -pbbb /tmp/index/</strong>
 </pre></blockquote>
 
 <p>
@@ -561,7 +568,7 @@ OS ¤Î¥Ð¥Ã¥Õ¥¡¥­¥ã¥Ã¥·¥å¤Ë¤è¤ê¡¢ÄÌ¾ï 2²óÌÜ°Ê¹ß¤Î¸¡º÷¤ÏÂ¿¾¯Â®¤¯¤Ê¤ê¤Þ¤¹¡£
 Fooling ¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Ë¤Ï¡¢°Ê²¼¤Î¤è¤¦¤ÊÀ©Ìó¤¬¤¢¤ê¤Þ¤¹:
 <ul>
 <li> ¤Ò¤È¤Ä¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤ÎÂç¤­¤µ¤Ï 4GBytes ¤Þ¤Ç¡£
-<li> Á´¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Î¿ô¤Ï¡¢¤½¤Î OS ¤ÇÆ±»þ¤Ë¥ª¡¼¥×¥ó¤Ç¤­¤ëºÇÂç¥Õ¥¡¥¤¥ë¿ô (Linux ¤Ç¤ÏÌó 4000) ¤Þ¤Ç¡£
+<li> Á´¥¤¥ó¥Ç¥Ã¥¯¥¹¥Õ¥¡¥¤¥ë¤Î¿ô¤Ï¡¢¤½¤Î OS ¤ÇÆ±»þ¤Ë¥ª¡¼¥×¥ó¤Ç¤­¤ëºÇÂç¥Õ¥¡¥¤¥ë¿ô (Linux ¤Î¥Ç¥Õ¥©¥ë¥È¤Ç¤ÏÌó4000¸Ä) ¤Þ¤Ç¡£
 </ul>
 
 <p>

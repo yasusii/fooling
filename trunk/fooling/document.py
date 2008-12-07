@@ -188,26 +188,27 @@ class EMailMessageMixin(object):
       except KeyError:
         pass
     return
-  
+
   def get_subdocs(self):
     subdocs = []
     if self.msg.is_multipart():
       for (i,submsg) in enumerate(self.msg.walk()):
         if submsg.is_multipart(): continue
+        subloc = self.corpus.get_subloc(self.loc, i)
         content_type = submsg.get_content_type()
         encoding = submsg.get_content_charset()
         if content_type == 'text/plain':
-          subdocs.append( EMailTextDocument(self.corpus, self.loc, submsg, self.mtime, i) )
+          subdocs.append( EMailTextDocument(self.corpus, subloc, submsg, self.mtime) )
         elif content_type == 'text/html':
-          subdocs.append( EMailHTMLDocument(self.corpus, self.loc, submsg, self.mtime, i) )
+          subdocs.append( EMailHTMLDocument(self.corpus, subloc, submsg, self.mtime) )
         elif content_type.startswith('message/'):
-          subdocs.append( EMailMessageDocument(self.corpus, self.loc, submsg, self.mtime, i) )
+          subdocs.append( EMailMessageDocument(self.corpus, subloc, submsg, self.mtime) )
     return subdocs
 
 class EMailTextDocument(EMailPartMixin, PlainTextDocument):
   
-  def __init__(self, corpus, loc, msg, mtime, i):
-    PlainTextDocument.__init__(self, corpus, '%s:%s' % (loc, i))
+  def __init__(self, corpus, loc, msg, mtime):
+    PlainTextDocument.__init__(self, corpus, loc)
     EMailPartMixin.__init__(self, msg, mtime)
     return
   
@@ -223,8 +224,8 @@ class EMailTextDocument(EMailPartMixin, PlainTextDocument):
   
 class EMailHTMLDocument(EMailPartMixin, HTMLDocument):
   
-  def __init__(self, corpus, loc, msg, mtime, i):
-    HTMLDocument.__init__(self, corpus, '%s:%s' % (loc, i))
+  def __init__(self, corpus, loc, msg, mtime):
+    HTMLDocument.__init__(self, corpus, loc)
     EMailPartMixin.__init__(self, msg, mtime)
     return
   
@@ -240,9 +241,7 @@ class EMailHTMLDocument(EMailPartMixin, HTMLDocument):
   
 class EMailMessageDocument(EMailPartMixin, EMailMessageMixin, PlainTextDocument):
   
-  def __init__(self, corpus, loc, msg, mtime, i=0):
-    if i:
-      loc = '%s:%s' % (loc, i)
+  def __init__(self, corpus, loc, msg, mtime):
     PlainTextDocument.__init__(self, corpus, loc)
     EMailPartMixin.__init__(self, msg, mtime)
     return

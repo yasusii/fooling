@@ -153,6 +153,9 @@ class Corpus(object):
   # Returns a Document object for the location.
   def get_doc(self, loc):
     return self.default_doctype(self, loc)
+  
+  def get_subloc(self, loc, i):
+    return '%s:%s' % (loc, i)
 
   # (overridable)
   # Returns a default Document title.
