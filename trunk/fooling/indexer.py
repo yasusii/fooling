@@ -102,6 +102,7 @@ class Indexer(object):
       splitterms = splitterms_normal
     terms = self.terms
     # other features
+    add_features(terms, docid, 0, self.corpus.loc_feats(doc.loc))
     add_features(terms, docid, 0, doc.get_feats())
     # sents
     sentid = 0
@@ -176,21 +177,21 @@ class Indexer(object):
 ##
 def index(argv):
   import getopt, locale
-  import document
-  from corpus import FilesystemCorpus
+  import document, corpus
   def usage():
-    print 'usage: %s [-v] [-F|-N|-R] [-Y] [-b basedir] [-p prefix] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
+    print 'usage: %s [-v] [-F|-N|-R] [-Y] [-b basedir] [-p prefix] [-c corpustype] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
     sys.exit(2)
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'vFRNYb:p:t:e:D:T:')
+    (opts, args) = getopt.getopt(argv[1:], 'vFRNYb:p:c:t:e:D:T:')
   except getopt.GetoptError:
     usage()
   verbose = 1
   mode = 0
   basedir = ''
   prefix = 'idx'
+  corpustype = corpus.FilesystemCorpus
   doctype = document.PlainTextDocument
-  encoding = locale.getdefaultlocale()[1] or 'euc-jp'
+  encoding = locale.getpreferredencoding()
   maxdocs = 1000
   maxterms = 50000
   indexyomi = False
@@ -202,14 +203,15 @@ def index(argv):
     elif k == '-Y': indexyomi = True
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
-    elif k == '-t': doctype = getattr(document, v)
+    elif k == '-c': corpustype = getattr(corpus, v)
+    elif k == '-t': doctype = document.get_doctype(v)
     elif k == '-e': encoding = v
     elif k == '-D': maxdocs = int(v)
     elif k == '-T': maxterms = int(v)
   if not args: usage()
   assert len(prefix) == 3
   idxdir = args[0]
-  corpus = FilesystemCorpus(basedir, doctype, encoding)
+  corpus = corpustype(basedir, doctype, encoding)
   corpus.open()
   indexdb = IndexDB(idxdir, prefix)
   if mode == 3:

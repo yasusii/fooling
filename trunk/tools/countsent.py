@@ -20,7 +20,7 @@ def index(argv):
   basedir = ''
   prefix = 'idx'
   doctype = document.PlainTextDocument
-  encoding = locale.getdefaultlocale()[1] or 'euc-jp'
+  encoding = locale.getpreferredencoding()
   for (k, v) in opts:
     if k == '-d': verbose += 1
     elif k == '-b': basedir = v

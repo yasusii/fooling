@@ -9,9 +9,7 @@ except ImportError:
 
 
 __all__ = [ 'Corpus', 'FilesystemCorpus', 'BerkeleyDBCorpus',
-            'CDBCorpus', 'SQLiteCorpus' ]
-
-DEFAULT_ENCODING = 'euc-jp'
+            'CDBCorpus', 'SQLiteCorpus', 'TarDBCorpus' ]
 
 
 ##  IndexDB
@@ -121,7 +119,7 @@ class IndexDB(object):
 ##
 class Corpus(object):
 
-  def __init__(self, doctype=None, encoding=DEFAULT_ENCODING):
+  def __init__(self, doctype, encoding):
     # doctype and encoding can depend on a location,
     # but if not, the default type and encoding are used.
     self.default_doctype = doctype
@@ -178,6 +176,11 @@ class Corpus(object):
     raise NotImplementedError
 
   # (overridable)
+  # Returns the features for the location.
+  def loc_feats(self, loc):
+    return []
+
+  # (overridable)
   # Returns the lastmod time (in integer) for the location.
   def loc_mtime(self, loc):
     return 0                            # zero means unknown
@@ -195,7 +198,7 @@ class Corpus(object):
 ##
 class FilesystemCorpus(Corpus):
 
-  def __init__(self, basedir, doctype=None, encoding=DEFAULT_ENCODING):
+  def __init__(self, basedir, doctype, encoding):
     Corpus.__init__(self, doctype, encoding)
     self.basedir = basedir
     return
@@ -233,7 +236,7 @@ class FilesystemCorpusWithDefaultTitle(FilesystemCorpus):
 ##
 class BerkeleyDBCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype=None, encoding=DEFAULT_ENCODING):
+  def __init__(self, dbfile, doctype, encoding):
     Corpus.__init__(self, doctype, encoding)
     self.dbfile = dbfile
     return
@@ -277,7 +280,7 @@ class BerkeleyDBCorpus(Corpus):
 ##
 class CDBCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype=None, encoding=DEFAULT_ENCODING):
+  def __init__(self, dbfile, doctype, encoding):
     Corpus.__init__(self, doctype, encoding)
     self.dbfile = dbfile
     return
@@ -321,7 +324,7 @@ class CDBCorpus(Corpus):
 ##
 class SQLiteCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype=None, encoding=DEFAULT_ENCODING,
+  def __init__(self, dbfile, doctype, encoding,
                table='documents', key='docid', text='doctext', mtime='mtime'):
     Corpus.__init__(self, doctype, encoding)
     self.dbfile = dbfile
@@ -370,3 +373,136 @@ class SQLiteCorpus(Corpus):
   def loc_size(self, loc):
     self._cur.execute(self.sql_getdoc, (loc,))
     return len(self._cur.fetchone()[0])
+
+
+##  TarDBCorpus
+##
+class TarDBCorpus(Corpus):
+
+  SMALL_MERGE = 20
+  LARGE_MERGE = 2000
+  
+  def __init__(self, basedir, doctype, encoding, labelchars=16):
+    Corpus.__init__(self, doctype, encoding)
+    self.basedir = basedir
+    self.labelchars = labelchars
+    self._db = None
+    self._loctoindex = set()
+    return
+  
+  def __repr__(self):
+    return '<TarDBCorpus: basedir=%r, default_doctype=%r, default_encoding=%r>' % \
+           (self.basedir, self.default_doctype, self.default_encoding)
+
+  def __getstate__(self):
+    odict = Corpus.__getstate__(self)
+    del odict['_db']
+    return odict
+
+  def __setstate__(self, dict):
+    Corpus.__setstate__(self, dict)
+    return
+
+  def open(self, mode='r'):
+    import tardb
+    self._loctoindex.clear()
+    self._db = tardb.TarDB(self.basedir)
+    self._db.open(mode)
+    return
+
+  def close(self):
+    self.flush()
+    self._db.close()
+    return
+
+  def get_recno(self, loc):
+    return int(loc)
+  
+  def get_loc_info(self, loc):
+    recno = self.get_recno(loc)
+    return self._db.get_info(recno)
+
+  def set_loc_info(self, loc, info):
+    recno = self.get_recno(loc)
+    self._loctoindex.add(recno)
+    return self._db.set_info(recno, info)
+
+  def loc_exists(self, loc):
+    recno = self.get_recno(loc)
+    return 0 <= recno and recno < len(self._db)
+
+  def loc_fp(self, loc):
+    recno = self.get_recno(loc)
+    (_,data) = self._db.get_record(recno)
+    return StringIO(data)
+
+  def loc_mtime(self, loc):
+    info = self.get_loc_info(loc)
+    return info.mtime
+  
+  def loc_size(self, loc):
+    info = self.get_loc_info(loc)
+    return info.size
+
+  def flush(self, verbose=False, threshold=100, indexyomi=False, cleanup=True):
+    from fooling.indexer import Indexer
+    from fooling.merger import Merger
+    indexer = Indexer(self, verbose=verbose)
+    for recno in self._loctoindex:
+      indexer.index_doc(str(recno), indexyomi=indexyomi)
+    indexer.finish()
+    self._loctoindex.clear()
+    Merger(self, max_docs_threshold=threshold).run(cleanup=cleanup)
+    return
+
+  def get_doc(self, loc):
+    return self.default_doctype(self, loc)
+  
+  def add_doc(self, info, data, mtime=None, labels=None):
+    recno = self._db.add_record(info, data)
+    self._loctoindex.add(recno)
+    return str(recno)
+
+  def get_labels(self, loc):
+    labels = set()
+    chars = self.get_loc_info(loc).name[:self.labelchars]
+    i = 0
+    for c in reversed(chars):
+      c = int(c,16)
+      for n in (1,2,4,8):
+        if c & n:
+          labels.add(i)
+        i += 1
+    return labels
+
+  def set_labels(self, loc, labels):
+    info = self.get_loc_info(loc)
+    chars = ''
+    i = 0
+    for _ in xrange(self.labelchars):
+      c = 0
+      for n in (1,2,4,8):
+        if i in labels:
+          c += n
+      chars += hex(c)
+    assert len(chars) == self.labelchars
+    info.name[:self.labelchars] = chars
+    self.set_loc_info(loc, info)
+    return
+
+
+##  GzipTarDBCorpus
+##
+class GzipTarDBCorpus(TarDBCorpus):
+  
+  def loc_fp(self, loc):
+    from gzip import GzipFile
+    return GzipFile(fileobj=TarDBCorpus.loc_fp(loc))
+
+  def add_doc(self, info, data):
+    from gzip import GzipFile
+    fp = StringIO(data)
+    gz = GzipFile(mode='w', fileobj=fp)
+    gz.write(data)
+    gz.close()
+    return TarDBCorpus.add_doc(self, info, fp.getvalue())

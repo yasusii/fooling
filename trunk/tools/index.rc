@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Settings for index_new.sh and index_old.sh
+
+# Fooling install dir
+FOOLINGDIR=./fooling/
+# IndexDB dir
+DBDIR=./tabesugi/
+# Document dir
+DOCDIR=/www/tabesugi.net/memo/
+# Document pattern
+DOCPAT="*.html"
+# Index options
+INDEXOPTS="-Y -t HTMLDocument -e euc-jp"
+# Number of days passed to be old
+DAYS=3

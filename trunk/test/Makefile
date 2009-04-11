@@ -7,13 +7,14 @@ CMP=cmp
 INDEX=$(PYTHON) $(FOOLING)/fooling/indexer.py -e euc-jp -F
 SEARCH=$(PYTHON) $(FOOLING)/fooling/selection.py -e euc-jp
 MERGE=$(PYTHON) $(FOOLING)/fooling/merger.py
+TARDB=$(PYTHON) $(FOOLING)/fooling/tardb.py
 DUMPIDX=$(PYTHON) $(FOOLING)/tools/dumpidx.py
 
 # Automated tests:
 
-test: plaintext html email plainyomi
+test: plaintext html email plainyomi tardb
 
-clean: clean_plaintext clean_html clean_email clean_plainyomi
+clean: clean_plaintext clean_html clean_email clean_plainyomi clean_tardb
 	-rm *.cdb *.cdb.bak *.cdb.tmp
 
 # Plain text
@@ -21,14 +22,14 @@ clean: clean_plaintext clean_html clean_email clean_plainyomi
 plaintext: clean_plaintext index_plaintext search_plaintext
 
 idx00000.cdb: plaintext1.txt
-	$(INDEX) -tPlainTextDocument ./ plaintext1.txt
+	$(INDEX) -tPlainTextDocument -pidx ./ plaintext1.txt
 idx00000.dump: idx00000.cdb
 	$(DUMPIDX) idx00000.cdb > idx00000.dump
 idx00000.test: idx00000.dump idx00000.dump.src
 	$(CMP) idx00000.dump idx00000.dump.src
 
 plaintext1.result: idx00000.cdb
-	$(SEARCH) -tPlainTextDocument ./ "れれれ" > plaintext1.result
+	$(SEARCH) -tPlainTextDocument -pidx ./ "れれれ" > plaintext1.result
 plaintext1.test: plaintext1.result plaintext1.result.src
 	$(CMP) plaintext1.result plaintext1.result.src
 
@@ -200,3 +201,30 @@ clean_plainyomi:
 	-rm plainyomi*.result
 index_plainyomi: idy00000.test
 search_plainyomi: plainyomi1.test plainyomi2.test plainyomi3.test plainyomi4.test
+
+# TarDB
+
+tardb: clean_tardb index_tardb search_tardb
+
+testdb: plaintext1.txt
+	mkdir testdb
+	$(TARDB) create testdb
+	$(TARDB) add testdb foo plaintext1.txt
+
+idz00000.cdb: testdb
+	$(INDEX) -cTarDBCorpus -tPlainTextDocument -pidz -btestdb ./ 0
+idz00000.dump: idz00000.cdb
+	$(DUMPIDX) idz00000.cdb > idz00000.dump
+idz00000.test: idz00000.dump idz00000.dump.src
+	$(CMP) idz00000.dump idz00000.dump.src
+
+tardb1.result: idz00000.cdb
+	$(SEARCH) -tPlainTextDocument -pidz ./ "れれれ" > tardb1.result
+tardb1.test: tardb1.result tardb1.result.src
+	$(CMP) tardb1.result tardb1.result.src
+
+clean_tardb:
+	-rm idz00000.cdb idz00000.dump tardb*.result
+	-rm -rf testdb
+index_tardb: idz00000.test
+search_tardb: tardb1.test
