@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+##
+##  merger.py
+##
+
 import sys, os, os.path
 import pycdb as cdb
 from util import encode_array, decode_array, idx_info, \
@@ -7,7 +11,10 @@ from array import array
 from struct import pack, unpack
 stderr = sys.stderr
 
-__all__ = [ 'Merger' ]
+
+__all__ = [
+  'Merger'
+  ]
 
 
 # Estimate the number of unique terms:
@@ -233,7 +240,7 @@ class Merger(object):
 ##
 def merge(argv):
   import getopt
-  from corpus import IndexDB
+  from indexdb import IndexDB
   def usage():
     print 'usage: %s [-v] [-p prefix] [-D maxdocs] [-T maxterms] idxdir' % argv[0]
     sys.exit(2)

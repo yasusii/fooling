@@ -1,11 +1,16 @@
 #!/usr/bin/env python
-# -*- coding: euc-jp -*-
+##
+##  htmlripper.py
+##
 
 import sys, re, codecs
 from sgmlparser3 import SGMLParser3
+from util import EOS_PAT_HTML, EOS_PAT_PRE
 
 
-__all__ = [ 'HTMLRipper' ]
+__all__ = [
+  'HTMLRipper'
+  ]
 
 
 ##  HTMLRipper
@@ -16,9 +21,6 @@ __all__ = [ 'HTMLRipper' ]
 ##
 BR_TAGS = set('br p div li dd dt td th h1 h2 h3 h4 h5 h6 title pre blockquote address'.split(' '))
 IGNORE_TAGS = set('comment script style'.split(' '))
-EOS_PAT_HTML = re.compile(ur'[。．！？!?]')
-EOS_PAT_PRE = re.compile(ur'[。．！？!?\n]', re.UNICODE)
-
 class HTMLRipper(SGMLParser3):
 
   def __init__(self):

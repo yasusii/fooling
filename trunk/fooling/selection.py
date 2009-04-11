@@ -1,6 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: euc-jp -*-
-import re, sys
+##
+##  selection.py
+##
+
+import sys, re
 from util import zen2han, rsplit, encodew, encodey
 from util import splitchars, rdatefeats, lowerbound
 from util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2info
@@ -239,6 +242,10 @@ class StrictEMailPredicate(StrictMixin, EMailPredicate): pass
 ##
 class SearchTimeout(Exception): pass
 class Selection(object):
+
+  @classmethod
+  def get_indexdb(klass):
+    return
 
   def __init__(self, indexdb, term_preds, doc_preds=None,
                safe=True, start_loc=None, end_loc=None,
@@ -721,7 +728,7 @@ def load_selection(fname):
 def search(argv):
   import getopt, locale, time
   import document
-  from corpus import IndexDB
+  from indexdb import IndexDB
   def usage():
     print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] [-a] '
            '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '

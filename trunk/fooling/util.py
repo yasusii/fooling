@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: euc-jp -*-
 
-import re, time
+import re
 from array import array
 from struct import pack, unpack
 
-PROP_SENT  = '\x00'
 PROP_WORD  = 0x10
+PROP_SENT  = '\x00'
 PROP_YOMI  = '\x20'
 PROP_DATE  = '\xf0'
 PROP_LABEL = '\xf1'
 PROP_DOCID = '\xfd'
 PROP_LOC   = '\xfe'
 PROP_INFO  = '\xff'
+
+EOS_PAT_PLAIN = re.compile(ur'[。．！？!?]|[^- ,\w]\n', re.UNICODE)
+EOS_PAT_HTML = re.compile(ur'[。．！？!?]', re.UNICODE)
+EOS_PAT_PRE = re.compile(ur'[。．！？!?\n]', re.UNICODE)
 
 
 # Detect the endian.
@@ -367,6 +371,7 @@ def decode_array(bits):
 
 # date features for indexing
 def idatefeats(t):
+  import time
   assert t != None
   (yy,mm,dd,_,_,_,_,_,_) = time.localtime(t)
   return (pack('>cH',PROP_DATE,yy),

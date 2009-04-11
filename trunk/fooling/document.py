@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: euc-jp -*-
+##
+##  document.py
+##
 
 import sys, re, codecs
-from util import idatefeats
+from util import idatefeats, EOS_PAT_PLAIN
 try:
   from cStringIO import StringIO
 except ImportError:
@@ -57,7 +59,6 @@ class Document(object):
 
 ##  PlainTextDocument
 ##
-EOS_PAT = re.compile(ur'[。．！？!?]|[^- ,\w]\n', re.UNICODE)
 class PlainTextDocument(Document):
 
   def __repr__(self):
@@ -71,7 +72,7 @@ class PlainTextDocument(Document):
     for line in self.get_fp():
       buf += decoder(line, 'replace')[0]
       while 1:
-        m = EOS_PAT.search(buf, pos)
+        m = EOS_PAT_PLAIN.search(buf, pos)
         if not m: break
         yield buf[pos:m.end(0)]
         pos = m.end(0)
