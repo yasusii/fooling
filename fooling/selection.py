@@ -114,6 +114,32 @@ class KeywordPredicate(Predicate):
     return locs
 
 
+##  FeatPredicate
+##
+class FeatPredicate(Predicate):
+  
+  def __init__(self, feats, neg=False):
+    Predicate.__init__(self)
+    self.neg = neg
+    self.feats = feats
+    self.curidx = 0
+    return
+
+  def __str__(self):
+    return self.q
+
+  def narrow(self, idx):
+    m0 = [ decode_array(idx[feat]) for feat in self.feats if idx.has_key(feat) ]
+    if not m0:
+      return []
+    refs = merge(m0)
+    locs = [ (refs[i], refs[i+1]) for i in xrange(0, len(refs), 2) ]
+    if self.pos_filter:
+      locs = [ (docid,pos) for (docid,pos) in locs
+               if self.pos_filter(pos) ]
+    return locs
+
+
 ##  EMailPredicate
 ##
 class IsHeaderPos(object):
@@ -201,6 +227,7 @@ class StrictMixin(object):
                      if not c.isspace() ),
         re.UNICODE)
     return
+
 
 class YomiKeywordPredicate(YomiMixin, KeywordPredicate): pass
 class StrictKeywordPredicate(StrictMixin, KeywordPredicate): pass
@@ -714,7 +741,7 @@ def search(argv):
   prefix = ''
   doctype = document.PlainTextDocument
   predtype = KeywordPredicate
-  encoding = locale.getdefaultlocale()[1] or 'euc-jp'
+  encoding = locale.getpreferredencoding()
   n = 10
   for (k, v) in opts:
     if k == '-d': debug += 1

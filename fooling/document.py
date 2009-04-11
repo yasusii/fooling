@@ -274,6 +274,25 @@ class EMailDocument(EMailMessageDocument):
     return '<EmailDocument: %r>' % self.loc
 
 
+# get_doctype
+DOCTYPES = {
+  'T': PlainTextDocument,
+  'PlainText': PlainTextDocument,
+  'PlainTextDocument': PlainTextDocument,
+  'C': SourceCodeDocument,
+  'SourceCode': SourceCodeDocument,
+  'SourceCodeDocument': SourceCodeDocument,
+  'H': HTMLDocument,
+  'HTML': HTMLDocument,
+  'HTMLDocument': HTMLDocument,
+  'E': EMailDocument,
+  'EMail': EMailDocument,
+  'EMailDocument': EMailDocument,
+  }
+def get_doctype(doctype):
+  return DOCTYPES[doctype]
+
+
 # test
 if __name__ == '__main__':
   class DummyCorpus(object):

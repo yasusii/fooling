@@ -9,6 +9,7 @@ PROP_SENT  = '\x00'
 PROP_WORD  = 0x10
 PROP_YOMI  = '\x20'
 PROP_DATE  = '\xf0'
+PROP_LABEL = '\xf1'
 PROP_DOCID = '\xfd'
 PROP_LOC   = '\xfe'
 PROP_INFO  = '\xff'
