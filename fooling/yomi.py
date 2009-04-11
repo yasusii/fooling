@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: euc-jp -*-
+##
+##  yomi.py
+##
+
 import sys, re
 from os.path import join, dirname
 import pycdb
@@ -7,8 +11,11 @@ stdout = sys.stdout
 stderr = sys.stderr
 
 # open the dictionary
-if 'YOMI_DICT' not in globals():
+try:
+  YOMI_DICT
+except NameError:
   YOMI_DICT = pycdb.tcdbinit(join(dirname(__file__), 'yomidict.tcdb'))
+
 
 def encode_yomi(s):
   return ''.join( chr(ord(c)-0x3000) for c in s )

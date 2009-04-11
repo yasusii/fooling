@@ -1,15 +1,22 @@
 #!/usr/bin/env python
+##
+##  indexer.py
+##
+
 import sys, time
 import pycdb as cdb
 from struct import pack
 from array import array
 from util import isplit, encodew, encodey, encode_array, zen2han, rmsp, \
      PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
-from corpus import IndexDB
+from indexdb import IndexDB
 stderr = sys.stderr
 
 
-__all__ = [ 'Indexer' ]
+__all__ = [
+  'Indexer'
+  ]
+
 
 def add_features(terms, docid, sentid, feats):
   for w in feats:
