@@ -122,7 +122,6 @@ def decode_header(s):
 
 class EMailPartMixin(object):
   
-  DEFAULT_CHARSET = 'iso-2022-jp'
   INDEX_HEADERS = set(( 'from', 'subject', 'to', 'cc', 'bcc', 'date' ))
 
   def __init__(self, msg, mtime):
@@ -167,7 +166,7 @@ class EMailPartMixin(object):
     return
   
   def get_encoding(self):
-    return self.msg.get_content_charset() or self.DEFAULT_CHARSET
+    return self.msg.get_content_charset() or self.corpus.default_encoding
 
 class EMailMessageMixin(object):
   

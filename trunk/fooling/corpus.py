@@ -119,11 +119,11 @@ class IndexDB(object):
 ##
 class Corpus(object):
 
-  def __init__(self, doctype, encoding):
+  def __init__(self, default_doctype, default_encoding):
     # doctype and encoding can depend on a location,
     # but if not, the default type and encoding are used.
-    self.default_doctype = doctype
-    self.default_encoding = encoding
+    self.default_doctype = default_doctype
+    self.default_encoding = default_encoding
     return
 
   def __repr__(self):
