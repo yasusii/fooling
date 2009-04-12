@@ -243,8 +243,14 @@ class StrictEMailPredicate(StrictMixin, EMailPredicate): pass
 class SearchTimeout(Exception): pass
 class Selection(object):
 
-  @classmethod
-  def get_indexdb(klass):
+  def __getstate__(self):
+    odict = self.__dict__.copy()
+    del odict['_indexdb']
+    return odict
+
+  def __setstate__(self, dict):
+    self.__dict__.update(dict)
+    self._indexdb = None
     return
 
   def __init__(self, indexdb, term_preds, doc_preds=None,
@@ -467,7 +473,7 @@ class Selection(object):
           if pol: break
       # pol < 0: rejected immediately.
       # pol > 0: accepted immediately.
-      # pol = 0: not decided (further examination required).
+      # pol = 0: undecided (further examination required).
       self.narrowed += 1
       if pol == 0:
         # contexts (a list of pos) is stored in descending order in an index file.
