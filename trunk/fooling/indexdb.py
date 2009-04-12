@@ -20,13 +20,21 @@ class IndexDB(object):
   # Index filename pattern: "xxxNNNNN.cdb"
   IDX_PAT = re.compile(r'^...\d{5}\.cdb$')
   
+  # cdb object cache. Shared among all instances.
+  _cdbcache = {}
+  def get_idx(klass, path):
+    if path in klass._cdbcache:
+      idx = klass._cdbcache[path]
+    else:
+      idx = cdb.init(path)
+      klass._cdbcache[path] = idx
+    return idx
+
   def __init__(self, idxdir, prefix=''):
     self.idxdir = idxdir
     self.prefix = prefix
     # mtime: index modification time.
     self.mtime = 0
-    # cdb object cache. Should not be pickled.
-    self._idxcache = {}
     # All index filenames are grobbed and sorted initially.
     self.refresh()
     return
@@ -34,32 +42,22 @@ class IndexDB(object):
   def __repr__(self):
     return '<IndexDB: idxdir=%r, prefix=%r>' % (self.idxdir, self.prefix)
 
-  def __getstate__(self):
-    # Avoid pickling cdb objects.
-    odict = self.__dict__.copy()
-    del odict['_idxcache']
-    return odict
-
-  def __setstate__(self, dict):
-    self.__dict__.update(dict)
-    self._idxcache = {}
-    return
-
-  # (Internal) Returns a new index file name.
+  # (Internal) Returns a new cdb name.
   def gen_idx_fname(self, idxid):
     assert len(self.prefix) == 3
-    fname = os.path.join(self.idxdir, '%s%05d.cdb' % (self.prefix, idxid))
-    return fname
+    return os.path.join(self.idxdir, '%s%05d.cdb' % (self.prefix, idxid))
+  
+  # (Internal) Returns a new cdb maker.
+  def add_idx(self, idxid):
+    fname = self.gen_idx_fname(idxid)
+    maker = cdb.cdbmake(fname, fname+'.tmp')
+    return (fname, maker)
 
   # (Internal) Returns an iterator for the index files.
   def iteridxs(self, start=0, end=sys.maxint-1):
     for idxid in xrange(start, min(end+1, len(self.idxs))):
-      fname = self.idxs[idxid]
-      if fname in self._idxcache:
-        idx = self._idxcache[fname]
-      else:
-        idx = cdb.init(os.path.join(self.idxdir, fname))
-        self._idxcache[fname] = idx
+      fname = os.path.join(self.idxdir, self.idxs[idxid])
+      idx = self.get_idx(fname)
       yield (idxid, idx)
     return
 
@@ -71,13 +69,11 @@ class IndexDB(object):
                          reverse=True)
     if self.idxs:
       self.mtime = os.stat(os.path.join(self.idxdir, self.idxs[0]))[stat.ST_MTIME]
-    self._idxcache.clear()
     return
 
   # Resets the internal list and ignore all the existing index files.
   def reset(self):
     self.idxs = []
-    self._idxcache.clear()
     return
 
   # Returns the modification time of the indices.

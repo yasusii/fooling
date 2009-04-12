@@ -24,11 +24,12 @@ __all__ = [
 ##
 class Corpus(object):
 
-  def __init__(self, default_doctype, default_encoding):
+  def __init__(self, default_doctype, default_encoding, default_indexstyle):
     # doctype and encoding can depend on a location,
     # but if not, the default type and encoding are used.
     self.default_doctype = default_doctype
     self.default_encoding = default_encoding
+    self.default_indexstyle = default_indexstyle
     return
 
   def __repr__(self):
@@ -71,9 +72,14 @@ class Corpus(object):
     raise NotImplementedError
 
   # (overridable)
-  # Returns a codec name of the document.
+  # Returns the codec name of a document.
   def loc_encoding(self, loc):
     return self.default_encoding
+
+  # (overridable)
+  # Returns the index style of a document.
+  def loc_indexstyle(self, loc):
+    return self.default_indexstyle
 
   # (overridable)
   # Returns a file-like object for the location.
@@ -103,8 +109,8 @@ class Corpus(object):
 ##
 class FilesystemCorpus(Corpus):
 
-  def __init__(self, basedir, doctype, encoding):
-    Corpus.__init__(self, doctype, encoding)
+  def __init__(self, basedir, doctype, encoding, indexstyle):
+    Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
     return
 
@@ -141,8 +147,8 @@ class FilesystemCorpusWithDefaultTitle(FilesystemCorpus):
 ##
 class BerkeleyDBCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype, encoding):
-    Corpus.__init__(self, doctype, encoding)
+  def __init__(self, dbfile, doctype, encoding, indexstyle):
+    Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
     return
 
@@ -185,8 +191,8 @@ class BerkeleyDBCorpus(Corpus):
 ##
 class CDBCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype, encoding):
-    Corpus.__init__(self, doctype, encoding)
+  def __init__(self, dbfile, doctype, encoding, indexstyle):
+    Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
     return
 
@@ -230,9 +236,9 @@ class CDBCorpus(Corpus):
 ##
 class SQLiteCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype, encoding,
+  def __init__(self, dbfile, doctype, encoding, indexstyle,
                table='documents', key='docid', text='doctext', mtime='mtime'):
-    Corpus.__init__(self, doctype, encoding)
+    Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
     # The field must be a string.
     self.sql_getdoc = 'select %s from %s where %s=?' % (text, table, key)
@@ -288,8 +294,8 @@ class TarDBCorpus(Corpus):
   SMALL_MERGE = 20
   LARGE_MERGE = 2000
   
-  def __init__(self, basedir, doctype, encoding, labelchars=16):
-    Corpus.__init__(self, doctype, encoding)
+  def __init__(self, basedir, doctype, encoding, indexstyle, labelchars=16):
+    Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
     self.labelchars = labelchars
     self._db = None
@@ -350,12 +356,12 @@ class TarDBCorpus(Corpus):
     info = self.get_loc_info(loc)
     return info.size
 
-  def flush(self, verbose=False, threshold=100, indexyomi=False, cleanup=True):
+  def flush(self, verbose=False, threshold=100, cleanup=True):
     from fooling.indexer import Indexer
     from fooling.merger import Merger
     indexer = Indexer(self, verbose=verbose)
     for recno in self._loctoindex:
-      indexer.index_doc(str(recno), indexyomi=indexyomi)
+      indexer.index_doc(str(recno))
     indexer.finish()
     self._loctoindex.clear()
     Merger(self, max_docs_threshold=threshold).run(cleanup=cleanup)

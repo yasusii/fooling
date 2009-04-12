@@ -15,6 +15,22 @@ __all__ = [ 'Document', 'PlainTextDocument', 'SourceCodeDocument',
             'EMailDocument', 'HTMLDocument' ]
 
 
+def splitterms_normal(s):
+  from util import isplit, encodew
+  for x in isplit(s):
+    yield encodew(x)
+  return
+
+def splitterms_yomi(s):
+  from util import isplit, encodew, encodey
+  from yomi import index_yomi
+  for x in isplit(s):
+    yield encodew(x)
+  for x in index_yomi(s):
+    yield encodey(x)
+  return
+
+
 ##  Document (abstract)
 ##
 ##  A Document represents a indexable document.
@@ -37,6 +53,14 @@ class Document(object):
     return self.corpus.loc_encoding(self.loc)
   def get_title(self):
     return self.corpus.loc_title(self.loc)
+  def get_indexstyle(self):
+    return self.corpus.loc_indexstyle(self.loc)
+
+  def splitterms(self, s):
+    if self.get_indexstyle() == 'yomi':
+      return splitterms_yomi(s)
+    else:
+      return splitterms_normal(s)
 
   # (overridable)
   # Returns

@@ -4,10 +4,9 @@
 ##
 
 import sys, time
-import pycdb as cdb
 from struct import pack
 from array import array
-from util import isplit, encodew, encodey, encode_array, zen2han, rmsp, \
+from util import encode_array, zen2han, rmsp, \
      PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 from indexdb import IndexDB
 stderr = sys.stderr
@@ -26,19 +25,6 @@ def add_features(terms, docid, sentid, feats):
     else:
       occs = terms[w]
     occs.append((docid, sentid))
-  return
-
-def splitterms_normal(s):
-  for x in isplit(s):
-    yield encodew(x)
-  return
-
-def splitterms_yomi(s):
-  from yomi import index_yomi
-  for x in isplit(s):
-    yield encodew(x)
-  for x in index_yomi(s):
-    yield encodey(x)
   return
 
 def linux_process_memory():
@@ -81,20 +67,19 @@ class Indexer(object):
 
   # Adds a new index file.
   def create_new_idx(self):
-    fname = self.indexdb.gen_idx_fname(self.idx_count)
+    (fname, self.maker) = self.indexdb.add_idx(self.idx_count)
     self.idx_count += 1
-    self.maker = cdb.cdbmake(fname, fname+'.tmp')
     if self.verbose:
       print >>stderr, 'Building index %r(%d)...' % (fname, self.idx_count)
     return
 
   # Index a new Document at a given location.
-  def index_loc(self, loc, maxsents=100000, indexyomi=False):
+  def index_loc(self, loc, maxsents=100000):
     doc = self.corpus.get_doc(loc)
     if not doc: return False
-    return self.index_doc(doc, maxsents=maxsents, indexyomi=indexyomi)
+    return self.index_doc(doc, maxsents=maxsents)
   
-  def index_doc(self, doc, maxsents=100000, indexyomi=False):
+  def index_doc(self, doc, maxsents=100000):
     if self.maker == None:
       self.create_new_idx()
     docid = len(self.docinfo)+1
@@ -103,10 +88,6 @@ class Indexer(object):
       print >>stderr, 'Reading: %r' % doc
     elif 1 <= self.verbose:
       stderr.write('.'); stderr.flush()
-    if indexyomi:
-      splitterms = splitterms_yomi
-    else:
-      splitterms = splitterms_normal
     terms = self.terms
     # other features
     add_features(terms, docid, 0, self.corpus.loc_feats(doc.loc))
@@ -117,13 +98,13 @@ class Indexer(object):
     if title:
       title = zen2han(rmsp(title))
       self.maker.add(pack('>cii', PROP_SENT, docid, sentid), title.encode('utf-8'))
-      add_features(terms, docid, sentid, set(splitterms(title)))
+      add_features(terms, docid, sentid, set(doc.splitterms(title)))
       sentid += 1
     for sent in doc.get_sents():
       sent = zen2han(rmsp(sent))
       if not sent: continue
       self.maker.add(pack('>cii', PROP_SENT, docid, sentid), sent.encode('utf-8'))
-      add_features(terms, docid, sentid, set(splitterms(sent)))
+      add_features(terms, docid, sentid, set(doc.splitterms(sent)))
       sentid += 1
       if maxsents <= sentid: break
     if ((self.max_docs_threshold and self.max_docs_threshold <= len(self.docinfo)) or 
@@ -131,7 +112,7 @@ class Indexer(object):
       self.flush()
     for subdoc in doc.get_subdocs():
       if subdoc:
-        self.index_doc(subdoc, maxsents=maxsents, indexyomi=indexyomi)
+        self.index_doc(subdoc, maxsents=maxsents)
     return True
 
   # Build a cdb file.
@@ -201,13 +182,13 @@ def index(argv):
   encoding = locale.getpreferredencoding()
   maxdocs = 1000
   maxterms = 50000
-  indexyomi = False
+  indexstyle = 'normal'
   for (k, v) in opts:
     if k == '-d': verbose += 1
     elif k == '-F': mode = 1
     elif k == '-N': mode = 2
     elif k == '-R': mode = 3
-    elif k == '-Y': indexyomi = True
+    elif k == '-Y': indexstyle = 'yomi'
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
     elif k == '-c': corpustype = getattr(corpus, v)
@@ -218,7 +199,7 @@ def index(argv):
   if not args: usage()
   assert len(prefix) == 3
   idxdir = args[0]
-  corpus = corpustype(basedir, doctype, encoding)
+  corpus = corpustype(basedir, doctype, encoding, indexstyle)
   corpus.open()
   indexdb = IndexDB(idxdir, prefix)
   if mode == 3:
@@ -237,7 +218,7 @@ def index(argv):
     if not corpus.loc_exists(fname): continue
     if (mode == 2) and corpus.loc_indexed(fname): continue
     if (mode == 0) and corpus.loc_mtime(fname) < lastmod: continue
-    indexer.index_loc(fname, indexyomi=indexyomi)
+    indexer.index_loc(fname)
 
   indexer.finish()
   print >>stderr, 'Done.'
