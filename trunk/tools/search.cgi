@@ -3,7 +3,7 @@
 import sys
 import cgitb; cgitb.enable()
 import os, re, cgi, random, os.path, time, codecs, stat
-from fooling.corpus import IndexDB
+from fooling.indexdb import IndexDB
 from fooling.document import HTMLDocument, SourceCodeDocument
 from fooling.selection import SelectionWithContinuation, SearchTimeout, KeywordPredicate, YomiKeywordPredicate, parse_preds
 from urlparse import urljoin
