@@ -21,16 +21,21 @@ class IndexDB(object):
   IDX_PAT = re.compile(r'^...\d{5}\.cdb$')
   
   # cdb object cache. Shared among all instances.
-  _cdbcache = {}
+  _cdb_cache = {}
+  @classmethod
   def get_idx(klass, path):
-    if path in klass._cdbcache:
-      idx = klass._cdbcache[path]
+    if path in klass._cdb_cache:
+      idx = klass._cdb_cache[path]
     else:
       idx = cdb.init(path)
-      klass._cdbcache[path] = idx
+      klass._cdb_cache[path] = idx
     return idx
 
   def __init__(self, idxdir, prefix=''):
+    if not os.path.exists(idxdir):
+      os.makedirs(idxdir)
+    if not os.path.isdir(idxdir):
+      raise TypeError('not directory: %r' % idxdir)
     self.idxdir = idxdir
     self.prefix = prefix
     # mtime: index modification time.

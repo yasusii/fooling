@@ -23,7 +23,7 @@
 ##
 ##   # writing TarDB
 ##   db = TarDB('mydb')
-##   db.open('r+')  # the entire database is locked.
+##   db.open()
 ##   print db.add_record(TarInfo('foo'), '123')  # 0
 ##   print db.add_record(TarInfo('bar'), '456')  # 1
 ##   db.close()
@@ -41,7 +41,7 @@
 ##
 ##   # modifying TarDB (only meta information is changeable)
 ##   db = TarDB('mydb')
-##   db.open('r+')
+##   db.open()
 ##   db[0] = TarInfo('zzz')
 ##   db.close()
 ##
@@ -51,6 +51,10 @@ from tarfile import BLOCKSIZE, TarInfo
 
 
 ##  FileLock
+##
+##  lock = FileLock('foo')
+##  lock.acquire()
+##  lock.release()
 ##
 class FileLock(object):
 
@@ -66,25 +70,51 @@ class FileLock(object):
     return '<FileLock: %r, locked=%r>' % (self.fname, self.locked)
 
   def create(self):
-    fp = open(self.fname, 'w')
+    fp = file(self.filename(False), 'ab')
     fp.close()
     return
-  
+
+  def filename(self, locked=None):
+    if locked == None:
+      locked = self.locked
+    if locked:
+      return self.fname+'.locked'
+    else:
+      return self.fname
+
   def acquire(self):
     if self.locked:
       raise FileLock.Failed('already acquired: %r' % self)
     try:
-      os.rename(self.fname, self.fname+'.locked')
+      os.rename(self.filename(False), self.filename(True))
     except OSError:
       raise FileLock.Failed('failed to acquire: %r' % self)
     self.locked = True
     return
   
+  def acquire_open(self, mode):
+    if self.locked:
+      raise FileLock.Failed('already acquired: %r' % self)
+    try:
+      os.rename(self.filename(False), self.filename(True))
+    except OSError:
+      raise FileLock.Failed('failed to acquire: %r' % self)
+    try:
+      fp = file(self.filename(True), mode)
+    except IOError, e:
+      try:
+        os.rename(self.filename(True), self.filename(False))
+      except OSError:
+        pass
+      raise FileLock.Failed(e)
+    self.locked = True
+    return fp
+  
   def release(self):
     if not self.locked:
       raise FileLock.Failed('not acquired: %r' % self)
     try:
-      os.rename(self.fname+'.locked', self.fname)
+      os.rename(self.filename(True), self.filename(False))
     except OSError:
       raise FileLock.Failed('failed to release: %r (THIS MUST NOT HAPPEN!)' % self)
     self.locked = False
@@ -108,66 +138,61 @@ class Catalog(object):
   
   DEFAULT_RECORD_SIZE = 16
   
-  def __init__(self, fname):
+  def __init__(self, fname, record_size=DEFAULT_RECORD_SIZE):
     self.fname = fname
-    self.mode = None
-    self.nrecords = 0
+    self.record_size = record_size
     self._fp = None
-    self._record_size = None
-    self._info_cache = {}
-    self._cached = None
+    self._nrecords = None
+    self._cache = {}
     return
 
   def __repr__(self):
-    return '<Catalog: fname=%r, mode=%r, record_size=%s, nrecords=%s>' % \
-           (self.fname, self.mode, self._record_size, self.nrecords)
+    return '<Catalog: fname=%r, record_size=%s, nrecords=%s>' % \
+           (self.fname, self.record_size, self._nrecords)
 
-  def create(self, record_size=DEFAULT_RECORD_SIZE):
+  def create(self):
     fp = open(self.fname, 'wb')
-    fp.write(''.join( str((i+1) % 10) for i in xrange(record_size-1) )+'\n')
+    fp.write(''.join( str((i+1) % 10) for i in xrange(self.record_size-1) )+'\n')
     fp.close()
     return
 
-  def open(self, mode='r', cached=True):
-    if not (mode == 'r' or mode == 'r+'):
-      raise Catalog.FileError('invalid mode: %r' % mode)
-    if self.mode:
+  def open(self):
+    if self._fp:
       raise Catalog.FileError('open: already opened: %r' % self)
     try:
-      self._fp = open(os.path.join(self.fname), mode+'b')
+      self._fp = open(os.path.join(self.fname), 'rb')
     except IOError, e:
       raise Catalog.FileError(e)
-    first_line = self._fp.next()
-    self._record_size = len(first_line)
+    record_size = len(self._fp.next())
+    if record_size != self.record_size:
+      raise Catalog.Corrupted('open: illegal record size: %r: %d != %d' %
+                              (self, record_size, self.record_size))
     self._fp.seek(0, 2)
-    size = self._fp.tell()
-    if size % self._record_size != 0:
+    file_size = self._fp.tell()
+    if file_size % self.record_size != 0:
       raise Catalog.Corrupted('open: illegal filesize: %r: %d mod %d != 0' %
-                              (self, size, self._record_size))
-    self.nrecords = int(size / self._record_size)-1
-    self.mode = mode
-    self._cached = cached
+                              (self, file_size, self.record_size))
+    self._nrecords = int(file_size / self.record_size)-1
     return self
-  
+
   def close(self):
-    if self.mode:
+    if self._fp:
       self._fp.close()
       self._fp = None
-      self._info_cache.clear()
-      self.mode = None
+      self._cache.clear()
     return self
     
   def get(self, recno):
-    if not self.mode:
+    if not self._fp:
       raise Catalog.FileError('get: not opened: %r' % self)
-    if recno < 0 or self.nrecords <= recno:
+    if recno < 0 or self._nrecords <= recno:
       raise Catalog.InvalidRecord('get: invalid recno: %r: recno=%d' % (self, recno))
-    if recno in self._info_cache:
-      return self._info_cache[recno]
-    offset = (recno+1) * self._record_size
+    if recno in self._cache:
+      return self._cache[recno]
+    offset = (recno+1) * self.record_size
     self._fp.seek(offset)
-    line = self._fp.read(self._record_size)
-    if len(line) != self._record_size:
+    line = self._fp.read(self.record_size)
+    if len(line) != self.record_size:
       raise Catalog.Corrupted('get: premature eof: %r: recno=%d, offset=%d' %
                               (self, recno, offset))
     try:
@@ -176,42 +201,46 @@ class Catalog(object):
       raise Catalog.Corrupted('get: record corrputed: %r: recno=%d, offset=%d' %
                               (self, recno, offset))
     rec_file = line[8:].rstrip()
-    if self._cached:
-      self._info_cache[recno] = (rec_file, rec_offset)
+    self._cache[recno] = (rec_file, rec_offset)
     return (rec_file, rec_offset)
 
   def add(self, rec_file, rec_offset):
-    if self.mode != 'r+':
-      raise Catalog.FileError('add: invalid mode: %r' % self)
-    self._fp.seek(0, 2)
+    if not self._fp:
+      raise Catalog.FileError('add: not opened: %r' % self)
     line = '%08x%s' % (rec_offset, rec_file)
-    nspaces = self._record_size - len(line) - 1
+    nspaces = self.record_size - len(line) - 1
     if nspaces < 0:
       raise Catalog.Corrupted('add: too long record: %r: rec_file=%r' % (self, rec_file))
     line += ' '*nspaces
-    self._fp.write(line+'\n')
-    recno = self.nrecords
-    if self._cached:
-      self._info_cache[recno] = (rec_file, rec_offset)
-    self.nrecords += 1
+    # open file
+    lock = FileLock(self.fname)
+    fp = lock.acquire_open('r+b')
+    fp.seek(0, 2)
+    fp.write(line+'\n')
+    fp.close()
+    lock.release()
+    # cache
+    recno = self._nrecords
+    self._cache[recno] = (rec_file, rec_offset)
+    self._nrecords += 1
     return recno
 
   def __len__(self):
-    if not self.mode:
+    if not self._fp:
       raise Catalog.FileError('__len__: not opened: %r' % self)
-    return self.nrecords
+    return self._nrecords
 
   def __getitem__(self, recno):
-    if not self.mode:
+    if not self._fp:
       raise Catalog.FileError('__getitem__: not opened: %r' % self)
     if recno < 0:
-      recno %= self.nrecords
+      recno %= self._nrecords
     return self.get(recno)
 
   def __iter__(self):
-    if not self.mode:
+    if not self._fp:
       raise Catalog.FileError('__iter__: not opened: %r' % self)
-    for recno in xrange(self.nrecords):
+    for recno in xrange(self._nrecords):
       yield self.get(recno)
     return
 
@@ -232,90 +261,150 @@ class TarDB(object):
   def __init__(self, basedir, catfile='catalog', lockfile='lock', maxsize=MAX_TARSIZE):
     self.basedir = basedir
     self.maxsize = maxsize
-    self.mode = None
     self._catalog = Catalog(os.path.join(basedir, catfile))
-    self._lock = FileLock(os.path.join(basedir, lockfile))
+    self._dirlock = FileLock(os.path.join(basedir, lockfile))
+    self._opened = False
     self._tarfps = {}
-    self._curname = None
     return
 
   def __repr__(self):
-    return '<TarDB: basedir=%r, mode=%r, catalog=%r, lock=%r, maxsize=%d>' % \
-           (self.basedir, self.mode, self._catalog, self._lock, self.maxsize)
+    return '<TarDB: basedir=%r, catalog=%r, dirlock=%r, maxsize=%d>' % \
+           (self.basedir, self._catalog, self._dirlock, self.maxsize)
 
   def create(self):
     if not os.path.isdir(self.basedir):
       raise TarDB.FileError('%r is not a directory.' % self.basedir)
     self._catalog.create()
-    self._lock.create()
+    self._dirlock.create()
     return
 
-  def generate_tarname(self, i):
-    return 'db%05d' % i
-  
-  TARNAME_PAT = re.compile(r'^db(\d+)')
-  def tarname_index(self, name):
-    m = self.TARNAME_PAT.match(name)
-    if not m:
-      raise TarDB.FileError('tarname_index: invalid name: %r' % name)
-    return int(m.group(1))
-
-  def open(self, mode='r', cached=True):
-    if not (mode == 'r' or mode == 'r+'):
-      raise TarDB.FileError('invalid mode: %r' % mode)
-    if self.mode:
+  def open(self):
+    if self._opened:
       raise TarDB.FileError('open: already opened: %r' % self)
-    if mode == 'r+':
-      try:
-        self._lock.acquire()
-      except FileLock.Failed:
-        raise TarDB.LockError('database locked: %r' % self)
     try:
-      self._catalog.open(mode, cached)
+      self._catalog.open()
     except Catalog.FileError, e:
       raise TarDB.FileError(e)
-    if len(self._catalog):
-      (self._curname, _) = self._catalog[-1]
-    else:
-      self._curname = self.generate_tarname(0)
-    self.mode = mode
+    self._opened = True
     return self
 
   def close(self):
-    if self.mode:
-      for tarfp in self._tarfps.itervalues():
-        tarfp.close()
-      if self.mode == 'r+':
-        self._lock.release()
-      self._tarfps.clear()
-      self._catalog.close()
-      self._catalog = None
-      self.mode = None
+    if not self._opened:
+      raise TarDB.FileError('close: not opened: %r' % self)
+    for fp in self._tarfps.itervalues():
+      fp.close()
+    self._tarfps.clear()
+    self._catalog.close()
+    self._opened = False
     return self
 
-  def _get_tarfile(self, name):
+  def add_record(self, info, data):
+    if not self._opened:
+      raise TarDB.FileError('add_record: not opened: %r' % self)
+    try:
+      self._dirlock.acquire()
+    except FileLock.Failed, e:
+      raise TarDB.LockError(e)
+    try:
+      TARNAME_PAT = re.compile(r'^db(\d+)\.tar$')
+      idx = 0
+      for fname in os.listdir(self.basedir):
+        m = TARNAME_PAT.match(fname)
+        if m:
+          idx = max(idx, int(m.group(1)))
+      while 1:
+        name = ('db%05d' % idx)
+        lock = FileLock(os.path.join(self.basedir, name+'.tar'))
+        lock.create()
+        try:
+          fp = lock.acquire_open('r+b')
+        except FileLock.Failed, e:
+          raise TarDB.LockError(e)
+        fp.seek(0, 2)
+        offset = fp.tell()
+        if offset < self.maxsize: break
+        idx += 1
+        fp.close()
+        lock.release()
+      try:
+        if offset % BLOCKSIZE != 0:
+          raise TarDB.Corrupted('add_record: invalid tar size: %r: info_offset=%d' %
+                                (self, offset))
+        recno = self._catalog.add(name, offset)
+        info.size = len(data)
+        fp.write(info.tobuf())
+        fp.write(data)
+        padsize = info.size % BLOCKSIZE
+        if padsize:
+          fp.write('\x00' * (BLOCKSIZE-padsize))
+      finally:
+        fp.close()
+        lock.release()
+    finally:
+      self._dirlock.release()
+    return recno
+    
+  def set_info(self, recno, info):
+    if not self._opened:
+      raise TarDB.FileError('set_info: not opened: %r' % self)
+    try:
+      (name, offset) = self._catalog.get(recno)
+    except Catalog.InvalidRecord:
+      raise TarDB.InvalidRecord(recno)
+    lock = FileLock(os.path.join(self.basedir, name+'.tar'))
+    try:
+      fp = lock.acquire_open('r+b')
+    except FileLock.Failed, e:
+      raise TarDB.LockError(e)
+    fp.seek(offset)
+    fp.write(info.tobuf())
+    fp.close()
+    lock.release()
+    return
+
+  def _get_fp(self, name):
     if name not in self._tarfps:
       fname = os.path.join(self.basedir, name)+'.tar'
-      if os.path.exists(fname):
-        tarfp = open(fname, self.mode+'b')
-      else:
-        # new tar file
-        tarfp = open(fname, 'w+b')
-      self._tarfps[name] = tarfp
+      fp = open(fname, 'rb')
+      self._tarfps[name] = fp
     else:
-      tarfp = self._tarfps[name]
-    return tarfp
+      fp = self._tarfps[name]
+    return fp
+  
+  def get_record(self, recno):
+    if not self._opened:
+      raise TarDB.FileError('get_record: not opened: %r' % self)
+    try:
+      (name, offset) = self._catalog.get(recno)
+    except Catalog.InvalidRecord:
+      raise TarDB.InvalidRecord(recno)
+    fp = self._get_fp(name)
+    fp.seek(offset)
+    buf = fp.read(BLOCKSIZE)
+    if len(buf) != BLOCKSIZE:
+      raise TarDB.Corrupted('get_record: premature eof info: %r, recno=%d, info_offset=%d' %
+                            (self, recno, offset))
+    try:
+      info = TarInfo.frombuf(buf)
+    except ValueError:
+      raise TarDB.Corrupted('get_record: record corrupted: %r, recno=%d, offset=%d' %
+                            (self, recno, offset))
+    data = fp.read(info.size)
+    if len(data) != info.size:
+      raise TarDB.Corrupted('get_record: premature eof data: %r, recno=%d, info_offset=%d' %
+                            (self, recno, offset))
+    return (info, data)
 
   def get_info(self, recno):
-    if not self.mode:
+    if not self._opened:
       raise TarDB.FileError('get_info: not opened: %r' % self)
     try:
       (name, offset) = self._catalog.get(recno)
     except Catalog.InvalidRecord:
       raise TarDB.InvalidRecord(recno)
-    tarfp = self._get_tarfile(name)
-    tarfp.seek(offset)
-    buf = tarfp.read(BLOCKSIZE)
+    fp = self._get_fp(name)
+    fp.seek(offset)
+    buf = fp.read(BLOCKSIZE)
     if len(buf) != BLOCKSIZE:
       raise TarDB.Corrupted('get_info: premature eof in info block: %r, recno=%d, info_offset=%d' %
                             (self, recno, offset))
@@ -324,92 +413,30 @@ class TarDB(object):
     except ValueError:
       raise TarDB.Corrupted('get_info: tar record corrupted: %r, recno=%d, info_offset=%d' %
                             (self, recno, offset))
-    
-  def set_info(self, recno, info):
-    if not self.mode:
-      raise TarDB.FileError('change_info: not opened: %r' % self)
-    if self.mode != 'r+':
-      raise TarDB.FileError('add_record: invalid mode: %r' % self)
-    try:
-      (name, offset) = self._catalog.get(recno)
-    except Catalog.InvalidRecord:
-      raise TarDB.InvalidRecord(recno)
-    tarfp = self._get_tarfile(name)
-    tarfp.seek(offset)
-    tarfp.write(info.tobuf())
-    return
 
   def __len__(self):
-    if not self.mode:
+    if not self._opened:
       raise TarDB.FileError('__len__: not opened: %r' % self)
     return len(self._catalog)
-    
-  def __getitem__(self, recno):
-    if not self.mode:
-      raise TarDB.FileError('__getitem__: not opened: %r' % self)
-    return self.get_info(recno)
-
-  def __setitem__(self, recno, info):
-    if not self.mode:
-      raise TarDB.FileError('__setitem__: not opened: %r' % self)
-    return self.set_info(recno, info)
 
   def __iter__(self):
-    if not self.mode:
+    if not self._opened:
       raise TarDB.FileError('__iter__: not opened: %r' % self)
     for recno in xrange(len(self._catalog)):
       yield self.get_info(recno)
     return
-  
-  def get_record(self, recno):
-    if not self.mode:
-      raise TarDB.FileError('get_record: not opened: %r' % self)
-    try:
-      (name, offset) = self._catalog.get(recno)
-    except Catalog.InvalidRecord:
-      raise TarDB.InvalidRecord(recno)
-    tarfp = self._get_tarfile(name)
-    tarfp.seek(offset)
-    buf = tarfp.read(BLOCKSIZE)
-    if len(buf) != BLOCKSIZE:
-      raise TarDB.Corrupted('get_record: premature eof in info block: %r, recno=%d, info_offset=%d' % (self, recno, offset))
-    try:
-      info = TarInfo.frombuf(buf)
-    except ValueError:
-      raise TarDB.Corrupted('get_record: tar record corrupted: %r, recno=%d, offset=%d' % (self, recno, offset))
-    data = tarfp.read(info.size)
-    if len(data) != info.size:
-      raise TarDB.Corrupted('get_record: premature eof in data block: %r, recno=%d, info_offset=%d' % (self, recno, offset))
-    return (info, data)
+    
+  def __getitem__(self, recno):
+    return self.get_info(recno)
 
-  def add_record(self, info, data):
-    if not self.mode:
-      raise TarDB.FileError('add_record: not opened: %r' % self)
-    if self.mode != 'r+':
-      raise TarDB.FileError('add_record: invalid mode: %r' % self)
-    while 1:
-      tarfp = self._get_tarfile(self._curname)
-      tarfp.seek(0, 2)
-      offset = tarfp.tell()
-      if offset < self.maxsize: break
-      i = self.tarname_index(self._curname)
-      self._curname = self.generate_tarname(i+1)
-    if offset % BLOCKSIZE != 0:
-      raise TarDB.Corrupted('add_record: invalid tar size: %r: info_offset=%d' % (self, offset))
-    recno = self._catalog.add(self._curname, offset)
-    info.size = len(data)
-    tarfp.write(info.tobuf())
-    tarfp.write(data)
-    padsize = info.size % BLOCKSIZE
-    if padsize:
-      tarfp.write('\x00' * (BLOCKSIZE-padsize))
-    return recno
+  def __setitem__(self, recno, info):
+    return self.set_info(recno, info)
 
 
 # unittests
 if 0:
   import unittest
-  dirname = './tardbtest/'
+  dirname = './test_tardb/'
   class TarDBTest(unittest.TestCase):
     
     def setUp(self):
@@ -420,7 +447,7 @@ if 0:
       
     def test_basic(self):
       # writing
-      db = TarDB(dirname).open('r+')
+      db = TarDB(dirname).open()
       data_foo = '123'
       data_bar = 'ABCDEF'
       db.add_record(TarInfo('foo'), data_foo)
@@ -433,7 +460,7 @@ if 0:
       self.assertTrue('lock' in files)
       self.assertTrue('db00000.tar' in files)
       # reading
-      db = TarDB(dirname).open('r')
+      db = TarDB(dirname).open()
       (info1, data1) = db.get_record(0)
       self.assertEqual(data1, data_foo)
       self.assertEqual(len(data1), info1.size)
@@ -450,7 +477,7 @@ if 0:
     
     def test_split_tarfiles(self):
       # writing
-      db = TarDB(dirname, maxsize=2048).open('r+')
+      db = TarDB(dirname, maxsize=2048).open()
       data_foo = '123'
       data_bar = 'ABCDEF'
       data_zzz = '!@#$%$'
@@ -466,7 +493,7 @@ if 0:
       self.assertTrue('db00000.tar' in files)
       self.assertTrue('db00001.tar' in files)
       # reading
-      db = TarDB(dirname).open('r')
+      db = TarDB(dirname).open()
       (info1, data1) = db.get_record(0)
       self.assertEqual(data1, data_foo)
       self.assertEqual(len(data1), info1.size)
@@ -487,7 +514,7 @@ if 0:
     
     def test_change_info(self):
       # writing
-      db = TarDB(dirname).open('r+')
+      db = TarDB(dirname).open()
       data_foo = '123'
       mtime = 12345
       info = TarInfo('foo')
@@ -495,7 +522,7 @@ if 0:
       db.add_record(info, data_foo)
       db.close()
       # reading
-      db = TarDB(dirname).open('r+')
+      db = TarDB(dirname).open()
       info = db[0]
       self.assertEqual(info.mtime, mtime)
       db[0] = info
@@ -503,18 +530,20 @@ if 0:
       return
     
     def test_failure(self):
-      # opening failure
+      # cannot open
       self.assertRaises(TarDB.FileError, lambda : TarDB('fungea').open())
-      # writing failure
-      db = TarDB(dirname).open('r')
+      # not opened
+      db = TarDB(dirname)
       self.assertRaises(TarDB.FileError, lambda : db.add_record(TarInfo('foo'), '123'))
+      # invalid record
+      db.open()
       self.assertRaises(TarDB.InvalidRecord, lambda : db.get_record(0))
       db.close()
       return
     
     def test_tar_compatibility(self):
       # writing
-      db = TarDB(dirname).open('r+')
+      db = TarDB(dirname).open()
       data_foo = '123'
       mtime = 12345
       info = TarInfo('foo')
@@ -534,17 +563,13 @@ if 0:
 
     def test_lock(self):
       # opening multiple tars
-      db1 = TarDB(dirname).open('r+')
-      db2 = TarDB(dirname).open('r')
-      self.assertRaises(TarDB.LockError, lambda : TarDB(dirname).open('r+'))
-      files = os.listdir(dirname)
-      self.assertTrue('lock' not in files)
-      self.assertTrue('lock.locked' in files)
-      db1.close()
-      db2.close()
+      db1 = TarDB(dirname).open()
+      db2 = TarDB(dirname).open()
       files = os.listdir(dirname)
       self.assertTrue('lock' in files)
       self.assertTrue('lock.locked' not in files)
+      db1.close()
+      db2.close()
       return
     
     def tearDown(self):
@@ -555,6 +580,7 @@ if 0:
       return
 
   unittest.main()
+  assert 0, 'not reached'
 
 def main(argv):
   import getopt, locale
@@ -575,27 +601,27 @@ def main(argv):
     db.create()
     return
   if cmd == 'ls':
-    db.open('r')
+    db.open()
     for (i,info) in enumerate(db):
       print i,info
   elif cmd == 'get':
     recno = int(args.pop(0))
-    db.open('r')
+    db.open()
     data = db.get_record(recno)
     sys.stdout.write(data)
   elif cmd == 'add':
-    db.open('r+')
+    db.open()
     name = args.pop(0)
     data = open(args.pop(0), 'rb').read()
     db.add_record(TarInfo(name), data)
   elif cmd == 'getinfo':
     recno = int(args.pop(0))
-    db.open('r')
+    db.open()
     info = db.get_info(recno)
     print info
   elif cmd == 'setinfo':
     recno = int(args.pop(0))
-    db.open('r')
+    db.open()
     info = db.get_info(recno)
     info.name = args.pop(0)
     db.set_info(recno, info)

@@ -24,7 +24,7 @@ __all__ = [
 ##
 class Corpus(object):
 
-  def __init__(self, default_doctype, default_encoding, default_indexstyle):
+  def __init__(self, default_doctype, default_encoding, default_indexstyle=None):
     # doctype and encoding can depend on a location,
     # but if not, the default type and encoding are used.
     self.default_doctype = default_doctype
@@ -35,15 +35,6 @@ class Corpus(object):
   def __repr__(self):
     return ('<Corpus: default_doctype=%r, default_encoding=%r>' % \
             (self.default_doctype, self.default_encoding))
-
-  # When you want to make sure a Corpus object as a singleton,
-  # unpickling two Selection objects might end up with
-  # two distinct Corpus objects. To prevent this, when
-  # a Corpus object is unpickled, this method is called
-  # on a "stub" Corpus object and it returns the "real"
-  # singleton Corpus object.
-  def _get_singleton(self):
-    return self
 
   # (overridable)
   def open(self, mode='r'):
@@ -109,7 +100,7 @@ class Corpus(object):
 ##
 class FilesystemCorpus(Corpus):
 
-  def __init__(self, basedir, doctype, encoding, indexstyle):
+  def __init__(self, basedir, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
     return
@@ -147,7 +138,7 @@ class FilesystemCorpusWithDefaultTitle(FilesystemCorpus):
 ##
 class BerkeleyDBCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype, encoding, indexstyle):
+  def __init__(self, dbfile, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
     return
@@ -191,7 +182,7 @@ class BerkeleyDBCorpus(Corpus):
 ##
 class CDBCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype, encoding, indexstyle):
+  def __init__(self, dbfile, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
     return
@@ -236,7 +227,7 @@ class CDBCorpus(Corpus):
 ##
 class SQLiteCorpus(Corpus):
   
-  def __init__(self, dbfile, doctype, encoding, indexstyle,
+  def __init__(self, dbfile, doctype, encoding, indexstyle=None,
                table='documents', key='docid', text='doctext', mtime='mtime'):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
@@ -294,12 +285,15 @@ class TarDBCorpus(Corpus):
   SMALL_MERGE = 20
   LARGE_MERGE = 2000
   
-  def __init__(self, basedir, doctype, encoding, indexstyle, labelchars=16):
+  def __init__(self, basedir, doctype, encoding, indexstyle=None, labelchars=16):
+    if not os.path.exists(basedir):
+      os.makedirs(basedir)
+    if not os.path.isdir(basedir):
+      raise TypeError('not directory: %r', basedir)
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
     self.labelchars = labelchars
     self._db = None
-    self._loctoindex = set()
     return
   
   def __repr__(self):
@@ -315,16 +309,21 @@ class TarDBCorpus(Corpus):
     Corpus.__setstate__(self, dict)
     return
 
-  def open(self, mode='r'):
+  def open(self, _='r'):
+    assert self._db == None
     import tardb
-    self._loctoindex.clear()
     self._db = tardb.TarDB(self.basedir)
-    self._db.open(mode)
+    self._db.open()
     return
 
   def close(self):
-    self.flush()
+    assert self._db != None
     self._db.close()
+    return
+
+  def create(self):
+    import tardb
+    tardb.TarDB(self.basedir).create()
     return
 
   def get_recno(self, loc):
@@ -336,7 +335,6 @@ class TarDBCorpus(Corpus):
 
   def set_loc_info(self, loc, info):
     recno = self.get_recno(loc)
-    self._loctoindex.add(recno)
     return self._db.set_info(recno, info)
 
   def loc_exists(self, loc):
@@ -356,23 +354,11 @@ class TarDBCorpus(Corpus):
     info = self.get_loc_info(loc)
     return info.size
 
-  def flush(self, verbose=False, threshold=100, cleanup=True):
-    from fooling.indexer import Indexer
-    from fooling.merger import Merger
-    indexer = Indexer(self, verbose=verbose)
-    for recno in self._loctoindex:
-      indexer.index_doc(str(recno))
-    indexer.finish()
-    self._loctoindex.clear()
-    Merger(self, max_docs_threshold=threshold).run(cleanup=cleanup)
-    return
-
   def get_doc(self, loc):
     return self.default_doctype(self, loc)
   
   def add_doc(self, info, data, mtime=None, labels=None):
     recno = self._db.add_record(info, data)
-    self._loctoindex.add(recno)
     return str(recno)
 
   def get_labels(self, loc):
@@ -409,11 +395,11 @@ class GzipTarDBCorpus(TarDBCorpus):
   
   def loc_fp(self, loc):
     from gzip import GzipFile
-    return GzipFile(fileobj=TarDBCorpus.loc_fp(loc))
+    return GzipFile(fileobj=TarDBCorpus.loc_fp(self, loc))
 
   def add_doc(self, info, data):
     from gzip import GzipFile
-    fp = StringIO(data)
+    fp = StringIO()
     gz = GzipFile(mode='w', fileobj=fp)
     gz.write(data)
     gz.close()
