@@ -5,6 +5,7 @@ __version__ = '20081207'
 __all__ = [
   'corpus',
   'document',
+  'indexdb',
   'indexer',
   'merger',
   'selection'
