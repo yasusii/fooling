@@ -6,9 +6,9 @@
 import sys, time
 from struct import pack
 from array import array
-from util import encode_array, zen2han, rmsp, \
+from fooling.util import encode_array, zen2han, rmsp, \
      PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
-from indexdb import IndexDB
+from fooling.indexdb import IndexDB
 stderr = sys.stderr
 
 
@@ -165,7 +165,7 @@ class Indexer(object):
 ##
 def index(argv):
   import getopt, locale
-  import document, corpus
+  from fooling import document, corpus
   def usage():
     print 'usage: %s [-v] [-F|-N|-R] [-Y] [-b basedir] [-p prefix] [-c corpustype] [-t doctype] [-e encoding] [-D maxdocs] [-T maxterms] idxdir [file ...]' % argv[0]
     sys.exit(2)
@@ -202,6 +202,11 @@ def index(argv):
   corpus = corpustype(basedir, doctype, encoding, indexstyle)
   corpus.open()
   indexdb = IndexDB(idxdir, prefix)
+  try:
+    indexdb.create()
+  except IndexDB.IndexDBError:
+    pass
+  indexdb.open()
   if mode == 3:
     indexdb.reset()
   indexer = Indexer(indexdb, corpus, maxdocs, maxterms, verbose=verbose)
@@ -216,8 +221,8 @@ def index(argv):
   for fname in files:
     fname = fname.strip()
     if not corpus.loc_exists(fname): continue
-    if (mode == 2) and corpus.loc_indexed(fname): continue
     if (mode == 0) and corpus.loc_mtime(fname) < lastmod: continue
+    if (mode == 2) and indexdb.loc_indexed(fname): continue
     indexer.index_loc(fname)
 
   indexer.finish()

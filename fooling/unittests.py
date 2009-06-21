@@ -2,8 +2,8 @@
 # -*- coding: euc-jp -*-
 
 import sys, unittest
-from util import dispw, zen2han, isplit, rsplit, intersect, union, merge
-from htmlripper import HTMLRipper
+from fooling.util import dispw, zen2han, isplit, rsplit, intersect, union, merge
+from fooling.htmlripper import HTMLRipper
 stderr = sys.stderr
 
 

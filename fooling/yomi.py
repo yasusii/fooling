@@ -6,7 +6,7 @@
 
 import sys, re
 from os.path import join, dirname
-import pycdb
+from fooling import pycdb
 stdout = sys.stdout
 stderr = sys.stderr
 

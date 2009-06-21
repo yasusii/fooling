@@ -4,8 +4,8 @@
 ##
 
 import sys, os, os.path, stat, re
-import pycdb as cdb
-from util import idx_info, idx_docid2info, idx_loc2docid
+import fooling.pycdb as cdb
+from fooling.util import idx_info, idx_docid2info, idx_loc2docid
 
 
 __all__ = [
@@ -16,6 +16,8 @@ __all__ = [
 ##  IndexDB
 ##
 class IndexDB(object):
+
+  class IndexDBError(Exception): pass
 
   # Index filename pattern: "xxxNNNNN.cdb"
   IDX_PAT = re.compile(r'^...\d{5}\.cdb$')
@@ -32,20 +34,35 @@ class IndexDB(object):
     return idx
 
   def __init__(self, idxdir, prefix=''):
-    if not os.path.exists(idxdir):
-      os.makedirs(idxdir)
-    if not os.path.isdir(idxdir):
-      raise TypeError('not directory: %r' % idxdir)
     self.idxdir = idxdir
     self.prefix = prefix
-    # mtime: index modification time.
-    self.mtime = 0
-    # All index filenames are grobbed and sorted initially.
-    self.refresh()
+    self.reset()
     return
 
   def __repr__(self):
     return '<IndexDB: idxdir=%r, prefix=%r>' % (self.idxdir, self.prefix)
+
+  # Resets the internal list and ignore all the existing index files.
+  def reset(self):
+    self.mtime = 0
+    self.idxs = []
+    return
+
+  def open(self):
+    # All index filenames are grobbed and sorted initially.
+    self.refresh()
+    return
+
+  def close(self):
+    self.reset()
+    return
+
+  def create(self):
+    try:
+      os.makedirs(self.idxdir)
+    except OSError:
+      raise IndexDB.IndexDBError('cannot create directory: %r' % self.idxdir)
+    return
 
   # (Internal) Returns a new cdb name.
   def gen_idx_fname(self, idxid):
@@ -74,11 +91,6 @@ class IndexDB(object):
                          reverse=True)
     if self.idxs:
       self.mtime = os.stat(os.path.join(self.idxdir, self.idxs[0]))[stat.ST_MTIME]
-    return
-
-  # Resets the internal list and ignore all the existing index files.
-  def reset(self):
-    self.idxs = []
     return
 
   # Returns the modification time of the indices.

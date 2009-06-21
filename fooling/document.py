@@ -4,7 +4,7 @@
 ##
 
 import sys, re, codecs
-from util import idatefeats, EOS_PAT_PLAIN
+from fooling.util import idatefeats, EOS_PAT_PLAIN
 try:
   from cStringIO import StringIO
 except ImportError:

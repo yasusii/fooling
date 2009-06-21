@@ -6,19 +6,3 @@ See docs/index.html.
 # todo: support more document types
 
 * bug: suspicious memory leak in indexing?
-
-tarcms api:
-
-db = TarCMS()
-db.create()
-db.open()
-artid = db.new_article(type='a')
-snapid = db.modify_content(artid, data)
-snapid = db.get_snapshot(artid, mtime)
-db.find_article(query)
-db.find_snapshot(query)
-db.get_strand_by_artid(artid)
-db.get_strand_by_snapid(snapid)
-db.set_label(artid, labels)
-db.get_label(artid, labels)
-db.close()
