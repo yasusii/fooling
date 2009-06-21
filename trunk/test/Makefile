@@ -1,14 +1,14 @@
 # Makefile
 
 FOOLING=..
-PYTHON=python -E
+PYTHON=PYTHONPATH=$(FOOLING) python
 CMP=cmp
 
-INDEX=$(PYTHON) $(FOOLING)/fooling/indexer.py -e euc-jp -F
-SEARCH=$(PYTHON) $(FOOLING)/fooling/selection.py -e euc-jp
-MERGE=$(PYTHON) $(FOOLING)/fooling/merger.py
-TARDB=$(PYTHON) $(FOOLING)/fooling/tardb.py
-DUMPIDX=$(PYTHON) $(FOOLING)/tools/dumpidx.py
+INDEX=$(PYTHON) -m fooling.indexer -e euc-jp -F
+SEARCH=$(PYTHON) -m fooling.selection -e euc-jp
+MERGE=$(PYTHON) -m fooling.merger
+TARDB=$(PYTHON) -m fooling.tardb
+DUMPIDX=$(PYTHON) -m tools.dumpidx
 
 # Automated tests:
 
@@ -117,10 +117,10 @@ search_html: html1.result html2.result html3.result html4.result \
 
 email: clean_email index_email search_email
 
-email1.txt email2.txt email3.txt: make_messages.py
-	$(PYTHON) make_messages.py email1.txt email2.txt email3.txt
-ccc00000.cdb: email1.txt email2.txt email3.txt
-	$(INDEX) -tEMailDocument -pccc ./ email1.txt email2.txt email3.txt
+email1.msg email2.msg email3.msg: make_messages.py
+	$(PYTHON) make_messages.py email1.msg email2.msg email3.msg
+ccc00000.cdb: email1.msg email2.msg email3.msg
+	$(INDEX) -tEMailDocument -pccc ./ email1.msg email2.msg email3.msg
 ccc00000.dump: ccc00000.cdb
 	$(DUMPIDX) ccc00000.cdb > ccc00000.dump
 ccc00000.test: ccc00000.dump ccc00000.dump.src
@@ -161,7 +161,7 @@ attach.test: attach.result attach.result.src
 
 clean_email:
 	-rm ccc00000.cdb ccc00000.dump
-	-rm email1.txt email2.txt email3.txt
+	-rm email1.msg email2.msg email3.msg
 	-rm email*.result
 	-rm header.result html.result attach.result
 index_email: ccc00000.test	
@@ -207,7 +207,6 @@ search_plainyomi: plainyomi1.test plainyomi2.test plainyomi3.test plainyomi4.tes
 tardb: clean_tardb index_tardb search_tardb
 
 testdb: plaintext1.txt
-	mkdir testdb
 	$(TARDB) create testdb
 	$(TARDB) add testdb foo plaintext1.txt
 

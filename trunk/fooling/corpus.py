@@ -3,17 +3,25 @@
 ##  corpus.py
 ##
 
-import sys, os, os.path, stat
+import sys, os, os.path, stat, re
 try:
   from cStringIO import StringIO
 except ImportError:
   from StringIO import StringIO
-
+from fooling.document import PlainTextDocument, EMailDocument, HTMLDocument
 
 __all__ = [
   'Corpus', 'FilesystemCorpus', 'BerkeleyDBCorpus',
   'CDBCorpus', 'SQLiteCorpus', 'TarDBCorpus', 'GzipTarDBCorpus'
   ]
+
+
+DOCTYPE_MAP = {
+  '.txt': PlainTextDocument,
+  '.msg': EMailDocument,
+  '.html': HTMLDocument,
+  '.htm': HTMLDocument,
+  }
 
 
 ##  Corpus (abstract)
@@ -109,6 +117,14 @@ class FilesystemCorpus(Corpus):
     return '<FilesystemCorpus: basedir=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.basedir, self.default_doctype, self.default_encoding)
 
+  # Returns a Document object for the location.
+  def get_doc(self, loc):
+    (_, ext) = os.path.splitext(loc)
+    if ext in DOCTYPE_MAP:
+      return DOCTYPE_MAP[ext](self, loc)
+    else:
+      return self.default_doctype(self, loc)
+  
   # Returns if the given document exists.
   def loc_exists(self, loc):
     return os.path.exists(os.path.join(self.basedir, loc))
@@ -285,14 +301,9 @@ class TarDBCorpus(Corpus):
   SMALL_MERGE = 20
   LARGE_MERGE = 2000
   
-  def __init__(self, basedir, doctype, encoding, indexstyle=None, labelchars=16):
-    if not os.path.exists(basedir):
-      os.makedirs(basedir)
-    if not os.path.isdir(basedir):
-      raise TypeError('not directory: %r', basedir)
+  def __init__(self, basedir, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
-    self.labelchars = labelchars
     self._db = None
     return
   
@@ -309,11 +320,11 @@ class TarDBCorpus(Corpus):
     Corpus.__setstate__(self, dict)
     return
 
-  def open(self, _='r'):
+  def open(self, mode='r'):
     assert self._db == None
     import tardb
     self._db = tardb.TarDB(self.basedir)
-    self._db.open()
+    self._db.open(mode=mode)
     return
 
   def close(self):
@@ -355,17 +366,42 @@ class TarDBCorpus(Corpus):
     return info.size
 
   def get_doc(self, loc):
+    name = self.get_loc_info(loc).name
+    try:
+      i = name.rindex('.')
+      ext = name[i:]
+      return DOCTYPE_MAP[ext](self, loc)
+    except (KeyError, ValueError):
+      pass
     return self.default_doctype(self, loc)
   
-  def add_doc(self, info, data, mtime=None, labels=None):
-    recno = self._db.add_record(info, data)
-    return str(recno)
+  def add_doc(self, data, name, mtime=0, labels=None):
+    from tarfile import TarInfo
+    loc = '%08x' % self._db.nextrecno()
+    info = TarInfo('%s.%s.%s' % (loc, self.label2char(labels), name))
+    info.mtime = mtime
+    self._db.add_record(info, data)
+    return loc
 
+  LABEL_PAT = re.compile(r'^([^.]*)\.([^.]*)\.(.*)$')
   def get_labels(self, loc):
+    m = self.LABEL_PAT.match(self.get_loc_info(loc).name)
+    if not m: return None
+    return self.char2label(m.group(2))
+
+  def set_labels(self, loc, labels):
+    info = self.get_loc_info(loc)
+    m = self.LABEL_PAT.match(info.name)
+    if not m: return
+    info.name = '%s.%s.%s' % (m.group(1), self.label2char(labels), m.group(3))
+    self.set_loc_info(loc, info)
+    return
+
+  @classmethod
+  def char2label(klass, chars):
     labels = set()
-    chars = self.get_loc_info(loc).name[:self.labelchars]
     i = 0
-    for c in reversed(chars):
+    for c in chars:
       c = int(c,16)
       for n in (1,2,4,8):
         if c & n:
@@ -373,20 +409,18 @@ class TarDBCorpus(Corpus):
         i += 1
     return labels
 
-  def set_labels(self, loc, labels):
-    info = self.get_loc_info(loc)
+  @classmethod
+  def label2char(klass, labels):
     chars = ''
-    i = 0
-    for _ in xrange(self.labelchars):
-      c = 0
-      for n in (1,2,4,8):
-        if i in labels:
-          c += n
-      chars += hex(c)
-    assert len(chars) == self.labelchars
-    info.name[:self.labelchars] = chars
-    self.set_loc_info(loc, info)
-    return
+    if labels:
+      i = 0
+      for _ in xrange(max(labels)):
+        c = 0
+        for n in (1,2,4,8):
+          if i in labels:
+            c += n
+        chars += hex(c)
+    return chars
 
 
 ##  GzipTarDBCorpus
@@ -397,10 +431,22 @@ class GzipTarDBCorpus(TarDBCorpus):
     from gzip import GzipFile
     return GzipFile(fileobj=TarDBCorpus.loc_fp(self, loc))
 
-  def add_doc(self, info, data):
+  def get_doc(self, loc):
+    name = self.get_loc_info(loc).name
+    if name.endswith('.gz'):
+      name = name[:-3]
+    try:
+      i = name.rindex('.')
+      ext = name[i:]
+      return DOCTYPE_MAP[ext](self, loc)
+    except (KeyError, ValueError):
+      pass
+    return self.default_doctype(self, loc)
+  
+  def add_doc(self, data, ext, mtime=0, labels=None):
     from gzip import GzipFile
     fp = StringIO()
     gz = GzipFile(mode='w', fileobj=fp)
     gz.write(data)
     gz.close()
-    return TarDBCorpus.add_doc(self, info, fp.getvalue())
+    return TarDBCorpus.add_doc(self, fp.getvalue(), ext+'.gz', mtime=mtime, labels=labels)

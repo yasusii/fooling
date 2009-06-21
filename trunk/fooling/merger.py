@@ -4,11 +4,11 @@
 ##
 
 import sys, os, os.path
-import pycdb as cdb
-from util import encode_array, decode_array, idx_info, \
-     PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 from array import array
 from struct import pack, unpack
+import fooling.pycdb as cdb
+from fooling.util import encode_array, decode_array, idx_info, \
+     PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 stderr = sys.stderr
 
 
@@ -49,7 +49,6 @@ class IndexFile(object):
     #assert self.ndocs == len(oldids), (self.ndocs, oldids)
     for (loc,oldid) in oldids.iteritems():
       newid = len(newids)
-      print >>stderr, 'assign:', (loc, oldid, newid)
       newids[loc] = newid
       self.old2new[oldid] = newid
     return
@@ -227,7 +226,7 @@ class Merger(object):
 ##
 def merge(argv):
   import getopt
-  from indexdb import IndexDB
+  from fooling.indexdb import IndexDB
   def usage():
     print 'usage: %s [-v] [-p prefix] [-D maxdocs] [-T maxterms] idxdir' % argv[0]
     sys.exit(2)
@@ -245,6 +244,7 @@ def merge(argv):
   assert len(prefix) == 3
   idxdir = args[0]
   indexdb = IndexDB(idxdir, prefix)
+  indexdb.open()
   Merger(indexdb, max_docs_threshold, max_terms_threshold, verbose).run()
   return
 

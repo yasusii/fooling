@@ -36,7 +36,7 @@ dict/pubdic.txt:
 test: unittest searchtest
 
 unittest:
-	cd fooling; ./unittests.py
+	python -m fooling.unittests
 
 searchtest: dict
 	cd test; make test

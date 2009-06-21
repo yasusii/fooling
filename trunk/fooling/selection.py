@@ -4,11 +4,11 @@
 ##
 
 import sys, re
-from util import zen2han, rsplit, encodew, encodey
-from util import splitchars, rdatefeats, lowerbound
-from util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2info
 from struct import pack, unpack
 from array import array
+from fooling.util import zen2han, rsplit, encodew, encodey
+from fooling.util import splitchars, rdatefeats, lowerbound
+from fooling.util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2info
 
 __all__ = [
   'Predicate',
@@ -196,7 +196,7 @@ class YomiMixin(object):
     return '{%s}' % self.q
 
   def setup_keyword(self, s):
-    import romm, yomi
+    from fooling import romm, yomi
     morae = romm.PARSE_DEFAULT.parse(s)
     q = ''.join( unicode(m) for m in morae if isinstance(m, romm.Mora) )
     y = yomi.canonicalize_yomi(yomi.encode_yomi(q))
@@ -662,7 +662,7 @@ class DummySelection(object):
 
 # Returns True if the given string can be yomi-keyword.
 def canbe_yomi(s):
-  import romm
+  from fooling import romm
   if s.startswith('.'): return False
   for m in romm.PARSE_DEFAULT.parse(s):
     if not isinstance(m, romm.Mora): return False
@@ -733,8 +733,8 @@ def load_selection(fname):
 
 def search(argv):
   import getopt, locale, time
-  import document
-  from indexdb import IndexDB
+  from fooling import document
+  from fooling.indexdb import IndexDB
   def usage():
     print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] [-a] '
            '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '
@@ -779,6 +779,7 @@ def search(argv):
     idxdir = args[0]
     keywords = args[1:]
     indexdb = IndexDB(idxdir, prefix)
+    indexdb.open()
     preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
     selection = Selection(indexdb, preds, safe=safe, disjunctive=disjunctive)
     try:
