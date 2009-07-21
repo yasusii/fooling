@@ -127,6 +127,11 @@ class FileLock(object):
         self._locked = False
     return
   
+  def flush(self):
+    if self._fp:
+      self._fp.flush()
+    return
+
   def _emerge(self):
     if self._fp:
       print >>sys.stderr, 'Emergency close: %d: %r' % (os.getpid(), self.fname)
@@ -199,6 +204,10 @@ class FixedDB(FileLock):
   def close(self):
     FileLock.close(self)
     self._cache.clear()
+    return
+
+  def flush(self):
+    self._fp.flush()
     return
     
   def nextrecno(self):
@@ -319,6 +328,13 @@ class TarDB(object):
       self._mode = None
     return
 
+  def flush(self):
+    if self._mode:
+      for fp in self._tarfps.itervalues():
+        fp.flush()
+      self._catalog.flush()
+    return
+    
   def _get_fp(self, name):
     if name not in self._tarfps:
       fp = FileLock(os.path.join(self.basedir, name)+'.tar')

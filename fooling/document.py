@@ -31,7 +31,7 @@ def splitterms_yomi(s):
   return
 
 
-##  Document (abstract)
+##  Document
 ##
 ##  A Document represents a indexable document.
 ##  It does not necessarily contain actual data, but must be
@@ -41,7 +41,6 @@ def splitterms_yomi(s):
 ##
 class Document(object):
 
-  # Document.__init__ must immediately return!
   def __init__(self, corpus, loc):
     self.corpus = corpus
     self.loc = loc
@@ -78,8 +77,16 @@ class Document(object):
   # (overridable)
   # Returns a list (or generator) of all sentences.
   def get_sents(self):
-    raise NotImplementedError
+    return []
   
+
+##  DummyDocument
+##
+class DummyDocument(Document):
+
+  def __repr__(self):
+    return '<DummyDocument: %r>' % self.loc
+
 
 ##  PlainTextDocument
 ##

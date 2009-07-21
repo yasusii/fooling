@@ -118,7 +118,7 @@ class Indexer(object):
   # Build a cdb file.
   def flush(self):
     if not self.docinfo: return
-    assert self.maker
+    assert self.maker != None
     t0 = time.time()
     # All keys must be lexically sorted except the last one.
     # DocID -> Document.

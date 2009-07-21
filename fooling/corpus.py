@@ -3,12 +3,12 @@
 ##  corpus.py
 ##
 
-import sys, os, os.path, stat, re
+import sys, os, os.path, stat
 try:
   from cStringIO import StringIO
 except ImportError:
   from StringIO import StringIO
-from fooling.document import PlainTextDocument, EMailDocument, HTMLDocument
+from fooling.document import PlainTextDocument, EMailDocument, HTMLDocument, DummyDocument
 
 __all__ = [
   'Corpus', 'FilesystemCorpus', 'BerkeleyDBCorpus',
@@ -21,6 +21,11 @@ DOCTYPE_MAP = {
   '.msg': EMailDocument,
   '.html': HTMLDocument,
   '.htm': HTMLDocument,
+  '.jpeg': DummyDocument,
+  '.jpg': DummyDocument,
+  '.gif': DummyDocument,
+  '.png': DummyDocument,
+  '.pdf': DummyDocument,
   }
 
 
@@ -300,10 +305,12 @@ class TarDBCorpus(Corpus):
 
   SMALL_MERGE = 20
   LARGE_MERGE = 2000
+  SUFFIX = ''
   
-  def __init__(self, basedir, doctype, encoding, indexstyle=None):
+  def __init__(self, basedir, doctype, encoding, indexstyle=None, namelen=0):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
+    self.namelen = namelen
     self._db = None
     return
   
@@ -332,13 +339,17 @@ class TarDBCorpus(Corpus):
     self._db.close()
     return
 
+  def flush(self):
+    self._db.flush()
+    return
+
   def create(self):
     import tardb
     tardb.TarDB(self.basedir).create()
     return
 
   def get_recno(self, loc):
-    return int(loc)
+    return int(loc, 16)
   
   def get_loc_info(self, loc):
     recno = self.get_recno(loc)
@@ -347,6 +358,15 @@ class TarDBCorpus(Corpus):
   def set_loc_info(self, loc, info):
     recno = self.get_recno(loc)
     return self._db.set_info(recno, info)
+
+  def get_loc_name(self, loc):
+    return self.get_loc_info(loc).name
+  
+  def set_loc_name(self, loc, name):
+    info = self.get_loc_info(loc)
+    info.name = name
+    self.set_loc_info(loc, info)
+    return
 
   def loc_exists(self, loc):
     recno = self.get_recno(loc)
@@ -365,88 +385,83 @@ class TarDBCorpus(Corpus):
     info = self.get_loc_info(loc)
     return info.size
 
+  def get_ext(self, loc):
+    return self.get_loc_name(loc)[self.namelen:self.namelen+3]
+
+  def get_name(self, loc):
+    return self.get_loc_name(loc)[:self.namelen]
+
   def get_doc(self, loc):
-    name = self.get_loc_info(loc).name
+    ext = self.get_ext(loc)
     try:
-      i = name.rindex('.')
-      ext = name[i:]
       return DOCTYPE_MAP[ext](self, loc)
-    except (KeyError, ValueError):
-      pass
-    return self.default_doctype(self, loc)
+    except KeyError:
+      return self.default_doctype(self, loc)
   
-  def add_doc(self, data, name, mtime=0, labels=None):
+  def add_data(self, data, name, ext, mtime=0, labels=None):
     from tarfile import TarInfo
+    assert len(name) == self.namelen
+    assert len(ext) == 3
     loc = '%08x' % self._db.nextrecno()
-    info = TarInfo('%s.%s.%s' % (loc, self.label2char(labels), name))
+    info = TarInfo(name+ext+loc+self.label2str(labels)+self.SUFFIX)
     info.mtime = mtime
     self._db.add_record(info, data)
     return loc
 
-  LABEL_PAT = re.compile(r'^([^.]*)\.([^.]*)\.(.*)$')
+  def get_data(self, loc):
+    fp = self.loc_fp(loc)
+    return fp.read()
+
   def get_labels(self, loc):
-    m = self.LABEL_PAT.match(self.get_loc_info(loc).name)
-    if not m: return None
-    return self.char2label(m.group(2))
+    return self.str2label(self.get_loc_name(loc)[self.namelen+11:])
 
   def set_labels(self, loc, labels):
-    info = self.get_loc_info(loc)
-    m = self.LABEL_PAT.match(info.name)
-    if not m: return
-    info.name = '%s.%s.%s' % (m.group(1), self.label2char(labels), m.group(3))
-    self.set_loc_info(loc, info)
+    name = self.get_loc_name(loc)
+    self.set_loc_name(loc, name[:self.namelen+11] + self.label2str(labels))
     return
 
-  @classmethod
-  def char2label(klass, chars):
-    labels = set()
-    i = 0
-    for c in chars:
-      c = int(c,16)
-      for n in (1,2,4,8):
-        if c & n:
-          labels.add(i)
-        i += 1
-    return labels
+  def loc_feats(self, loc):
+    from fooling.util import PROP_LABEL
+    return [ PROP_LABEL+x for x in sorted(self.get_labels(loc)) ]
 
   @classmethod
-  def label2char(klass, labels):
-    chars = ''
+  def str2label(klass, x):
+    if x:
+      return set(x.split('.'))
+    else:
+      return set()
+
+  @classmethod
+  def label2str(klass, labels):
     if labels:
-      i = 0
-      for _ in xrange(max(labels)):
-        c = 0
-        for n in (1,2,4,8):
-          if i in labels:
-            c += n
-        chars += hex(c)
-    return chars
+      return '.'.join(sorted(labels))
+    else:
+      return ''
 
 
 ##  GzipTarDBCorpus
 ##
 class GzipTarDBCorpus(TarDBCorpus):
+
+  SUFFIX = '.gz'
   
   def loc_fp(self, loc):
     from gzip import GzipFile
     return GzipFile(fileobj=TarDBCorpus.loc_fp(self, loc))
 
-  def get_doc(self, loc):
-    name = self.get_loc_info(loc).name
-    if name.endswith('.gz'):
-      name = name[:-3]
-    try:
-      i = name.rindex('.')
-      ext = name[i:]
-      return DOCTYPE_MAP[ext](self, loc)
-    except (KeyError, ValueError):
-      pass
-    return self.default_doctype(self, loc)
-  
-  def add_doc(self, data, ext, mtime=0, labels=None):
+  def add_data(self, data, name, ext, mtime=0, labels=None):
     from gzip import GzipFile
     fp = StringIO()
     gz = GzipFile(mode='w', fileobj=fp)
     gz.write(data)
     gz.close()
-    return TarDBCorpus.add_doc(self, fp.getvalue(), ext+'.gz', mtime=mtime, labels=labels)
+    return TarDBCorpus.add_data(self, fp.getvalue(), name, ext, mtime=mtime, labels=labels)
+
+  def get_loc_name(self, loc):
+    return self.get_loc_info(loc).name[:-3]
+
+  def set_loc_name(self, loc, name):
+    info = self.get_loc_info(loc)
+    info.name = name+'.gz'
+    self.set_loc_info(loc, info)
+    return

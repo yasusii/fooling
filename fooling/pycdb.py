@@ -59,7 +59,7 @@ class CDBReader(object):
     hash0 = decode(self._fp.read(2048))
     self._hash0 = [ (hash0[i], hash0[i+1]) for i in xrange(0, 512, 2) ]
     self._hash1 = [ None ] * 256
-    self._eod = self._hash0[0]
+    (self._eod,_) = self._hash0[0]
     return
 
   def __repr__(self):

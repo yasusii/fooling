@@ -41,6 +41,11 @@ unittest:
 searchtest: dict
 	cd test; make test
 
+cmstest: cmsclean
+	$(PYTHON) fooling/tarcms.py
+cmsclean:
+	-rm -rf ./test.__*
+
 
 # Maintainance:
 
