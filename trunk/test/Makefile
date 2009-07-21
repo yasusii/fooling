@@ -4,11 +4,11 @@ FOOLING=..
 PYTHON=PYTHONPATH=$(FOOLING) python
 CMP=cmp
 
-INDEX=$(PYTHON) -m fooling.indexer -e euc-jp -F
-SEARCH=$(PYTHON) -m fooling.selection -e euc-jp
-MERGE=$(PYTHON) -m fooling.merger
-TARDB=$(PYTHON) -m fooling.tardb
-DUMPIDX=$(PYTHON) -m tools.dumpidx
+INDEX=$(PYTHON) ../fooling/indexer.py -e euc-jp -F
+SEARCH=$(PYTHON) ../fooling/selection.py -e euc-jp
+MERGE=$(PYTHON) ../fooling/merger.py
+TARDB=$(PYTHON) ../fooling/tardb.py
+DUMPIDX=$(PYTHON) ../tools/dumpidx.py
 
 # Automated tests:
 
