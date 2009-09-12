@@ -1,25 +1,30 @@
 # Makefile
 
 PACKAGE=fooling
+PREFIX=/usr/local
+
 PYTHON=python -E
-VERSION=`$(PYTHON) fooling/__init__.py`
-BUILD_DICT=$(PYTHON) ./tools/build_tcdb_dict.py
 TAR=tar
 SVN=svn
+RM=rm -f
+CP=cp -f
 
-WORKDIR=..
-DISTNAME=$(PACKAGE)-dist-$(VERSION)
-DISTFILE=$(DISTNAME).tar.gz
+VERSION=`$(PYTHON) fooling/__init__.py`
+BUILD_DICT=$(PYTHON) ./tools/build_tcdb_dict.py
+DISTFILE=$(PACKAGE)-$(VERSION).tar.gz
 
 all: dict
 
 clean:
-	-cd fooling; rm *.pyc *.pyo *~
-	-cd tools; rm *.pyc *.pyo *~
-	-rm fooling/yomidict.tcdb
-	cd test; make clean
-	cd dict; make clean
+	-$(PYTHON) setup.py clean
+	-$(RM) -r build dist
+	-cd $(PACKAGE) && $(MAKE) clean
+	-cd tools && $(MAKE) clean
+	-cd test && $(MAKE) clean
+	-cd dict && $(MAKE) clean
 
+install:
+	$(PYTHON) setup.py install --prefix=$(PREFIX)
 
 # Dictionary
 
@@ -31,9 +36,9 @@ dict/pubdic.txt:
 	cd dict; make pubdic.txt
 
 
-# Automated testing:
+# Maintainance:
 
-test: unittest searchtest
+check: unittest searchtest
 
 unittest:
 	python -m fooling.unittests
@@ -46,23 +51,13 @@ cmstest: cmsclean
 cmsclean:
 	-rm -rf ./test.__*
 
-
-# Maintainance:
-
-pack: clean
-	$(SVN) cleanup
-	$(SVN) export . $(WORKDIR)/$(DISTNAME)
-	$(TAR) c -z -C$(WORKDIR) -f $(WORKDIR)/$(DISTFILE) $(DISTNAME) --dereference --numeric-owner
-	rm -rf $(WORKDIR)/$(DISTNAME)
-
-publish: pack
-	mv $(WORKDIR)/$(DISTFILE) ~/public_html/python/fooling/
-	cp docs/*.html ~/public_html/python/fooling/
-
-pychecker:
-	-pychecker --limit=0 fooling/*.py
-	-pychecker --limit=0 tools/*.py
-	-pychecker --limit=0 examples/*.py
-
 commit: clean
 	$(SVN) commit
+
+dist/$(DISTFILE): clean
+	$(PYTHON) setup.py sdist
+
+WEBDIR=$$HOME/Site/unixuser.org/python/$(PACKAGE)
+publish: dist/$(DISTFILE)
+	$(CP) dist/$(DISTFILE) $(WEBDIR)
+	$(CP) docs/*.html $(WEBDIR)/index.html
