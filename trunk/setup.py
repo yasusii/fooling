@@ -10,12 +10,12 @@ setup(
   author_email='yusuke at cs dot nyu dot edu',
   url='http://www.unixuser.org/~euske/python/fooling/index.html',
   packages=[
-    'fooling'
+    'fooling',
   ],
   scripts=[
-    'tools/idxdump.py'
-    'tools/idxmake.py'
-    'tools/idxmerge.py'
-    'tools/idxsearch.py'
+    'tools/idxdump.py',
+    'tools/idxmake.py',
+    'tools/idxmerge.py',
+    'tools/idxsearch.py',
     ],
   )
