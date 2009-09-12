@@ -13,6 +13,9 @@ setup(
     'fooling'
   ],
   scripts=[
-    'tools/dumpidx.py'
+    'tools/idxdump.py'
+    'tools/idxmake.py'
+    'tools/idxmerge.py'
+    'tools/idxsearch.py'
     ],
   )
