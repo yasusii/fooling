@@ -6,11 +6,11 @@ from array import array
 
 COMPRESS_THRESHOLD = 4
 SWAP_ENDIAN = (pack('=i',1) == pack('>i',1)) # True if this is big endian.
-ENCODING = 'euc-jp'
+
 
 ##  dumpidx
 ##
-def dumpidx(cdbname):
+def dumpidx(cdbname, codec='utf-8'):
   fp = file(cdbname, "rb")
   (eor,) = unpack("<L", fp.read(4))
   fp.seek(2048)
@@ -23,7 +23,7 @@ def dumpidx(cdbname):
     if k[0] == '\x00':
       (docid,sentid) = unpack('>xll', k)
       v = unicode(v, 'utf-8')
-      print 'sent(%d,%d) -> %s' % (docid,sentid,v.encode(ENCODING, 'ignore'))
+      print 'sent(%d,%d) -> %s' % (docid,sentid,v.encode(codec, 'ignore'))
     elif k[0] == '\xfd':
       if len(k) == 5:
         (docid,) = unpack('>xl', k)
@@ -39,9 +39,9 @@ def dumpidx(cdbname):
     else:
       (c,k) = (k[0], k[1:])
       if '\x10' <= c and c <= '\x13':
-        w = unicode(k, 'utf-8').encode(ENCODING, 'ignore')
+        w = unicode(k, 'utf-8').encode(codec, 'ignore')
       elif c == '\x20':
-        w = u''.join( unichr(0x3000+ord(c)) for c in k ).encode(ENCODING, 'ignore')
+        w = u''.join( unichr(0x3000+ord(c)) for c in k ).encode(codec, 'ignore')
       elif c == '\xf0':
         if len(k) == 2:
           w = '%04d' % unpack('>h', k)
@@ -67,6 +67,20 @@ def dumpidx(cdbname):
   return
 
 
-if __name__ == "__main__":
-  for fname in sys.argv[1:]:
-    dumpidx(fname)
+def main(argv):
+  import getopt
+  def usage():
+    print 'usage: %s [-c encoding] [file ...]' % argv[0]
+    return 100
+  try:
+    (opts, args) = getopt.getopt(argv[1:], 'c:')
+  except getopt.GetoptError:
+    return usage()
+  codec = 'utf-8'
+  for (k, v) in opts:
+    if k == '-c': codec = v
+  for fname in args:
+    dumpidx(fname, codec)
+  return
+
+if __name__ == "__main__": sys.exit(main(sys.argv))
