@@ -5,7 +5,10 @@ tools/build_tcdb_dict.py
 tools/index_old.sh
 tools/countsent.py
 tools/search.cgi
-tools/dumpidx.py
+tools/idxdump.py
+tools/idxmake.py
+tools/idxmerge.py
+tools/idxsearch.py
 tools/index_new.sh
 tools/index.rc
 tools/countgram.py
