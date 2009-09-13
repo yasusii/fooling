@@ -8,7 +8,7 @@ INDEX=$(PYTHON) ../fooling/indexer.py -e euc-jp -F
 SEARCH=$(PYTHON) ../fooling/selection.py -e euc-jp
 MERGE=$(PYTHON) ../fooling/merger.py
 TARDB=$(PYTHON) ../fooling/tardb.py
-DUMPIDX=$(PYTHON) ../tools/dumpidx.py
+IDXDUMP=$(PYTHON) ../tools/idxdump.py -d -e euc-jp
 
 # Automated tests:
 
@@ -24,7 +24,7 @@ plaintext: clean_plaintext index_plaintext search_plaintext
 idx00000.cdb: plaintext1.txt
 	$(INDEX) -tPlainTextDocument -pidx ./ plaintext1.txt
 idx00000.dump: idx00000.cdb
-	$(DUMPIDX) idx00000.cdb > idx00000.dump
+	$(IDXDUMP) idx00000.cdb > idx00000.dump
 idx00000.test: idx00000.dump idx00000.dump.src
 	$(CMP) idx00000.dump idx00000.dump.src
 
@@ -45,26 +45,26 @@ html: clean_html index_html search_html
 aaa00000.cdb: html1.html html4.html
 	$(INDEX) -tHTMLDocument -paaa ./ html1.html html4.html
 aaa00000.dump: aaa00000.cdb
-	$(DUMPIDX) aaa00000.cdb > aaa00000.dump
+	$(IDXDUMP) aaa00000.cdb > aaa00000.dump
 aaa00000.test: aaa00000.dump aaa00000.dump.src
 	$(CMP) aaa00000.dump aaa00000.dump.src
 aaa00001.cdb: html2.html html4.html
 	$(INDEX) -tHTMLDocument -paaa ./ html2.html html4.html
 aaa00001.dump: aaa00001.cdb
-	$(DUMPIDX) aaa00001.cdb > aaa00001.dump
+	$(IDXDUMP) aaa00001.cdb > aaa00001.dump
 aaa00001.test: aaa00001.dump aaa00001.dump.src
 	$(CMP) aaa00001.dump aaa00001.dump.src
 aaa00000.merged: aaa00000.test aaa00001.test
 	$(MERGE) -paaa ./
 aaa00000.merged.dump: aaa00000.merged
-	$(DUMPIDX) aaa00000.cdb > aaa00000.merged.dump
+	$(IDXDUMP) aaa00000.cdb > aaa00000.merged.dump
 aaa00000.merged.test: aaa00000.merged.dump aaa00000.merged.dump.src
 	$(CMP) aaa00000.merged.dump aaa00000.merged.dump.src
 
 bbb00000.cdb: html3.html
 	$(INDEX) -tHTMLDocument -pbbb ./ html3.html
 bbb00000.dump: bbb00000.cdb
-	$(DUMPIDX) bbb00000.cdb > bbb00000.dump
+	$(IDXDUMP) bbb00000.cdb > bbb00000.dump
 bbb00000.test: bbb00000.dump bbb00000.dump.src
 	$(CMP) bbb00000.dump bbb00000.dump.src
 
@@ -122,7 +122,7 @@ email1.msg email2.msg email3.msg: make_messages.py
 ccc00000.cdb: email1.msg email2.msg email3.msg
 	$(INDEX) -tEMailDocument -pccc ./ email1.msg email2.msg email3.msg
 ccc00000.dump: ccc00000.cdb
-	$(DUMPIDX) ccc00000.cdb > ccc00000.dump
+	$(IDXDUMP) ccc00000.cdb > ccc00000.dump
 ccc00000.test: ccc00000.dump ccc00000.dump.src
 	$(CMP) ccc00000.dump ccc00000.dump.src
 
@@ -175,7 +175,7 @@ plainyomi: clean_plainyomi index_plainyomi search_plainyomi
 idy00000.cdb: plainyomi1.txt
 	$(INDEX) -tPlainTextDocument -pidy -Y ./ plainyomi1.txt
 idy00000.dump: idy00000.cdb
-	$(DUMPIDX) idy00000.cdb > idy00000.dump
+	$(IDXDUMP) idy00000.cdb > idy00000.dump
 idy00000.test: idy00000.dump idy00000.dump.src
 	$(CMP) idy00000.dump idy00000.dump.src
 
@@ -213,7 +213,7 @@ testdb: plaintext1.txt
 idz00000.cdb: testdb
 	$(INDEX) -cTarDBCorpus -tPlainTextDocument -pidz -btestdb ./ 0
 idz00000.dump: idz00000.cdb
-	$(DUMPIDX) idz00000.cdb > idz00000.dump
+	$(IDXDUMP) idz00000.cdb > idz00000.dump
 idz00000.test: idz00000.dump idz00000.dump.src
 	$(CMP) idz00000.dump idz00000.dump.src
 

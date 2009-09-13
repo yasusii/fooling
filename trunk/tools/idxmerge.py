@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 from fooling.indexdb import IndexDB
-from fooling.merge import Merger
+from fooling.merger import Merger
 
 
 ##  merge

@@ -2,7 +2,9 @@
 import sys
 from fooling import document
 from fooling.indexdb import IndexDB
-from fooling.selection import Selection
+from fooling.selection import Selection, SearchTimeout, \
+     KeywordPredicate, YomiKeywordPredicate, \
+     StrictKeywordPredicate, EMailPredicate
 
 
 ##  search

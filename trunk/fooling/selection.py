@@ -255,8 +255,9 @@ class Selection(object):
 
   def __init__(self, indexdb, term_preds, doc_preds=None,
                safe=True, start_loc=None, end_loc=None,
-               disjunctive=False):
+               disjunctive=False, debug=0):
     self._indexdb = indexdb
+    self.debug = 0
 
     # Predicates: term_preds = [ positive ] + [ negative ]
     self.pos_preds = sorted(( pred for pred in term_preds if not pred.neg ),
@@ -781,7 +782,7 @@ def search(argv):
     indexdb = IndexDB(idxdir, prefix)
     indexdb.open()
     preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
-    selection = Selection(indexdb, preds, safe=safe, disjunctive=disjunctive)
+    selection = Selection(indexdb, preds, safe=safe, disjunctive=disjunctive, debug=debug)
     try:
       show_results(selection, n, encoding, timeout)
     except SearchTimeout:
