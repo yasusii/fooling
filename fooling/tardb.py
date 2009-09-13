@@ -650,7 +650,7 @@ def main(argv):
     data = db.get_record(recno)
     sys.stdout.write(data)
   elif cmd == 'add':
-    db.open()
+    db.open(mode='w')
     name = args.pop(0)
     data = open(args.pop(0), 'rb').read()
     db.add_record(TarInfo(name), data)

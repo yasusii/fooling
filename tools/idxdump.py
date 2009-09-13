@@ -8,9 +8,9 @@ COMPRESS_THRESHOLD = 4
 SWAP_ENDIAN = (pack('=i',1) == pack('>i',1)) # True if this is big endian.
 
 
-##  dumpidx
+##  idxdump
 ##
-def dumpidx(cdbname, codec='utf-8'):
+def idxdump(cdbname, codec='utf-8', debug=0):
   fp = file(cdbname, "rb")
   (eor,) = unpack("<L", fp.read(4))
   fp.seek(2048)
@@ -61,6 +61,13 @@ def dumpidx(cdbname, codec='utf-8'):
         a.fromstring(v[4:])
       if SWAP_ENDIAN:
         a.byteswap()
+      if debug:
+        k0 = (sys.maxint, sys.maxint)
+        for i in xrange(0, len(a), 2):
+          k1 = (a[i], a[i+1])
+          if k0 <= k1:
+            raise ValueError(w)
+          k0 = k1
       print 'term(0x%02x):%s -> (%d) %s' % (ord(c), w, len(a)/2,
                                             ', '.join('%d:%d' % (a[i], a[i+1]) for i in xrange(0, len(a), 2)))
   fp.close()
@@ -70,17 +77,19 @@ def dumpidx(cdbname, codec='utf-8'):
 def main(argv):
   import getopt
   def usage():
-    print 'usage: %s [-c encoding] [file ...]' % argv[0]
+    print 'usage: %s [-d] [-e encoding] [file ...]' % argv[0]
     return 100
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'c:')
+    (opts, args) = getopt.getopt(argv[1:], 'de:')
   except getopt.GetoptError:
     return usage()
+  debug = 0
   codec = 'utf-8'
   for (k, v) in opts:
-    if k == '-c': codec = v
+    if k == '-d': debug += 1
+    elif k == '-e': codec = v
   for fname in args:
-    dumpidx(fname, codec)
+    idxdump(fname, codec=codec, debug=debug)
   return
 
 if __name__ == "__main__": sys.exit(main(sys.argv))

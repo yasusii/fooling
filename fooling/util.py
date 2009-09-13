@@ -297,7 +297,7 @@ def union(ref0, refsets):
         p = ((p0+p1) >> 2) << 1
         # p0 <= p <= p1
         m = (r[p], r[p+1])              # m:median
-        #print '  p0=%d,p=%d,p1=%d: m=%r' % (p0,p,p1, unpack('>ll', m))
+        #print '  p0=%d,p=%d,p1=%d: m=%r' % (p0,p,p1,m)
         if k == m:
           # found
           poss[j] = p+2
@@ -319,8 +319,7 @@ def union(ref0, refsets):
   for i in xrange(0, len(ref0), 2):
     k = (ref0[i], ref0[i+1])
     for (refs,poss) in unioners:
-      if not seek(refs, poss, k):
-        break
+      if not seek(refs, poss, k): break
     else:
       a.extend(k)
   return a

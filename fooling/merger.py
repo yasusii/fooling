@@ -31,26 +31,28 @@ class IndexFile(object):
     self.fname = fname
     self.cdb = cdb.init(fname)
     (self.ndocs, self.nterms) = idx_info(self.cdb)
-    # mapping from old docid -> new docid.
-    self.old2new = {}
     return
 
   def __repr__(self):
     return '<%s (docs=%d, terms=%d)>' % (self.fname, self.ndocs, self.nterms)
 
-  def assignnewids(self, newids):
-    oldids = {}
+  def assignnewids1(self, newids):
+    self.oldids = []
     for (k,v) in self.cdb.iteritems(startkey=pack('>ci', PROP_DOCID, 1)):
       if k[0] == PROP_LOC: break
       loc = v[4:]
       if loc in newids: continue
       (oldid,) = unpack('>xi', k)
-      oldids[loc] = oldid
-    #assert self.ndocs == len(oldids), (self.ndocs, oldids)
-    for (loc,oldid) in oldids.iteritems():
+      self.oldids.append((oldid, loc))
+    #assert self.ndocs == len(self.oldids), (self.ndocs, self.oldids)
+    for (oldid,loc) in sorted(self.oldids, reverse=True):
       newid = len(newids)
       newids[loc] = newid
-      self.old2new[oldid] = newid
+    return
+  def assignnewids2(self, newids):
+    self.old2new = {}
+    for (oldid,loc) in self.oldids:
+      self.old2new[oldid] = newids[loc]
     return
 
   def copysents(self, maker):
@@ -107,10 +109,14 @@ def cdbmerge(idxs):
 def idxmerge(cdbname, idxstomerge, verbose=0):
   # Count all the unique locations and assign new document ids.
   idxorder = {}
-  loc2docid = { None:None }
+  loc2docid = {}
   for (i,idx) in enumerate(reversed(idxstomerge)):
-    idx.assignnewids(loc2docid)
+    idx.assignnewids1(loc2docid)
     idxorder[idx] = i
+  n = len(loc2docid)
+  loc2docid = dict( (loc,n-docid) for (loc,docid) in loc2docid.iteritems() )
+  for idx in idxstomerge:
+    idx.assignnewids2(loc2docid)
   # Create a new index file.
   maker = cdb.cdbmake(cdbname, cdbname+'.tmp')
   if verbose:
