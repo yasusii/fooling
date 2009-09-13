@@ -12,6 +12,7 @@ tools/idxsearch.py
 tools/index_new.sh
 tools/index.rc
 tools/countgram.py
+tools/sortbymtime.py
 fooling/Makefile
 fooling/__init__.py
 fooling/corpus.py
@@ -24,7 +25,6 @@ fooling/pycdb.py
 fooling/romm.py
 fooling/selection.py
 fooling/sgmlparser3.py
-fooling/sortbytime.py
 fooling/tarcms.py
 fooling/tardb.py
 fooling/unittests.py

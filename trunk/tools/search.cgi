@@ -90,6 +90,7 @@ class SearchApp:
     (name, dirname, doctype, baseurl) = self.CORPUS[cname]
     if not os.path.exists(dirname): return
     indexdb = IndexDB(dirname)
+    indexdb.open()
     (disj, preds) = parse_preds(query, max_preds=self.MAX_QUERY_PREDS,
                                 yomipredtype=YomiKeywordPredicate)
     selection = SelectionWithContinuation(indexdb, preds, disjunctive=disj)

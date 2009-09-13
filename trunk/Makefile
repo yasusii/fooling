@@ -23,7 +23,7 @@ clean:
 	-cd test && $(MAKE) clean
 	-cd dict && $(MAKE) clean
 
-install:
+install: dict
 	$(PYTHON) setup.py install --prefix=$(PREFIX)
 
 # Dictionary
@@ -54,10 +54,10 @@ cmsclean:
 commit: clean
 	$(SVN) commit
 
-dist/$(DISTFILE): clean
+pack: clean
 	$(PYTHON) setup.py sdist
 
 WEBDIR=$$HOME/Site/unixuser.org/python/$(PACKAGE)
-publish: dist/$(DISTFILE)
+publish: pack
 	$(CP) dist/$(DISTFILE) $(WEBDIR)
 	$(CP) docs/*.html $(WEBDIR)/index.html

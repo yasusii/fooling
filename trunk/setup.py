@@ -12,7 +12,14 @@ setup(
   packages=[
     'fooling',
   ],
+  package_dir={
+    'fooling': 'fooling',
+  },
+  package_data={
+    'fooling': ['fooling/yomidict.tcdb'],
+  },
   scripts=[
+    'tools/sortbytime.py',
     'tools/idxdump.py',
     'tools/idxmake.py',
     'tools/idxmerge.py',
