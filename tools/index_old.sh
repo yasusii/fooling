@@ -6,6 +6,6 @@
 
 . ./index.rc || exit 1
 ( cd "$DOCDIR" && find . -name "$DOCPAT" -type f -mtime +"$DAYS" ) |
-  sortbymtime.py -b "$DOCDIR" | idxmake.py $INDEXOPTS -b "$DOCDIR" -p aaa "$DBDIR"
+  sortbymtime.py -b "$DOCDIR" | idxmake.py -U $INDEXOPTS -b "$DOCDIR" -p aaa "$DBDIR"
 # Merge with the older indices.
 idxmerge.py -p aaa "$DBDIR"

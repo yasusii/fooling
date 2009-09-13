@@ -19,7 +19,7 @@ setup(
     'fooling': ['fooling/yomidict.tcdb'],
   },
   scripts=[
-    'tools/sortbytime.py',
+    'tools/sortbymtime.py',
     'tools/idxdump.py',
     'tools/idxmake.py',
     'tools/idxmerge.py',

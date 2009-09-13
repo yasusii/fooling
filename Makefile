@@ -54,7 +54,7 @@ cmsclean:
 commit: clean
 	$(SVN) commit
 
-pack: clean
+dist: clean
 	$(PYTHON) setup.py sdist
 
 WEBDIR=$$HOME/Site/unixuser.org/python/$(PACKAGE)
