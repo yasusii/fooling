@@ -53,8 +53,8 @@ def idxdump(cdbname, codec='utf-8', debug=0):
           w = repr(k)
       else:
         w = repr(k)
-      (n,) = unpack('>l', v[:4])
-      a = array('l')
+      (n,) = unpack('>i', v[:4])
+      a = array('i')
       if COMPRESS_THRESHOLD <= n:
         a.fromstring(decompress(v[4:]))
       else:
