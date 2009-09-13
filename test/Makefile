@@ -4,11 +4,11 @@ FOOLING=..
 PYTHON=PYTHONPATH=$(FOOLING) python
 CMP=cmp
 
-INDEX=$(PYTHON) ../fooling/indexer.py -e euc-jp -F
-SEARCH=$(PYTHON) ../fooling/selection.py -e euc-jp
-MERGE=$(PYTHON) ../fooling/merger.py
-TARDB=$(PYTHON) ../fooling/tardb.py
+INDEX=$(PYTHON) ../tools/idxmake.py -e euc-jp -F
+SEARCH=$(PYTHON) ../tools/idxsearch.py -e euc-jp
+MERGE=$(PYTHON) ../tools/idxmerge.py
 IDXDUMP=$(PYTHON) ../tools/idxdump.py -d -e euc-jp
+TARDB=$(PYTHON) ../fooling/tardb.py
 
 # Automated tests:
 

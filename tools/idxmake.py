@@ -42,8 +42,8 @@ def index(argv):
   if not args: usage()
   assert len(prefix) == 3
   idxdir = args[0]
-  corpus = corpustype(basedir, doctype, encoding, indexstyle)
-  corpus.open()
+  cps = corpustype(basedir, doctype, encoding, indexstyle)
+  cps.open()
   indexdb = IndexDB(idxdir, prefix)
   try:
     indexdb.create()
@@ -52,8 +52,8 @@ def index(argv):
   indexdb.open()
   if mode == 3:
     indexdb.reset()
-  indexer = Indexer(indexdb, corpus, maxdocs, maxterms, verbose=verbose)
-  print >>stderr, \
+  indexer = Indexer(indexdb, cps, maxdocs, maxterms, verbose=verbose)
+  print >>sys.stderr, \
         'Index: basedir=%r, idxdir=%r, max_docs_threshold=%d, max_terms_threshold=%d ' % \
         (basedir, idxdir, maxdocs, maxterms)
 
@@ -63,13 +63,14 @@ def index(argv):
     files = sys.stdin
   for fname in files:
     fname = fname.strip()
-    if not corpus.loc_exists(fname): continue
-    if (mode == 0) and corpus.loc_mtime(fname) < lastmod: continue
+    print fname
+    if not cps.loc_exists(fname): continue
+    if (mode == 0) and cps.loc_mtime(fname) < lastmod: continue
     if (mode == 2) and indexdb.loc_indexed(fname): continue
     indexer.index_loc(fname)
 
   indexer.finish()
-  print >>stderr, 'Done.'
+  print >>sys.stderr, 'Done.'
   return
 
 if __name__ == '__main__': index(sys.argv)

@@ -2,10 +2,8 @@
 
 # Settings for index_new.sh and index_old.sh
 
-# Fooling install dir
-FOOLINGDIR=./fooling/
 # IndexDB dir
-DBDIR=./tabesugi/
+DBDIR=/cgi/host/fooling.tabesugi.net/tabesugi/
 # Document dir
 DOCDIR=/www/tabesugi.net/memo/
 # Document pattern
