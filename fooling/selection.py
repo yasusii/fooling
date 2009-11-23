@@ -6,9 +6,10 @@
 import sys, re
 from struct import pack, unpack
 from array import array
-from fooling.util import zen2han, rsplit, encodew, encodey
-from fooling.util import splitchars, rdatefeats, lowerbound
-from fooling.util import intersect, merge, union, decode_array, idx_sent, idx_sents, idx_info, idx_docid2info
+from utils import zen2han, rsplit, encodew, encodey
+from utils import splitchars, rdatefeats, lowerbound
+from utils import intersect, merge, union, decode_array
+from utils import idx_sent, idx_sents, idx_info, idx_docid2info
 
 __all__ = [
   'Predicate',
@@ -196,7 +197,7 @@ class YomiMixin(object):
     return '{%s}' % self.q
 
   def setup_keyword(self, s):
-    from fooling import romm, yomi
+    import romm, yomi
     morae = romm.PARSE_DEFAULT.parse(s)
     q = ''.join( unicode(m) for m in morae if isinstance(m, romm.Mora) )
     y = yomi.canonicalize_yomi(yomi.encode_yomi(q))
@@ -669,7 +670,7 @@ class DummySelection(object):
 
 # Returns True if the given string can be yomi-keyword.
 def canbe_yomi(s):
-  from fooling import romm
+  import romm
   if s.startswith('.'): return False
   for m in romm.PARSE_DEFAULT.parse(s):
     if not isinstance(m, romm.Mora): return False

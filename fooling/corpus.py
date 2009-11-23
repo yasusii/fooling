@@ -8,7 +8,10 @@ try:
   from cStringIO import StringIO
 except ImportError:
   from StringIO import StringIO
-from fooling.document import PlainTextDocument, EMailDocument, HTMLDocument, DummyDocument
+from document import PlainTextDocument
+from document import EMailDocument
+from document import HTMLDocument
+from document import DummyDocument
 
 __all__ = [
   'Corpus', 'FilesystemCorpus', 'BerkeleyDBCorpus',
@@ -433,7 +436,7 @@ class TarDBCorpus(Corpus):
     return
 
   def loc_feats(self, loc):
-    from fooling.util import PROP_LABEL
+    from utils import PROP_LABEL
     return [ PROP_LABEL+x for x in sorted(self.get_labels(loc)) ]
 
   def get_all_locs(self):

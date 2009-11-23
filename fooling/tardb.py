@@ -48,6 +48,7 @@
 
 import sys, os, os.path, re, atexit
 from tarfile import BLOCKSIZE, TarInfo
+
 def ezip(s1, s2):
   s1 = iter(s1)
   s2 = iter(s2)

@@ -6,10 +6,9 @@
 import sys, time
 from struct import pack
 from array import array
-from fooling.util import encode_array, zen2han, rmsp, \
-     PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
-from fooling.indexdb import IndexDB
-stderr = sys.stderr
+from utils import encode_array, zen2han, rmsp
+from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
+from indexdb import IndexDB
 
 
 __all__ = [
@@ -70,7 +69,7 @@ class Indexer(object):
     (fname, self.maker) = self.indexdb.add_idx(self.idx_count)
     self.idx_count += 1
     if self.verbose:
-      print >>stderr, 'Building index %r(%d)...' % (fname, self.idx_count)
+      print >>sys.stderr, 'Building index %r(%d)...' % (fname, self.idx_count)
     return
 
   # Index a new Document at a given location.
@@ -85,9 +84,9 @@ class Indexer(object):
     docid = len(self.docinfo)+1
     self.docinfo.append((docid, doc))
     if 2 <= self.verbose:
-      print >>stderr, 'Reading: %r' % doc
+      print >>sys.stderr, 'Reading: %r' % doc
     elif 1 <= self.verbose:
-      stderr.write('.'); stderr.flush()
+      sys.stderr.write('.'); sys.stderr.flush()
     terms = self.terms
     # other features
     add_features(terms, docid, 0, self.corpus.loc_feats(doc.loc))
@@ -147,7 +146,7 @@ class Indexer(object):
     self.maker = None
     if self.verbose:
       t = time.time() - t0
-      print >>stderr, 'docs=%d, keys=%d, refs=%d, time=%.1fs(%.1fdocs/s), memory=%s' % \
+      print >>sys.stderr, 'docs=%d, keys=%d, refs=%d, time=%.1fs(%.1fdocs/s), memory=%s' % \
             (len(self.docinfo), len(self.terms), nrefs, t, len(self.docinfo)/t,
              linux_process_memory())
     # Clear the files and terms.
