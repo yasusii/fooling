@@ -24,41 +24,53 @@ stderr = sys.stderr
 ##
 class TarCMS(object):
 
-  def __init__(self, basedir, doctype, encoding, indexstyle=None):
+  class TarCMSError(Exception): pass
+
+  def __init__(self, basedir, doctype, encoding='utf-8', indexstyle=None):
     from fooling.indexdb import IndexDB
     from fooling.corpus import GzipTarDBCorpus
     from fooling.tardb import FixedDB
     self.basedir = basedir
-    self.corpus = GzipTarDBCorpus(os.path.join(basedir, 'src'), doctype, encoding,
-                                  indexstyle=indexstyle, namelen=8)
-    self.artdb = FixedDB(os.path.join(basedir, 'articles'))
-    self.indexdb = IndexDB(os.path.join(basedir, 'idx'), 'idx')
+    self._corpus = GzipTarDBCorpus(os.path.join(basedir, 'src'), doctype, encoding,
+                                   indexstyle=indexstyle, namelen=8)
+    self._artdb = FixedDB(os.path.join(basedir, 'articles'))
+    self._indexdb = IndexDB(os.path.join(basedir, 'idx'), 'idx')
     self._loctoindex = set()
+    self._mode = None
     return
 
+  def __repr__(self):
+    return '<TarCMS: basedir=%r>' % (self.basedir,)
+
   def create(self):
-    self.corpus.create()
-    self.artdb.create(9)
-    self.indexdb.create()
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._corpus.create()
+    self._artdb.create(9)
+    self._indexdb.create()
     return
 
   def open(self, mode='r'):
-    self.corpus.open(mode=mode)
-    self.artdb.open(mode=mode)
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._corpus.open(mode=mode)
+    self._artdb.open(mode=mode)
+    self._mode = mode
     return
 
   def close(self):
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     self.flush()
-    self.corpus.close()
-    self.artdb.close()
+    self._corpus.close()
+    self._artdb.close()
+    self._mode = None
     return
 
-  def add_data(self, data, name, ext, mtime=0, labels=None):
-    loc = self.corpus.add_data(data, name, ext, mtime=mtime, labels=labels)
+  def _add_data(self, data, name, ext, mtime=0, labels=None):
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
+    loc = self._corpus.add_data(data, name, ext, mtime=mtime, labels=labels)
     self._loctoindex.add(loc)
     return loc
 
-  def add_file(self, path, mtime=None, labels=None):
+  def _add_file(self, path, name, mtime=None, labels=None):
     (_,ext) = os.path.splitext(path)
     st = os.stat(path)
     fp = file(path, 'rb')
@@ -66,72 +78,129 @@ class TarCMS(object):
     fp.close()
     if not mtime:
       mtime = st[stat.ST_MTIME]
-    return self.add_data(data, ext, mtime=mtime, labels=labels)
+    return self._add_data(data, name, ext, mtime=mtime, labels=labels)
 
   def flush(self, verbose=False, threshold=100, cleanup=True):
     from fooling.indexer import Indexer
     from fooling.merger import Merger
-    indexer = Indexer(self.indexdb, self.corpus, verbose=verbose)
+    self._corpus.flush()
+    self._artdb.flush()
+    indexer = Indexer(self._indexdb, self._corpus, verbose=verbose)
     for loc in self._loctoindex:
       indexer.index_loc(loc)
     indexer.finish()
     self._loctoindex.clear()
-    Merger(self.indexdb, max_docs_threshold=threshold).run(cleanup=cleanup)
-    self.corpus.flush()
-    self.artdb.flush()
+    Merger(self._indexdb, max_docs_threshold=threshold).run(cleanup=cleanup)
     return
 
   def create_article(self, ext, data, mtime=0, labels=None):
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     assert len(ext) == 3
-    aid = '%08x' % self.artdb.nextrecno()
-    loc = self.add_data(data, aid, ext, mtime=mtime, labels=labels)
+    aid = '%08x' % self._artdb.nextrecno()
+    loc = self._add_data(data, aid, ext, mtime=mtime, labels=labels)
     assert aid == loc
-    self.artdb.add_record(loc)
+    self._artdb.add_record(loc)
     return aid
 
   def modify_article(self, aid, data, mtime=0, labels=None):
-    loc0 = self.artdb.get_record(int(aid, 16))
-    ext = self.corpus.get_ext(loc0)
-    loc = self.add_data(data, aid, ext, mtime=mtime, labels=labels)
-    tid = '%08x' % self.artdb.add_record(loc0)
-    self.artdb.set_record(int(aid, 16), tid)
-    return
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
+    loc0 = self._artdb.get_record(int(aid, 16))
+    ext = self._corpus.get_ext(loc0)
+    loc = self._add_data(data, aid, ext, mtime=mtime, labels=labels)
+    tid = '%08x' % self._artdb.add_record(loc0)
+    self._artdb.set_record(int(aid, 16), tid)
+    return tid
 
   def get_article(self, aid, n=1):
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     loc = aid
     while 0 < n:
-      loc = self.artdb.get_record(int(loc, 16))
+      loc = self._artdb.get_record(int(loc, 16))
       n -= 1
     return self.get_snapshot(loc)
 
   def get_snapshot(self, loc):
-    return self.corpus.get_data(loc)
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
+    return self._corpus.get_data(loc)
 
   def get_snapshots(self, aid):
-    loc = self.artdb.get_record(int(aid, 16))
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
+    loc = self._artdb.get_record(int(aid, 16))
     r = []
     while aid != loc:
       r.append(loc)
-      loc = self.artdb.get_record(int(loc, 16))
+      loc = self._artdb.get_record(int(loc, 16))
     r.append(loc)
     return r
 
   def find_articles(self, preds, disjunctive=False):
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     from fooling.selection import Selection
-    sel = Selection(self.indexdb, preds, disjunctive=disjunctive)
+    sel = Selection(self._indexdb, preds, disjunctive=disjunctive)
     for (_,x) in sel:
       (mtime, loc, title, snippet) = sel.get_snippet(x)
-      aid = self.corpus.get_name(loc)
+      aid = self._corpus.get_name(loc)
       yield (aid, loc, mtime, title, snippet)
     return
 
+  def _get_catalog(self):
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._corpus.open(mode='r')
+    arts = []
+    for loc in self._corpus.get_all_locs():
+      tid = self._corpus.get_recno(loc)
+      aid = int(self._corpus.get_name(loc), 16)
+      if tid == aid:
+        arts.append(loc)
+      else:
+        arts.append(arts[aid])
+        arts[aid] = loc
+    self._corpus.close()
+    return arts
 
-if 1:
+  def validate_catalog(self):
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._artdb.open(mode='r')
+    from fooling.tardb import ezip
+    for (entry,loc) in ezip(self._artdb, self._get_catalog()):
+      if entry != loc: raise TarCMS.TarCMSError
+    self._artdb.close()
+    return
+
+  def recover_catalog(self):
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._artdb.open(mode='w')
+    from fooling.tardb import ezip
+    for loc in self._get_catalog():
+      self._artdb.add_record(loc)
+    self._artdb.close()
+    return
+
+  def validate(self):
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._corpus.validate_catalog()
+    self.validate_catalog()
+    return
+
+  def recover(self):
+    if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
+    self._corpus.recover_catalog()
+    self.recover_catalog()
+    self._indexdb.reset()
+    indexer = Indexer(self._indexdb, self._corpus, verbose=verbose)
+    for loc in self._corpus.get_all_locs():
+      indexer.index_loc(loc)
+    indexer.finish()
+    return
+    
+
+# 
+if __name__ == '__main__':
   from fooling.document import EMailDocument
   from fooling.selection import KeywordPredicate
   from fooling.pycdb import CDBReader
   import unittest, shutil, tarfile, gzip, random, struct
-  encoding = 'euc-jp'
+
   class TarCMSTest(unittest.TestCase):
     
     def setUp(self):
@@ -140,13 +209,16 @@ if 1:
         shutil.rmtree(dirname)
       except OSError:
         pass
-      self.cms = TarCMS(dirname, EMailDocument, encoding)
+      self.cms = TarCMS(dirname, EMailDocument)
       self.cms.create()
-      self.cms.open(mode='w')
       return
     
     def tearDown(self):
-      self.cms.close()
+      try:
+        shutil.rmtree(self.cms.basedir)
+        pass
+      except OSError:
+        pass
       return
 
     def assertLock(self, path):
@@ -234,6 +306,7 @@ if 1:
       return
 
     def testBasic(self):
+      self.cms.open(mode='w')
       aid = self.cms.create_article('msg', 'text1')
       self.assertEqual(self.cms.get_article(aid), 'text1')
       self.cms.modify_article(aid, 'mod1 mod1')
@@ -267,9 +340,12 @@ if 1:
                      ['00000002',
                       '00000000',
                       '00000001'])
+      self.cms.close()
+      self.cms.validate()
       return
   
     def testArts(self):
+      self.cms.open(mode='w')
       aid1 = self.cms.create_article('msg', 'art1')
       aid2 = self.cms.create_article('msg', 'art2')
       self.cms.modify_article(aid1, 'art1r')
@@ -304,9 +380,12 @@ if 1:
                       '00000003',
                       '00000000',
                       '00000001'])
+      self.cms.close()
+      self.cms.validate()
       return
     
     def testLabel(self):
+      self.cms.open(mode='w')
       aid = self.cms.create_article('msg', 'text2', labels=('def','abc'))
       self.cms.flush()
       self.assertCMS(self.cms)
@@ -318,6 +397,34 @@ if 1:
                             'text2')
       self.assertCMSIdx(self.cms, 'idx00000.cdb',
                         [(1,0), u'text2', 'abc', 'def'])
+      self.cms.close()
+      self.cms.validate()
       return
   
+    def testRandom(self):
+      import random
+      MAX_DATA_SIZE = 1000
+      MAX_ARTICLES = 1000
+      RATIO_CREATE_NEW = 10
+      def randstr():
+        return ''.join( chr(random.randrange(96)+32) for _ in xrange(random.randrange(MAX_DATA_SIZE)) )
+      self.cms.open(mode='w')
+      arts = {}
+      for _ in xrange(MAX_ARTICLES):
+        data = randstr()
+        if not arts or random.randrange(100) < RATIO_CREATE_NEW:
+          aid = self.cms.create_article('msg', data)
+        else:
+          aid = random.choice(arts.keys())
+          tid = self.cms.modify_article(aid, data)
+        arts[aid] = data
+      self.cms.close()
+      self.cms.open(mode='r')
+      self.assertCMS(self.cms)
+      for aid in arts.iterkeys():
+        self.assertEqual(self.cms.get_article(aid), arts[aid])
+      self.cms.close()
+      self.cms.validate()
+      return
+    
   unittest.main()

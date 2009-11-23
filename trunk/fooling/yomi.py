@@ -12,9 +12,9 @@ stderr = sys.stderr
 
 # open the dictionary
 try:
-  YOMI_DICT
-except NameError:
   YOMI_DICT = pycdb.tcdbinit(join(dirname(__file__), 'yomidict.tcdb'))
+except IOError:
+  YOMI_DICT = None
 
 
 def encode_yomi(s):

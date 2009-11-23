@@ -337,6 +337,7 @@ class TarDBCorpus(Corpus):
   def close(self):
     assert self._db != None
     self._db.close()
+    self._db = None
     return
 
   def flush(self):
@@ -348,8 +349,19 @@ class TarDBCorpus(Corpus):
     tardb.TarDB(self.basedir).create()
     return
 
+  def validate_catalog(self):
+    import tardb
+    tardb.TarDB(self.basedir).validate_catalog()
+    return
+  def recover_catalog(self):
+    import tardb
+    tardb.TarDB(self.basedir).recover_catalog()
+    return
+
   def get_recno(self, loc):
     return int(loc, 16)
+  def get_loc(self, recno):
+    return '%08x' % recno
   
   def get_loc_info(self, loc):
     recno = self.get_recno(loc)
@@ -359,10 +371,10 @@ class TarDBCorpus(Corpus):
     recno = self.get_recno(loc)
     return self._db.set_info(recno, info)
 
-  def get_loc_name(self, loc):
+  def _get_loc_name(self, loc):
     return self.get_loc_info(loc).name
   
-  def set_loc_name(self, loc, name):
+  def _set_loc_name(self, loc, name):
     info = self.get_loc_info(loc)
     info.name = name
     self.set_loc_info(loc, info)
@@ -386,10 +398,10 @@ class TarDBCorpus(Corpus):
     return info.size
 
   def get_ext(self, loc):
-    return self.get_loc_name(loc)[self.namelen:self.namelen+3]
+    return self._get_loc_name(loc)[self.namelen:self.namelen+3]
 
   def get_name(self, loc):
-    return self.get_loc_name(loc)[:self.namelen]
+    return self._get_loc_name(loc)[:self.namelen]
 
   def get_doc(self, loc):
     ext = self.get_ext(loc)
@@ -402,7 +414,7 @@ class TarDBCorpus(Corpus):
     from tarfile import TarInfo
     assert len(name) == self.namelen
     assert len(ext) == 3
-    loc = '%08x' % self._db.nextrecno()
+    loc = self.get_loc(self._db.nextrecno())
     info = TarInfo(name+ext+loc+self.label2str(labels)+self.SUFFIX)
     info.mtime = mtime
     self._db.add_record(info, data)
@@ -413,16 +425,21 @@ class TarDBCorpus(Corpus):
     return fp.read()
 
   def get_labels(self, loc):
-    return self.str2label(self.get_loc_name(loc)[self.namelen+11:])
+    return self.str2label(self._get_loc_name(loc)[self.namelen+11:])
 
   def set_labels(self, loc, labels):
-    name = self.get_loc_name(loc)
-    self.set_loc_name(loc, name[:self.namelen+11] + self.label2str(labels))
+    name = self._get_loc_name(loc)
+    self._set_loc_name(loc, name[:self.namelen+11] + self.label2str(labels))
     return
 
   def loc_feats(self, loc):
     from fooling.util import PROP_LABEL
     return [ PROP_LABEL+x for x in sorted(self.get_labels(loc)) ]
+
+  def get_all_locs(self):
+    for recno in xrange(len(self._db)):
+      yield self.get_loc(recno)
+    return
 
   @classmethod
   def str2label(klass, x):
@@ -457,10 +474,10 @@ class GzipTarDBCorpus(TarDBCorpus):
     gz.close()
     return TarDBCorpus.add_data(self, fp.getvalue(), name, ext, mtime=mtime, labels=labels)
 
-  def get_loc_name(self, loc):
+  def _get_loc_name(self, loc):
     return self.get_loc_info(loc).name[:-3]
 
-  def set_loc_name(self, loc, name):
+  def _set_loc_name(self, loc, name):
     info = self.get_loc_info(loc)
     info.name = name+'.gz'
     self.set_loc_info(loc, info)

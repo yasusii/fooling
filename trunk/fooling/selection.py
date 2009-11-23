@@ -363,6 +363,7 @@ class Selection(object):
     #  start_idx <= idxid <= end_idx.
     #  start_docid-1 >= docid >= end_docid.
     for (idxid,idx) in self._indexdb.iteridxs(start_idx, end_idx):
+      assert isinstance(idxid, int)
       (idx_docs, _) = idx_info(idx)
       if idxid == start_idx:
         start_docid = min(start_docid0, idx_docs)
@@ -402,6 +403,7 @@ class Selection(object):
               docs1[docid] = contexts
             else:
               contexts = docs1[docid]
+            assert isinstance(contexts, array)
             contexts.append(pos)
           # combine with the previous docs.
           for (docid,contexts) in docs1.iteritems():
@@ -410,7 +412,8 @@ class Selection(object):
               docs[docid] = r
             else:
               r = docs[docid]
-            r.append((contexts, pred.checkpat))
+            x = (contexts, pred.checkpat)
+            r.append(x)
 
         elif pred.neg:
           # negative conjunctive (-AND) search.
@@ -428,30 +431,33 @@ class Selection(object):
               docs1[docid] = contexts
             else:
               contexts = docs1[docid]
+            assert isinstance(contexts, array)
             contexts.append(pos)
           if conj:
             # intersect with the previous docs.
+            tmp = {}
             for (docid,contexts) in docs1.iteritems():
               r = docs[docid]
-              r.append((contexts, pred.checkpat))
-              docs1[docid] = r
-            docs = docs1
+              x = (contexts, pred.checkpat)
+              r.append(x)
+              tmp[docid] = r
+            docs = tmp
           else:
             conj = True
             docs = dict( (docid,[(a, pred.checkpat)]) for (docid,a)
                          in docs1.iteritems() )
 
       # docs: the candidate documents in the current index file.
-      docs = docs.items()
-      docs.sort(reverse=True)
+      docs2 = docs.items()
+      docs2.sort(reverse=True)
       found = set()
-      for (docid,contexts) in docs:
+      for (docid,contexts2) in docs2:
         self.start_loc = (idxid, docid)
         self.searched_docs = (searched_docs0, idx_docs-docid)
         # Skip if the document is already in the list.
         if docid in found: continue
         found.add(docid)
-        yield (idx,docid,contexts)
+        yield (idx,docid,contexts2)
 
       # Finished this index.
       searched_docs0 += idx_docs
