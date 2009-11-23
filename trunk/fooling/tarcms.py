@@ -1,41 +1,36 @@
 #!/usr/bin/env python
-import sys, os, stat, os.path, time
-sys.path.insert(0, '.')
-sys.path.insert(0, '..')
-stdout = sys.stdout
-stderr = sys.stderr
+import sys, os, stat, os.path
 
 
 ##  TarCMS
 ##
-##   db = TarCMS()
-##   db.create()
-##   db.open()
-##   artid = db.new_article(type='a')
-##   snapid = db.modify_content(artid, data)
-##   snapid = db.get_snapshot(artid, mtime)
-##   db.find_article(query)
-##   db.find_snapshot(query)
-##   db.get_strand_by_artid(artid)
-##   db.get_strand_by_snapid(snapid)
-##   db.set_label(artid, labels)
-##   db.get_label(artid, labels)
-##   db.close()
+##   cms = TarCMS()
+##   cms.create()
+##   cms.open()
+##   aid = cms.create_article('msg', 'text1')
+##   tid = cms.modify_article(aid, 'text2')
+##   aids = cms.get_article(aid)
+##   (aid,tid,mtime,title,snippet) = cms.find_articles(queries)
+##   data = cms.get_snapshot(tid)
+##   data = cms.get_latest(aid)
+##   cms.close()
+##   cms.validate()
+##   cms.recover()
 ##
 class TarCMS(object):
 
   class TarCMSError(Exception): pass
 
   def __init__(self, basedir, doctype, encoding='utf-8', indexstyle=None):
-    from fooling.indexdb import IndexDB
-    from fooling.corpus import GzipTarDBCorpus
-    from fooling.tardb import FixedDB
+    from indexdb import IndexDB
+    from corpus import GzipTarDBCorpus
+    from tardb import FixedDB
     self.basedir = basedir
     self._corpus = GzipTarDBCorpus(os.path.join(basedir, 'src'), doctype, encoding,
                                    indexstyle=indexstyle, namelen=8)
     self._artdb = FixedDB(os.path.join(basedir, 'articles'))
     self._indexdb = IndexDB(os.path.join(basedir, 'idx'), 'idx')
-    self._loctoindex = set()
+    self._loctoindex = None
     self._mode = None
     return
 
@@ -53,6 +48,7 @@ class TarCMS(object):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._corpus.open(mode=mode)
     self._artdb.open(mode=mode)
+    self._loctoindex = set()
     self._mode = mode
     return
 
@@ -81,8 +77,8 @@ class TarCMS(object):
     return self._add_data(data, name, ext, mtime=mtime, labels=labels)
 
   def flush(self, verbose=False, threshold=100, cleanup=True):
-    from fooling.indexer import Indexer
-    from fooling.merger import Merger
+    from indexer import Indexer
+    from merger import Merger
     self._corpus.flush()
     self._artdb.flush()
     indexer = Indexer(self._indexdb, self._corpus, verbose=verbose)
@@ -111,37 +107,33 @@ class TarCMS(object):
     self._artdb.set_record(int(aid, 16), tid)
     return tid
 
-  def get_article(self, aid, n=1):
-    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
-    loc = aid
-    while 0 < n:
-      loc = self._artdb.get_record(int(loc, 16))
-      n -= 1
-    return self.get_snapshot(loc)
-
-  def get_snapshot(self, loc):
-    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
-    return self._corpus.get_data(loc)
-
-  def get_snapshots(self, aid):
+  def get_article(self, aid):
     if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     loc = self._artdb.get_record(int(aid, 16))
-    r = []
     while aid != loc:
-      r.append(loc)
+      yield loc
       loc = self._artdb.get_record(int(loc, 16))
-    r.append(loc)
-    return r
+    yield loc
+    return
 
   def find_articles(self, preds, disjunctive=False):
     if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
-    from fooling.selection import Selection
+    from selection import Selection
     sel = Selection(self._indexdb, preds, disjunctive=disjunctive)
     for (_,x) in sel:
       (mtime, loc, title, snippet) = sel.get_snippet(x)
       aid = self._corpus.get_name(loc)
       yield (aid, loc, mtime, title, snippet)
     return
+
+  def get_snapshot(self, loc):
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
+    return self._corpus.get_data(loc)
+
+  def get_latest(self, aid):
+    for loc in self.get_article(aid):
+      return self.get_snapshot(loc)
+    raise KeyError(aid)
 
   def _get_catalog(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
@@ -161,7 +153,7 @@ class TarCMS(object):
   def validate_catalog(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._artdb.open(mode='r')
-    from fooling.tardb import ezip
+    from tardb import ezip
     for (entry,loc) in ezip(self._artdb, self._get_catalog()):
       if entry != loc: raise TarCMS.TarCMSError
     self._artdb.close()
@@ -170,7 +162,7 @@ class TarCMS(object):
   def recover_catalog(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._artdb.open(mode='w')
-    from fooling.tardb import ezip
+    from tardb import ezip
     for loc in self._get_catalog():
       self._artdb.add_record(loc)
     self._artdb.close()
@@ -196,10 +188,11 @@ class TarCMS(object):
 
 # 
 if __name__ == '__main__':
-  from fooling.document import EMailDocument
-  from fooling.selection import KeywordPredicate
-  from fooling.pycdb import CDBReader
+  from document import EMailDocument
+  from selection import KeywordPredicate
+  from pycdb import CDBReader
   import unittest, shutil, tarfile, gzip, random, struct
+  cleanup = True
 
   class TarCMSTest(unittest.TestCase):
     
@@ -215,8 +208,8 @@ if __name__ == '__main__':
     
     def tearDown(self):
       try:
-        shutil.rmtree(self.cms.basedir)
-        pass
+        if cleanup:
+          shutil.rmtree(self.cms.basedir)
       except OSError:
         pass
       return
@@ -308,13 +301,13 @@ if __name__ == '__main__':
     def testBasic(self):
       self.cms.open(mode='w')
       aid = self.cms.create_article('msg', 'text1')
-      self.assertEqual(self.cms.get_article(aid), 'text1')
+      self.assertEqual(self.cms.get_latest(aid), 'text1')
       self.cms.modify_article(aid, 'mod1 mod1')
-      self.assertEqual(self.cms.get_article(aid), 'mod1 mod1')
+      self.assertEqual(self.cms.get_latest(aid), 'mod1 mod1')
       self.cms.modify_article(aid, 'mod2.\nmodd')
-      self.assertEqual(self.cms.get_article(aid), 'mod2.\nmodd')
+      self.assertEqual(self.cms.get_latest(aid), 'mod2.\nmodd')
       self.cms.flush()
-      self.assertEqual(self.cms.get_snapshots(aid),
+      self.assertEqual(list(self.cms.get_article(aid)),
                        ['00000002', '00000001' , '00000000'])
       self.assertEqual([ (aid,title,loc) for (aid,loc,mtime,title,snippet) in self.cms.find_articles([KeywordPredicate('text1')]) ],
                        [ ('00000000', u'text1', '00000000') ])
@@ -350,11 +343,11 @@ if __name__ == '__main__':
       aid2 = self.cms.create_article('msg', 'art2')
       self.cms.modify_article(aid1, 'art1r')
       self.cms.modify_article(aid2, 'art2r')
-      self.assertEqual(self.cms.get_article(aid1), 'art1r')
-      self.assertEqual(self.cms.get_snapshots(aid1),
+      self.assertEqual(self.cms.get_latest(aid1), 'art1r')
+      self.assertEqual(list(self.cms.get_article(aid1)),
                        ['00000002', '00000000'])
-      self.assertEqual(self.cms.get_article(aid2), 'art2r')
-      self.assertEqual(self.cms.get_snapshots(aid2),
+      self.assertEqual(self.cms.get_latest(aid2), 'art2r')
+      self.assertEqual(list(self.cms.get_article(aid2)),
                        ['00000003', '00000001'])
       self.cms.flush()
       self.assertCMS(self.cms)
@@ -422,7 +415,7 @@ if __name__ == '__main__':
       self.cms.open(mode='r')
       self.assertCMS(self.cms)
       for aid in arts.iterkeys():
-        self.assertEqual(self.cms.get_article(aid), arts[aid])
+        self.assertEqual(self.cms.get_latest(aid), arts[aid])
       self.cms.close()
       self.cms.validate()
       return

@@ -2,9 +2,9 @@
 # -*- coding: euc-jp -*-
 
 import sys, unittest
-from fooling.util import dispw, zen2han, isplit, rsplit, intersect, union, merge
-from fooling.htmlripper import HTMLRipper
-stderr = sys.stderr
+from utils import dispw, zen2han, isplit, rsplit
+from utils import intersect, union, merge
+from htmlripper import HTMLRipper
 
 
 # zen2han

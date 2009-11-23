@@ -6,10 +6,9 @@
 import sys, os, os.path
 from array import array
 from struct import pack, unpack
-import fooling.pycdb as cdb
-from fooling.util import encode_array, decode_array, idx_info, \
-     PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
-stderr = sys.stderr
+import pycdb as cdb
+from utils import encode_array, decode_array, idx_info
+from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
 
 
 __all__ = [
@@ -120,7 +119,7 @@ def idxmerge(cdbname, idxstomerge, verbose=0):
   # Create a new index file.
   maker = cdb.cdbmake(cdbname, cdbname+'.tmp')
   if verbose:
-    print >>stderr, 'Merging: %r (docs=%d, est. terms=%d): %r' % \
+    print >>sys.stderr, 'Merging: %r (docs=%d, est. terms=%d): %r' % \
           (cdbname, sum( idx.ndocs for idx in idxstomerge ),
            estimate_terms( idx.nterms for idx in idxstomerge ), idxstomerge)
   # Copy sentences to a new index file with unique ids.
@@ -161,7 +160,7 @@ def idxmerge(cdbname, idxstomerge, verbose=0):
       maker.add(PROP_LOC+loc, pack('>i', docid))
 
   if verbose:
-    print >>stderr, 'done: docs=%d, terms=%d' % (len(docid2info), nterms)
+    print >>sys.stderr, 'done: docs=%d, terms=%d' % (len(docid2info), nterms)
   maker.add(PROP_INFO, pack('>ii', len(docid2info), nterms))
   maker.finish()
   return
@@ -191,11 +190,11 @@ class Merger(object):
       os.rename(fname+'.new', fname)
     elif idxstomerge[0].fname == fname:
       if self.verbose:
-        print >>stderr, 'Remain: %r' % (fname)
+        print >>sys.stderr, 'Remain: %r' % (fname)
     else:
       os.rename(idxstomerge[0].fname, fname)
       if self.verbose:
-        print >>stderr, 'Rename: %r <- %r' % (fname, idxstomerge[0].fname)
+        print >>sys.stderr, 'Rename: %r <- %r' % (fname, idxstomerge[0].fname)
     return
 
   def run(self, cleanup=False):
@@ -222,7 +221,7 @@ class Merger(object):
         if fname.endswith('.cdb.bak'):
           fname = os.path.join(self.indexdb.idxdir, fname)
           if self.verbose:
-            print >>stderr, 'Removing: %r' % fname
+            print >>sys.stderr, 'Removing: %r' % fname
           os.unlink(fname)
     self.indexdb.refresh()
     return

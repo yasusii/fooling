@@ -4,8 +4,8 @@
 ##
 
 import sys, re, codecs
-from fooling.sgmlparser3 import SGMLParser3
-from fooling.util import EOS_PAT_HTML, EOS_PAT_PRE
+from sgmlparser3 import SGMLParser3
+from utils import EOS_PAT_HTML, EOS_PAT_PRE
 
 
 __all__ = [

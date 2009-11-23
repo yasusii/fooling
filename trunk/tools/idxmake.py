@@ -71,6 +71,7 @@ def index(argv):
     indexer.index_loc(fname)
 
   indexer.finish()
+  cps.close()
   print >>sys.stderr, 'Done.'
   return
 

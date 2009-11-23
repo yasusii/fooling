@@ -5,14 +5,13 @@
 ##
 
 import sys, re
-from os.path import join, dirname
-from fooling import pycdb
-stdout = sys.stdout
-stderr = sys.stderr
+import os.path
+import pycdb
 
 # open the dictionary
 try:
-  YOMI_DICT = pycdb.tcdbinit(join(dirname(__file__), 'yomidict.tcdb'))
+  YOMI_DICT = pycdb.tcdbinit(os.path.join(os.path.dirname(__file__),
+                                          'yomidict.tcdb'))
 except IOError:
   YOMI_DICT = None
 

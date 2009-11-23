@@ -4,8 +4,8 @@
 ##
 
 import sys, os, os.path, stat, re
-import fooling.pycdb as cdb
-from fooling.util import idx_info, idx_docid2info, idx_loc2docid
+import pycdb as cdb
+from utils import idx_info, idx_docid2info, idx_loc2docid
 
 
 __all__ = [

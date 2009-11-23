@@ -41,7 +41,7 @@ dict/pubdic.txt:
 check: unittest searchtest
 
 unittest:
-	python -m fooling.unittests
+	python fooling/unittests.py
 
 searchtest: dict
 	cd test; make test

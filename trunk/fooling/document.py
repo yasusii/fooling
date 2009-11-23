@@ -4,7 +4,7 @@
 ##
 
 import sys, re, codecs
-from fooling.util import idatefeats, EOS_PAT_PLAIN
+from utils import idatefeats, EOS_PAT_PLAIN
 try:
   from cStringIO import StringIO
 except ImportError:
@@ -16,13 +16,13 @@ __all__ = [ 'Document', 'PlainTextDocument', 'SourceCodeDocument',
 
 
 def splitterms_normal(s):
-  from util import isplit, encodew
+  from utils import isplit, encodew
   for x in isplit(s):
     yield encodew(x)
   return
 
 def splitterms_yomi(s):
-  from util import isplit, encodew, encodey
+  from utils import isplit, encodew, encodey
   from yomi import index_yomi
   for x in isplit(s):
     yield encodew(x)
