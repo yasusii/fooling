@@ -28,12 +28,21 @@ class IndexFile(object):
   
   def __init__(self, fname):
     self.fname = fname
-    self.cdb = cdb.init(fname)
-    (self.ndocs, self.nterms) = idx_info(self.cdb)
+    self.cdb = None
     return
 
   def __repr__(self):
     return '<%s (docs=%d, terms=%d)>' % (self.fname, self.ndocs, self.nterms)
+
+  def open(self):
+    if not self.cdb:
+      self.cdb = cdb.init(self.fname)
+      (self.ndocs, self.nterms) = idx_info(self.cdb)
+    return
+
+  def close(self):
+    self.cdb.close()
+    return
 
   def assignnewids1(self, newids):
     self.oldids = []
@@ -186,6 +195,7 @@ class Merger(object):
     if 1 < len(idxstomerge):
       idxmerge(fname+'.new', idxstomerge, self.verbose)
       for idx in idxstomerge:
+        idx.close()
         os.rename(idx.fname, idx.fname+'.bak')
       os.rename(fname+'.new', fname)
     elif idxstomerge[0].fname == fname:
@@ -205,6 +215,7 @@ class Merger(object):
     newidx = 0
     idxstomerge = []
     for idx in idxs:
+      idx.open()
       if ((self.max_docs_threshold and self.max_docs_threshold < ndocs) or
           (self.max_terms_threshold and self.max_terms_threshold < estimate_terms(nterms))):
         self.flush(newidx, idxstomerge)

@@ -85,7 +85,10 @@ class HTMLRipper(SGMLParser3):
     return
 
   def feedfile(self, fp, encoding):
-    decoder = codecs.getdecoder(encoding)
+    try:
+      decoder = codecs.getdecoder(encoding)
+    except LookupError:
+      decoder = codecs.getdecoder('latin1')
     for line in fp:
       self.para = []
       self.feed(decoder(line, 'replace')[0])

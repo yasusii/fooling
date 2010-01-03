@@ -314,10 +314,10 @@ class TarDB(object):
 
   @classmethod
   def entry2idxoffset(klass, x):
-    return (int(x[:8], 16), int(x[8:].rstrip(), 16))
+    return (int(x[:7], 16), int(x[7:].rstrip(), 16))
   @classmethod
   def idxoffset2entry(klass, idx, offset):
-    return '%08x%07x' % (idx, offset)
+    return '%07x%08x' % (idx, offset)
   ENTRY_SIZE = 16  
       
   def __init__(self, basedir, catfile='catalog', lockfile='lock', maxsize=MAX_TARSIZE):

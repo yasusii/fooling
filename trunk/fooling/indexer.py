@@ -94,7 +94,7 @@ class Indexer(object):
     # sents
     sentid = 0
     title = doc.get_title()
-    if title:
+    if title and sentid < maxsents:
       title = zen2han(rmsp(title))
       self.maker.add(pack('>cii', PROP_SENT, docid, sentid), title.encode('utf-8'))
       add_features(terms, docid, sentid, set(doc.splitterms(title)))
