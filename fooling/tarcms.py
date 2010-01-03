@@ -1,32 +1,53 @@
 #!/usr/bin/env python
-import sys, os, stat, os.path
+import sys
+import os, os.path, stat
+from indexdb import IndexDB
+from corpus import GzipTarDBCorpus
+from tardb import FixedDB
+from indexer import Indexer
+from selection import Selection
+from tardb import ezip
 
 
 ##  TarCMS
 ##
-##   cms = TarCMS()
-##   cms.create()
-##   cms.open()
-##   aid = cms.create_article('msg', 'text1')
-##   tid = cms.modify_article(aid, 'text2')
-##   aids = cms.get_article(aid)
-##   (aid,tid,mtime,title,snippet) = cms.find_articles(queries)
-##   data = cms.get_snapshot(tid)
-##   data = cms.get_latest(aid)
-##   cms.close()
-##   cms.validate()
-##   cms.recover()
-##
 class TarCMS(object):
 
+  """Content Management with tar files
+
+  Sample usage:
+    # Create a TarCMS object.
+    cms = TarCMS(basedir)
+    # Actually create the structure on disk.
+    cms.create()
+    # Open it.
+    cms.open()
+    # Add a new document.
+    aid = cms.create_article('msg', 'this is my text.')
+    # Modify the document.
+    tid = cms.modify_article(aid, 'this is my revised text.')
+    # Search all documents.
+    for (aid,tid,mtime,title,snippet) in cms.find_articles(queries):
+      data = cms.get_snapshot(tid)
+    # Retrieve all revisions of an article:
+    for tid in cms.get_article(aid):
+      data = cms.get_snapshot(tid)
+    # Close it.
+    cms.close()
+    # Check the validity of the metadata.
+    cms.validate()
+    # Recover the metadata.
+    cms.recover()
+  """
+     
   class TarCMSError(Exception): pass
 
-  def __init__(self, basedir, doctype, encoding='utf-8', indexstyle=None):
-    from indexdb import IndexDB
-    from corpus import GzipTarDBCorpus
-    from tardb import FixedDB
+  def __init__(self, basedir, doctype, encoding='utf-8', indexstyle=None, threshold=100, verbose=False):
     self.basedir = basedir
-    self._corpus = GzipTarDBCorpus(os.path.join(basedir, 'src'), doctype, encoding,
+    self.threshold = threshold
+    self.verbose = verbose
+    self._corpus = GzipTarDBCorpus(os.path.join(basedir, 'src'),
+                                   doctype, encoding,
                                    indexstyle=indexstyle, namelen=8)
     self._artdb = FixedDB(os.path.join(basedir, 'articles'))
     self._indexdb = IndexDB(os.path.join(basedir, 'idx'), 'idx')
@@ -37,6 +58,9 @@ class TarCMS(object):
   def __repr__(self):
     return '<TarCMS: basedir=%r>' % (self.basedir,)
 
+  def __iter__(self):
+    return self.list_articles()
+  
   def create(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._corpus.create()
@@ -48,6 +72,7 @@ class TarCMS(object):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._corpus.open(mode=mode)
     self._artdb.open(mode=mode)
+    self._indexdb.open()
     self._loctoindex = set()
     self._mode = mode
     return
@@ -57,6 +82,7 @@ class TarCMS(object):
     self.flush()
     self._corpus.close()
     self._artdb.close()
+    self._indexdb.close()
     self._mode = None
     return
 
@@ -64,6 +90,8 @@ class TarCMS(object):
     if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     loc = self._corpus.add_data(data, name, ext, mtime=mtime, labels=labels)
     self._loctoindex.add(loc)
+    if self.threshold and self.threshold <= len(self._loctoindex):
+      self.flush()
     return loc
 
   def _add_file(self, path, name, mtime=None, labels=None):
@@ -76,17 +104,14 @@ class TarCMS(object):
       mtime = st[stat.ST_MTIME]
     return self._add_data(data, name, ext, mtime=mtime, labels=labels)
 
-  def flush(self, verbose=False, threshold=100, cleanup=True):
-    from indexer import Indexer
-    from merger import Merger
+  def flush(self):
     self._corpus.flush()
     self._artdb.flush()
-    indexer = Indexer(self._indexdb, self._corpus, verbose=verbose)
+    indexer = Indexer(self._indexdb, self._corpus, verbose=self.verbose)
     for loc in self._loctoindex:
       indexer.index_loc(loc)
     indexer.finish()
     self._loctoindex.clear()
-    Merger(self._indexdb, max_docs_threshold=threshold).run(cleanup=cleanup)
     return
 
   def create_article(self, ext, data, mtime=0, labels=None):
@@ -108,6 +133,7 @@ class TarCMS(object):
     return tid
 
   def get_article(self, aid):
+    """Get all revisions of an article."""
     if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     loc = self._artdb.get_record(int(aid, 16))
     while aid != loc:
@@ -116,24 +142,38 @@ class TarCMS(object):
     yield loc
     return
 
-  def find_articles(self, preds, disjunctive=False):
-    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
-    from selection import Selection
-    sel = Selection(self._indexdb, preds, disjunctive=disjunctive)
-    for (_,x) in sel:
-      (mtime, loc, title, snippet) = sel.get_snippet(x)
-      aid = self._corpus.get_name(loc)
-      yield (aid, loc, mtime, title, snippet)
+  def list_articles(self):
+    for (aid,tid) in enumerate(self._artdb):
+      aid = '%08x' % aid
+      if aid == tid:
+        yield aid
     return
 
-  def get_snapshot(self, loc):
+  def find_articles(self, preds, disjunctive=False):
+    """Find articles that match to the predicates."""
     if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
-    return self._corpus.get_data(loc)
+    sel = Selection(self._indexdb, preds, disjunctive=disjunctive)
+    for (_,x) in sel:
+      (mtime, tid, title, snippet) = sel.get_snippet(x)
+      aid = self._corpus.get_name(tid)
+      yield (aid, tid, mtime, title, snippet)
+    return
+
+  def get_snapshot(self, tid):
+    """Get a particular revision of article specified by tid."""
+    if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
+    return self._corpus.get_data(tid)
 
   def get_latest(self, aid):
-    for loc in self.get_article(aid):
-      return self.get_snapshot(loc)
+    """Equivalent to self.get_snapshot(self.get_article(aid)[0])."""
+    for tid in self.get_article(aid):
+      return self.get_snapshot(tid)
     raise KeyError(aid)
+
+  def list_snapshots(self):
+    for (aid,_) in enumerate(self._artdb):
+      yield '%08x' % aid
+    return
 
   def _get_catalog(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
@@ -153,7 +193,6 @@ class TarCMS(object):
   def validate_catalog(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._artdb.open(mode='r')
-    from tardb import ezip
     for (entry,loc) in ezip(self._artdb, self._get_catalog()):
       if entry != loc: raise TarCMS.TarCMSError
     self._artdb.close()
@@ -162,7 +201,6 @@ class TarCMS(object):
   def recover_catalog(self):
     if self._mode: raise TarCMS.TarCMSError('already open: %r' % self)
     self._artdb.open(mode='w')
-    from tardb import ezip
     for loc in self._get_catalog():
       self._artdb.add_record(loc)
     self._artdb.close()
@@ -309,9 +347,11 @@ if __name__ == '__main__':
       self.cms.flush()
       self.assertEqual(list(self.cms.get_article(aid)),
                        ['00000002', '00000001' , '00000000'])
-      self.assertEqual([ (aid,title,loc) for (aid,loc,mtime,title,snippet) in self.cms.find_articles([KeywordPredicate('text1')]) ],
+      self.assertEqual([ (aid,title,loc) for (aid,loc,mtime,title,snippet) in
+                         self.cms.find_articles([KeywordPredicate('text1')]) ],
                        [ ('00000000', u'text1', '00000000') ])
-      self.assertEqual([ (aid,title,loc) for (aid,loc,mtime,title,snippet) in self.cms.find_articles([KeywordPredicate('modd')]) ],
+      self.assertEqual([ (aid,title,loc) for (aid,loc,mtime,title,snippet) in
+                         self.cms.find_articles([KeywordPredicate('modd')]) ],
                        [ ('00000000', u'mod2.', '00000002') ])
       self.assertCMS(self.cms)
       self.assertCMSTar(self.cms, 'db00000.tar',
@@ -328,7 +368,8 @@ if __name__ == '__main__':
                             '00000000msg00000002.gz',
                             'mod2.\nmodd')
       self.assertCMSIdx(self.cms, 'idx00000.cdb',
-                        [(1,0),(2,0),(3,0),(3,1), u'mod1', u'mod2', u'modd', u'text1'])
+                        [(1,0),(2,0),(3,0),(3,1),
+                         u'mod1', u'mod2', u'modd', u'text1'])
       self.assertAid(self.cms,
                      ['00000002',
                       '00000000',
@@ -400,7 +441,8 @@ if __name__ == '__main__':
       MAX_ARTICLES = 1000
       RATIO_CREATE_NEW = 10
       def randstr():
-        return ''.join( chr(random.randrange(96)+32) for _ in xrange(random.randrange(MAX_DATA_SIZE)) )
+        return ''.join( chr(random.randrange(96)+32) for _ in
+                        xrange(random.randrange(MAX_DATA_SIZE)) )
       self.cms.open(mode='w')
       arts = {}
       for _ in xrange(MAX_ARTICLES):

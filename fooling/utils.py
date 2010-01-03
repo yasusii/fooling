@@ -19,6 +19,17 @@ EOS_PAT_HTML = re.compile(ur'[¡£¡¥¡ª¡©!?]', re.UNICODE)
 EOS_PAT_PRE = re.compile(ur'[¡£¡¥¡ª¡©!?\n]', re.UNICODE)
 
 
+##  Kinsoku
+##
+WORD_PAT = re.compile(r'''
+        [\[{(\'`"¡Æ¡È¡Ò¡Ô¡Ö¡Ø¡Ú¡Ì¡Ê¡Î¡Ð]* # open paren
+        ([a-zA-Z0-9_\xa0]+|\w)          # core
+        [-=:;,.!?¤¡¤£¤¥¤§¤©¤ã¤å¤ç¤Ã¥¡¥£¥¥¥§¥©¥ã¥å¥ç¥Ã¡¹¡µ¡¶¡¦¡Ä¡¢¡£¡§¡¨¡¤¡¥¡ª¡©\]})\'`"¡Ç¡É¡Ó¡Õ¡×¡Ù¡Û¡Í¡Ë¡Ï¡Ñ]* |
+        \S |                            # other chars
+        \s+                             # space
+        ''', re.VERBOSE | re.UNICODE)
+
+
 # Detect the endian.
 # We always follow the little endian, so if the machine is the big endian, we swap bytes.
 SWAP_ENDIAN = (pack('=i',1) == pack('>i',1)) # True if this is the big endian.
@@ -71,7 +82,10 @@ def splitchars(s):
   s = s.strip().lower()
   for m in TOKEN_PAT.finditer(s):
     c = m.group(0)
-    t = CHARTYPE[ord(c[0])]
+    try:
+      t = CHARTYPE[ord(c[0])]
+    except IndexError:
+      t = 0
     yield (c,t)
   return
 

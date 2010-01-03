@@ -96,7 +96,10 @@ class PlainTextDocument(Document):
     return '<PlainTextDocument: %r>' % self.loc
 
   def get_sents(self):
-    decoder = codecs.getdecoder(self.get_encoding())
+    try:
+      decoder = codecs.getdecoder(self.get_encoding())
+    except LookupError:
+      decoder = codecs.getdecoder('latin1')
     # split sentences
     buf = u''
     pos = 0
@@ -119,7 +122,10 @@ class SourceCodeDocument(Document):
     return '<SourceCodeDocument: %r>' % self.loc
 
   def get_sents(self):
-    decoder = codecs.getdecoder(self.get_encoding())
+    try:
+      decoder = codecs.getdecoder(self.get_encoding())
+    except LookupError:
+      decoder = codecs.getdecoder('latin1')
     for line in self.get_fp():
       yield decoder(line, 'replace')[0]
     return
@@ -176,7 +182,10 @@ class EMailPartMixin(object):
         v = decode_header(s)
         self.headers.append((h, v))
         if h.lower() == 'date':
-          self.mtime = int(Utils.mktime_tz(Utils.parsedate_tz(v)))
+          try:
+            self.mtime = int(Utils.mktime_tz(Utils.parsedate_tz(v)))
+          except (TypeError, ValueError, OverflowError):
+            pass
         elif h.lower() == 'subject':
           self.title = v
     if not self.title:
@@ -225,15 +234,14 @@ class EMailMessageMixin(object):
     if self.msg.is_multipart():
       for (i,submsg) in enumerate(self.msg.walk()):
         if submsg.is_multipart(): continue
-        subloc = self.corpus.get_subloc(self.loc, i)
         content_type = submsg.get_content_type()
         encoding = submsg.get_content_charset()
         if content_type == 'text/plain':
-          subdocs.append( EMailTextDocument(self.corpus, subloc, submsg, self.mtime) )
+          subdocs.append( EMailTextDocument(self.corpus, self.loc, submsg, self.mtime) )
         elif content_type == 'text/html':
-          subdocs.append( EMailHTMLDocument(self.corpus, subloc, submsg, self.mtime) )
+          subdocs.append( EMailHTMLDocument(self.corpus, self.loc, submsg, self.mtime) )
         elif content_type.startswith('message/'):
-          subdocs.append( EMailMessageDocument(self.corpus, subloc, submsg, self.mtime) )
+          subdocs.append( EMailMessageDocument(self.corpus, self.loc, submsg, self.mtime) )
     return subdocs
 
 class EMailTextDocument(EMailPartMixin, PlainTextDocument):

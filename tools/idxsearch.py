@@ -12,14 +12,14 @@ from fooling.selection import Selection, SearchTimeout, \
 def show_results(selection, n, encoding, timeout=0):
   def e(s): return s.encode(encoding, 'replace')
   window = []
-  for (found,loc) in selection.iter(timeout=timeout):
+  for (found,loc) in enumerate(selection):
     (mtime, loc, title, s) = selection.get_snippet(loc,
                                                    highlight=lambda x: '\033[31m%s\033[m' % x,
                                                    maxchars=200, maxlr=100)
     print '%d: [%s] %s' % (found+1, e(title or 'unknown'), e(s))
     window.append(found)
     if len(window) == n: break
-  (finished, estimated) = selection.status()
+  (finished, estimated) = selection.get_status()
   if not window:
     print 'Not found.'
   else:
@@ -95,14 +95,16 @@ def search(argv):
     indexdb.open()
     preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
     selection = Selection(indexdb, preds, safe=safe, disjunctive=disjunctive)
+    selection.set_timeout(timeout)
     try:
-      show_results(selection, n, encoding, timeout)
+      show_results(selection, n, encoding)
     except SearchTimeout:
       print 'SearchTimeout.'
   elif savefile:
     selection = load_selection(savefile)
+    selection.set_timeout(timeout)
     try:
-      show_results(selection, n, encoding, timeout)
+      show_results(selection, n, encoding)
     except SearchTimeout:
       print 'SearchTimeout.'
   else:

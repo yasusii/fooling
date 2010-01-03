@@ -23,8 +23,8 @@ __all__ = [
   'StrictEMailPredicate',
   'Selection',
   'SelectionWithContinuation',
-  'DummySelection',
-  'parse_preds'
+  'canbe_yomi',
+  'parse_preds',
   ]
 
 
@@ -244,19 +244,9 @@ class StrictEMailPredicate(StrictMixin, EMailPredicate): pass
 class SearchTimeout(Exception): pass
 class Selection(object):
 
-  def __getstate__(self):
-    odict = self.__dict__.copy()
-    del odict['_indexdb']
-    return odict
-
-  def __setstate__(self, dict):
-    self.__dict__.update(dict)
-    self._indexdb = None
-    return
-
   def __init__(self, indexdb, term_preds, doc_preds=None,
                safe=True, start_loc=None, end_loc=None,
-               disjunctive=False, debug=0):
+               disjunctive=False, timeout=0, debug=0):
     self._indexdb = indexdb
     self.debug = 0
 
@@ -268,6 +258,7 @@ class Selection(object):
     self.doc_preds = doc_preds or []
     self.safe = safe
     self.disjunctive = disjunctive
+    self.timeout = timeout
     
     # Starting position:
     if start_loc:
@@ -284,10 +275,10 @@ class Selection(object):
     self.searched_docs = (0, 0)
     
     # Found documents:
-    # (We don't store Document objects to avoid having them pickled!)
     self.narrowed = 0
     self.found_docs = []                # [loc, ...]
     self.snippets = {}                  # { loc:[pos, ...], ... }
+    self.iter = self.start_iter()
     return
 
   def __repr__(self):
@@ -300,56 +291,32 @@ class Selection(object):
     return len(self.found_docs)
 
   def __getitem__(self, i):
-    return self.get(i)
-
+    try:
+      while len(self.found_docs) <= i:
+        self.iter.next()
+      return self.found_docs[i]
+    except StopIteration:
+      raise IndexError(i)
+  
   def __iter__(self):
-    return self.iter()
-
+    for x in self.found_docs:
+      yield x
+    try:
+      while 1:
+        yield self.iter.next()
+    except StopIteration:
+      pass
+    return
+    
   def get_preds(self):
     return (self.pos_preds + self.neg_preds)
 
-  def get(self, i, timeout=0):
-    if len(self.found_docs) <= i:
-      j = None
-      for (j,loc) in self.start_search(timeout):
-        if i <= j: break
-      if i == j:
-        return loc
-    # might cause IndexError
-    return self.found_docs[i]
-  
-  def iter(self, start=0, timeout=0):
-    if len(self.found_docs) < start:
-      raise ValueError('invalid start index: %d' % start)
-    # Return the existing results first.
-    for i in xrange(start, len(self.found_docs)):
-      yield (i, self.found_docs[i])
-    # Now retrieve new results.
-    for x in self.start_search(timeout):
-      yield x
+  def set_timeout(self, timeout):
+    self.timeout = timeout
     return
-    
-  def status(self):
-    # Get the number of all documents.
-    found_docs = len(self.found_docs)
-    total_docs = self._indexdb.total_docs()
-    (searched_docs0, searched_docs1) = self.searched_docs
-    searched_docs = searched_docs0 + searched_docs1
-    if searched_docs == total_docs:
-      return (True, found_docs)
-    else:
-      # Estimate the number of searched documents,
-      # assuming (start_docid ==
-      #           the number of unscanned docs in the current idx).
-      (_,docid) = self.start_loc
-      # rate = (# of found documents) / (# of searched documents)
-      estimated = found_docs * (total_docs-searched_docs) / lowerbound(searched_docs, 1)
-      return (False, found_docs+estimated)
 
   def get_docids(self):
-    """
-    Returns a list of DocIDs that might meet the query.
-    """
+    "Returns a list of DocIDs that have a given feature."
     (start_idx, start_docid0) = self.start_loc
     (end_idx, end_docid0) = self.end_loc
     # We maintain the number of docs that have been searched so far.
@@ -465,13 +432,13 @@ class Selection(object):
       self.searched_docs = (searched_docs0, 0)
     return
 
-  def start_search(self, timeout=0):
+  def start_iter(self):
+    "Iterates over the search resuts."
     from time import time
-    limit_time = 0
-    if timeout:
-      limit_time = time() + timeout
-
     for (idx,docid,contexts) in self.get_docids():
+      t0 = 0
+      if self.timeout:
+        t0 = time()
       pol = 0
       if self.doc_preds:
         # Apply the document predicates.
@@ -511,9 +478,9 @@ class Selection(object):
       if 0 < pol:
         loc = (idx,docid)
         self.found_docs.append(loc)
-        yield (len(self.found_docs)-1, loc)
+        yield loc
       # Abort if the specified time is passed.
-      if limit_time and limit_time < time():
+      if self.timeout and t0+self.timeout <= time():
         raise SearchTimeout(self)
     return
 
@@ -598,22 +565,28 @@ class Selection(object):
     x.append((0, s[p1:]))
     return x
 
+  def get_status(self):
+    # Get the number of all documents.
+    found_docs = len(self.found_docs)
+    total_docs = self._indexdb.total_docs()
+    (searched_docs0, searched_docs1) = self.searched_docs
+    searched_docs = searched_docs0 + searched_docs1
+    if searched_docs != total_docs:
+      # Estimate the number of searched documents,
+      # assuming (start_docid ==
+      #           the number of unscanned docs in the current idx).
+      (_,docid) = self.start_loc
+      # rate = (# of found documents) / (# of searched documents)
+      estimated = found_docs * (total_docs-searched_docs) / lowerbound(searched_docs, 1)
+      found_docs += estimated
+    return (searched_docs == total_docs, found_docs)
 
-##  SelectionWithContinuation
-##
-class SelectionWithContinuation(Selection):
-  
-  def iter(self, start=0, timeout=0):
-    if start != len(self.found_docs):
-      raise ValueError('Cannot retrieve previous results.')
-    return self.start_search(timeout)
-  
-  def save_continuation(self):
+  def save_status(self):
     from base64 import b64encode
     (idxid, docid) = self.start_loc
     return b64encode(pack('>HiH', idxid, docid, len(self.found_docs)))
 
-  def load_continuation(self, x):
+  def load_status(self, x):
     from base64 import b64decode
     try:
       (idxid0, docid0, found_docs) = unpack('>HiH', b64decode(x))
@@ -628,44 +601,6 @@ class SelectionWithContinuation(Selection):
       searched_docs0 += idx_docs
     self.searched_docs = (searched_docs0, idx_docs-docid0)
     return
-
-
-##  DummySelection
-##
-class DummySelection(object):
-  
-  def __init__(self, locs):
-    self.locs = locs
-    return
-  
-  def __repr__(self):
-    return '<DummySelection: locs=%r>' % (self.locs)
-  
-  def __len__(self):
-    return len(self.locs)
-
-  def __getitem__(self, i):
-    return self.get(i)
-
-  def __iter__(self):
-    return self.iter()
-
-  def get_preds(self):
-    return []
-
-  def matched_range(self, s):
-    return [(False, s)]
-
-  def get(self, i):
-    return self.locs[i]
-
-  def iter(self, start=0, timeout=0):
-    for i in xrange(start, len(self.locs)):
-      yield (i, self.locs[i])
-    return
-
-  def status(self):
-    return (True, len(self.locs))
 
 
 # Returns True if the given string can be yomi-keyword.

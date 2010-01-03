@@ -94,14 +94,15 @@ class SearchApp:
     (disj, preds) = parse_preds(query, max_preds=self.MAX_QUERY_PREDS,
                                 yomipredtype=YomiKeywordPredicate)
     selection = SelectionWithContinuation(indexdb, preds, disjunctive=disj)
+    selection.set_timeout(self.TIMEOUT)
     if len(start) == 12:
       try:
-        selection.load_continuation(start)
-        start = len(selection.found_docs)
+        selection.load_status(start)
+        i = len(selection.found_docs)
       except:
-        start = 0
+        i = 0
     else:
-      start = 0
+      i = 0
 
     self.out(u'<hr noshade><p><q>',
              [' '.join( pred.q for pred in preds )],
@@ -109,12 +110,13 @@ class SearchApp:
              u'<dl>\n')
     window = []
     try:
-      for (found,loc) in selection.iter(start=start, timeout=self.TIMEOUT):
+      while 1:
+        loc = selection[i]
         (mtime, loc, title, s) = selection.get_snippet(loc,
                                                        normal=q, highlight=lambda x: u'<b>%s</b>' % q(x),
                                                        maxchars=200, maxlr=50)
         self.out(u'<dt><small><i>',
-                 [found+1],
+                 [i+1],
                  u'.</i></small> <a href="',
                  [urljoin(baseurl, loc)],
                  u'">',
@@ -124,8 +126,9 @@ class SearchApp:
                  u'</small><dd><small>',
                  s,
                  u'</small>\n')
-        window.append(found)
+        window.append(i)
         if len(window) == 10: break
+        i += 1
       self.out(u'</dl>\n')
     except SearchTimeout:
       self.out(u'</dl><center>(',
@@ -149,7 +152,7 @@ class SearchApp:
                [window[-1]+1],
                u'件を表示しております。')
       if not finished:
-        cont = selection.save_continuation()
+        cont = selection.save_status()
         self.out(u'&nbsp; <a href="',
                  [url('?', q=query, s=cont)],
                  u'">つぎ? &gt;&gt;</a>')

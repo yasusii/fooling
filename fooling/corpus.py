@@ -3,7 +3,8 @@
 ##  corpus.py
 ##
 
-import sys, os, os.path, stat
+import sys
+import os, os.path, stat
 try:
   from cStringIO import StringIO
 except ImportError:
@@ -65,9 +66,6 @@ class Corpus(object):
   def get_doc(self, loc):
     return self.default_doctype(self, loc)
   
-  def get_subloc(self, loc, i):
-    return '%s:%s' % (loc, i)
-
   # (overridable)
   # Returns a default Document title.
   def loc_title(self, loc):
@@ -165,20 +163,12 @@ class BerkeleyDBCorpus(Corpus):
   def __init__(self, dbfile, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
+    self._db = None
     return
 
   def __repr__(self):
     return '<BerkeleyDBCorpus: dbfile=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.dbfile, self.default_doctype, self.default_encoding)
-
-  def __getstate__(self):
-    odict = Corpus.__getstate__(self)
-    del odict['_db']
-    return odict
-
-  def __setstate__(self, dict):
-    Corpus.__setstate__(self, dict)
-    return
 
   def open(self, mode='r'):
     from bsddb import hashopen
@@ -187,6 +177,7 @@ class BerkeleyDBCorpus(Corpus):
     
   def close(self):
     self._db.close()
+    self._db = None
     return
 
   def loc_exists(self, loc):
@@ -209,20 +200,12 @@ class CDBCorpus(Corpus):
   def __init__(self, dbfile, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.dbfile = dbfile
+    self._db = None
     return
 
   def __repr__(self):
     return '<CDBCorpus: dbfile=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.dbfile, self.default_doctype, self.default_encoding)
-
-  def __getstate__(self):
-    odict = Corpus.__getstate__(self)
-    del odict['_db']
-    return odict
-
-  def __setstate__(self, dict):
-    Corpus.__setstate__(self, dict)
-    return
 
   def open(self, mode='r'):
     import pycdb as cdb
@@ -231,6 +214,7 @@ class CDBCorpus(Corpus):
     
   def close(self):
     self._db.close()
+    self._db = None
     return
 
   def loc_exists(self, loc):
@@ -259,21 +243,13 @@ class SQLiteCorpus(Corpus):
     self.sql_getdoc = 'select %s from %s where %s=?' % (text, table, key)
     # The field must be an integer.
     self.sql_getmtime = 'select %s from %s where %s=?' % (mtime, table, key)
+    self._conn = None
+    self._cur = None
     return
 
   def __repr__(self):
     return '<SQLiteCorpus: dbfile=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.dbfile, self.default_doctype, self.default_encoding)
-
-  def __getstate__(self):
-    odict = Corpus.__getstate__(self)
-    del odict['_conn']
-    del odict['_cur']
-    return odict
-
-  def __setstate__(self, dict):
-    Corpus.__setstate__(self, dict)
-    return
 
   def open(self, mode='r'):
     import pysqlite2.dbapi2 as pysqlite
@@ -283,6 +259,8 @@ class SQLiteCorpus(Corpus):
 
   def close(self):
     self._conn.close()
+    self._conn = None
+    self._cur = None
     return
 
   def loc_exists(self, loc):
@@ -320,15 +298,6 @@ class TarDBCorpus(Corpus):
   def __repr__(self):
     return '<TarDBCorpus: basedir=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.basedir, self.default_doctype, self.default_encoding)
-
-  def __getstate__(self):
-    odict = Corpus.__getstate__(self)
-    del odict['_db']
-    return odict
-
-  def __setstate__(self, dict):
-    Corpus.__setstate__(self, dict)
-    return
 
   def open(self, mode='r'):
     assert self._db == None

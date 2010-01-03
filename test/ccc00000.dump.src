@@ -190,18 +190,18 @@ term(0xf0):2008/11 -> (3) 7:0, 6:0, 5:0
 term(0xf0):2008/11/25 -> (3) 7:0, 6:0, 5:0
 docid:1 -> mtime:1093889169, loc:'email1.msg'
 docid:2 -> mtime:1078064614, loc:'email2.msg'
-docid:3 -> mtime:1078064614, loc:'email2.msg:1'
-docid:4 -> mtime:1078064614, loc:'email2.msg:2'
+docid:3 -> mtime:1078064614, loc:'email2.msg'
+docid:4 -> mtime:1078064614, loc:'email2.msg'
 docid:5 -> mtime:1227542409, loc:'email3.msg'
-docid:6 -> mtime:1227542409, loc:'email3.msg:2'
-docid:7 -> mtime:1227542409, loc:'email3.msg:3'
-docid:8 -> mtime:1220152833, loc:'email3.msg:5'
+docid:6 -> mtime:1227542409, loc:'email3.msg'
+docid:7 -> mtime:1227542409, loc:'email3.msg'
+docid:8 -> mtime:1220152833, loc:'email3.msg'
 loc:'email1.msg' -> docid:1
 loc:'email2.msg' -> docid:2
-loc:'email2.msg:1' -> docid:3
-loc:'email2.msg:2' -> docid:4
+loc:'email2.msg' -> docid:3
+loc:'email2.msg' -> docid:4
 loc:'email3.msg' -> docid:5
-loc:'email3.msg:2' -> docid:6
-loc:'email3.msg:3' -> docid:7
-loc:'email3.msg:5' -> docid:8
+loc:'email3.msg' -> docid:6
+loc:'email3.msg' -> docid:7
+loc:'email3.msg' -> docid:8
 ndocs=8, nterms=162

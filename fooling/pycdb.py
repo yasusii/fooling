@@ -98,6 +98,10 @@ class CDBReader(object):
       i = (i+2) % n
     raise KeyError(k)
 
+  def close(self):
+    self._fp.close()
+    return
+
   def get(self, k, failed=None):
     try:
       return self.__getitem__(k)
