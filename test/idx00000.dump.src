@@ -16,9 +16,9 @@ term(0x12):てれ -> (1) 1:2
 term(0x12):ぶっ -> (1) 1:1
 term(0x13):hello -> (1) 1:0
 term(0x13):world -> (1) 1:0
-term(0xf0):2007 -> (1) 1:0
-term(0xf0):2007/05 -> (1) 1:0
-term(0xf0):2007/05/17 -> (1) 1:0
-docid:1 -> mtime:1179330180, loc:'plaintext1.txt'
+term(0xf0):2010 -> (1) 1:0
+term(0xf0):2010/05 -> (1) 1:0
+term(0xf0):2010/05/22 -> (1) 1:0
+docid:1 -> mtime:1274533712, loc:'plaintext1.txt'
 loc:'plaintext1.txt' -> docid:1
 ndocs=1, nterms=18

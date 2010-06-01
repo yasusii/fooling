@@ -11,14 +11,11 @@ term(0x13):gasagoso -> (1) 1:2
 term(0x13):html4 -> (1) 2:0
 term(0x13):pre1 -> (1) 1:1
 term(0x13):pre2 -> (1) 1:1
-term(0xf0):2007 -> (1) 1:0
-term(0xf0):2007/05 -> (1) 1:0
-term(0xf0):2007/05/17 -> (1) 1:0
-term(0xf0):2008 -> (1) 2:0
-term(0xf0):2008/12 -> (1) 2:0
-term(0xf0):2008/12/06 -> (1) 2:0
-docid:1 -> mtime:1179330180, loc:'html2.html'
-docid:2 -> mtime:1228571862, loc:'html4.html'
+term(0xf0):2010 -> (2) 2:0, 1:0
+term(0xf0):2010/05 -> (2) 2:0, 1:0
+term(0xf0):2010/05/22 -> (2) 2:0, 1:0
+docid:1 -> mtime:1274533712, loc:'html2.html'
+docid:2 -> mtime:1274533712, loc:'html4.html'
 loc:'html2.html' -> docid:1
 loc:'html4.html' -> docid:2
-ndocs=2, nterms=15
+ndocs=2, nterms=12

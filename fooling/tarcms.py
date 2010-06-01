@@ -153,8 +153,8 @@ class TarCMS(object):
     """Find articles that match to the predicates."""
     if not self._mode: raise TarCMS.TarCMSError('not open: %r' % self)
     sel = Selection(self._indexdb, preds, disjunctive=disjunctive)
-    for (_,x) in sel:
-      (mtime, tid, title, snippet) = sel.get_snippet(x)
+    for loc in sel:
+      (mtime, tid, title, snippet) = sel.get_snippet(loc)
       aid = self._corpus.get_name(tid)
       yield (aid, tid, mtime, title, snippet)
     return
