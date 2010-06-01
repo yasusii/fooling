@@ -350,7 +350,7 @@ class TarDB(object):
       self._catalog.open(mode=mode)
       self._mode = mode
     except FixedDB.FileLockError, e:
-      raise TarDB.FileError(e)
+      raise TarDB.LockError(e)
     return self
 
   def close(self):
@@ -534,7 +534,7 @@ class TarDB(object):
     try:
       self._catalog.open(mode='r')
     except FixedDB.FileLockError, e:
-      raise TarDB.FileError(e)
+      raise TarDB.LockError(e)
     for (recno, (entry, (idx,offset))) in enumerate(ezip(self._catalog, self._get_catalog())):
       if entry != self.idxoffset2entry(idx, offset):
         raise TarDB.Corrupted('validate_catalog: tar catalog corrupted: recno=%d' % recno)
