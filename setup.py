@@ -16,7 +16,7 @@ setup(
     'fooling': 'fooling',
   },
   package_data={
-    'fooling': ['fooling/yomidict.tcdb'],
+    'fooling': ['yomidict.tcdb'],
   },
   scripts=[
     'tools/sortbymtime.py',
