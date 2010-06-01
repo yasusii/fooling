@@ -5,7 +5,7 @@ PREFIX=/usr/local
 
 PYTHON=python -E
 TAR=tar
-SVN=svn
+GIT=git
 RM=rm -f
 CP=cp -f
 
@@ -50,9 +50,6 @@ cmstest: cmsclean
 	$(PYTHON) fooling/tarcms.py
 cmsclean:
 	-rm -rf ./test.__*
-
-commit: clean
-	$(SVN) commit
 
 dist: clean
 	$(PYTHON) setup.py sdist
