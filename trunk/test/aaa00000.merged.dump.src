@@ -31,16 +31,13 @@ term(0x13):test -> (1) 1:0
 term(0x13):に -> (1) 1:3
 term(0x13):ふう -> (1) 1:0
 term(0x13):ドー -> (1) 1:1
-term(0xf0):2007 -> (2) 2:0, 1:0
-term(0xf0):2007/05 -> (2) 2:0, 1:0
-term(0xf0):2007/05/17 -> (2) 2:0, 1:0
-term(0xf0):2008 -> (1) 3:0
-term(0xf0):2008/12 -> (1) 3:0
-term(0xf0):2008/12/06 -> (1) 3:0
-docid:1 -> mtime:1179330180, loc:'html1.html'
-docid:2 -> mtime:1179330180, loc:'html2.html'
-docid:3 -> mtime:1228571862, loc:'html4.html'
+term(0xf0):2010 -> (3) 3:0, 2:0, 1:0
+term(0xf0):2010/05 -> (3) 3:0, 2:0, 1:0
+term(0xf0):2010/05/22 -> (3) 3:0, 2:0, 1:0
+docid:1 -> mtime:1274533712, loc:'html1.html'
+docid:2 -> mtime:1274533712, loc:'html2.html'
+docid:3 -> mtime:1274533712, loc:'html4.html'
 loc:'html1.html' -> docid:1
 loc:'html2.html' -> docid:2
 loc:'html4.html' -> docid:3
-ndocs=3, nterms=29
+ndocs=3, nterms=26

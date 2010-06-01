@@ -5,9 +5,9 @@ term(0x12):ほん -> (1) 1:0
 term(0x13):新 -> (1) 1:0
 term(0x13):最 -> (1) 1:0
 term(0x13):最新 -> (1) 1:0
-term(0xf0):2007 -> (1) 1:0
-term(0xf0):2007/05 -> (1) 1:0
-term(0xf0):2007/05/17 -> (1) 1:0
-docid:1 -> mtime:1179330180, loc:'html3.html'
+term(0xf0):2010 -> (1) 1:0
+term(0xf0):2010/05 -> (1) 1:0
+term(0xf0):2010/05/22 -> (1) 1:0
+docid:1 -> mtime:1274533712, loc:'html3.html'
 loc:'html3.html' -> docid:1
 ndocs=1, nterms=9

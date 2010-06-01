@@ -132,9 +132,9 @@ term(0x20):ーテ -> (1) 1:1
 term(0x20):ート -> (1) 1:2
 term(0x20):ーハ -> (1) 1:1
 term(0x20):ーワ -> (1) 1:1
-term(0xf0):2008 -> (1) 1:0
-term(0xf0):2008/05 -> (1) 1:0
-term(0xf0):2008/05/31 -> (1) 1:0
-docid:1 -> mtime:1212225370, loc:'plainyomi1.txt'
+term(0xf0):2010 -> (1) 1:0
+term(0xf0):2010/05 -> (1) 1:0
+term(0xf0):2010/05/22 -> (1) 1:0
+docid:1 -> mtime:1274533712, loc:'plainyomi1.txt'
 loc:'plainyomi1.txt' -> docid:1
 ndocs=1, nterms=133
