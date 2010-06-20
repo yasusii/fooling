@@ -4,7 +4,9 @@
 ##
 
 import sys, re, codecs
-from utils import idatefeats, EOS_PAT_PLAIN
+from utils import EOS_PAT_PLAIN
+from utils import idatefeats
+from utils import PROP_EMAIL_MSGID, PROP_EMAIL_REPLY, PROP_EMAIL_REF
 try:
   from cStringIO import StringIO
 except ImportError:
@@ -211,7 +213,11 @@ class EMailPartMixin(object):
 
 class EMailMessageMixin(object):
   
-  MSGID_HEADERS = { 'message-id':'\x80', 'in-reply-to':'\x81', 'references':'\x81' }
+  MSGID_HEADERS = {
+    'message-id': PROP_EMAIL_MSGID,
+    'in-reply-to': PROP_EMAIL_REPLY,
+    'references': PROP_EMAIL_REF
+    }
   MSGID_PAT = re.compile(r'<([^>]+)>')
   
   def __init__(self): raise NotImplementedError

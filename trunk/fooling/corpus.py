@@ -20,19 +20,6 @@ __all__ = [
   ]
 
 
-DOCTYPE_MAP = {
-  '.txt': PlainTextDocument,
-  '.msg': EMailDocument,
-  '.html': HTMLDocument,
-  '.htm': HTMLDocument,
-  '.jpeg': DummyDocument,
-  '.jpg': DummyDocument,
-  '.gif': DummyDocument,
-  '.png': DummyDocument,
-  '.pdf': DummyDocument,
-  }
-
-
 ##  Corpus (abstract)
 ##
 ##  A Corpus is an object that contains documents and their indices.
@@ -93,7 +80,7 @@ class Corpus(object):
 
   # (overridable)
   # Returns the features for the location.
-  def loc_feats(self, loc):
+  def loc_labels(self, loc):
     return []
 
   # (overridable)
@@ -123,14 +110,6 @@ class FilesystemCorpus(Corpus):
     return '<FilesystemCorpus: basedir=%r, default_doctype=%r, default_encoding=%r>' % \
            (self.basedir, self.default_doctype, self.default_encoding)
 
-  # Returns a Document object for the location.
-  def get_doc(self, loc):
-    (_, ext) = os.path.splitext(loc)
-    if ext in DOCTYPE_MAP:
-      return DOCTYPE_MAP[ext](self, loc)
-    else:
-      return self.default_doctype(self, loc)
-  
   # Returns if the given document exists.
   def loc_exists(self, loc):
     return os.path.exists(os.path.join(self.basedir, loc))
@@ -286,12 +265,10 @@ class TarDBCorpus(Corpus):
 
   SMALL_MERGE = 20
   LARGE_MERGE = 2000
-  SUFFIX = ''
   
-  def __init__(self, basedir, doctype, encoding, indexstyle=None, namelen=0):
+  def __init__(self, basedir, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
     self.basedir = basedir
-    self.namelen = namelen
     self._db = None
     return
   
@@ -321,74 +298,55 @@ class TarDBCorpus(Corpus):
     tardb.TarDB(self.basedir).create()
     return
 
+  def loc_exists(self, loc):
+    recno = self._get_recno(loc)
+    return 0 <= recno and recno < len(self._db)
+
+  def loc_fp(self, loc):
+    recno = self._get_recno(loc)
+    (_,data) = self._db.get_record(recno)
+    return StringIO(data)
+
+  def loc_mtime(self, loc):
+    info = self._get_info(loc)
+    return info.mtime
+  
+  def loc_size(self, loc):
+    info = self._get_info(loc)
+    return info.size
+
   def validate_catalog(self):
     import tardb
     tardb.TarDB(self.basedir).validate_catalog()
     return
+  
   def recover_catalog(self):
     import tardb
     tardb.TarDB(self.basedir).recover_catalog()
     return
 
-  def get_recno(self, loc):
+  def _get_recno(self, loc):
+    assert len(loc) == 8
     return int(loc, 16)
-  def get_loc(self, recno):
+  def _get_loc(self, recno):
     return '%08x' % recno
-  
-  def get_loc_info(self, loc):
-    recno = self.get_recno(loc)
+  def _get_info(self, loc):
+    recno = self._get_recno(loc)
     return self._db.get_info(recno)
 
-  def set_loc_info(self, loc, info):
-    recno = self.get_recno(loc)
+  def get_info(self, loc):
+    info = self._get_info(loc)
+    info.name = info.name[8:]
+    return info
+
+  def set_info(self, loc, info):
+    info.name = loc+info.name
+    recno = self._get_recno(loc)
     return self._db.set_info(recno, info)
 
-  def _get_loc_name(self, loc):
-    return self.get_loc_info(loc).name
-  
-  def _set_loc_name(self, loc, name):
-    info = self.get_loc_info(loc)
-    info.name = name
-    self.set_loc_info(loc, info)
-    return
-
-  def loc_exists(self, loc):
-    recno = self.get_recno(loc)
-    return 0 <= recno and recno < len(self._db)
-
-  def loc_fp(self, loc):
-    recno = self.get_recno(loc)
-    (_,data) = self._db.get_record(recno)
-    return StringIO(data)
-
-  def loc_mtime(self, loc):
-    info = self.get_loc_info(loc)
-    return info.mtime
-  
-  def loc_size(self, loc):
-    info = self.get_loc_info(loc)
-    return info.size
-
-  def get_ext(self, loc):
-    return self._get_loc_name(loc)[self.namelen:self.namelen+3]
-
-  def get_name(self, loc):
-    return self._get_loc_name(loc)[:self.namelen]
-
-  def get_doc(self, loc):
-    ext = self.get_ext(loc)
-    try:
-      return DOCTYPE_MAP[ext](self, loc)
-    except KeyError:
-      return self.default_doctype(self, loc)
-  
-  def add_data(self, data, name, ext, mtime=0, labels=None):
-    from tarfile import TarInfo
-    assert len(name) == self.namelen
-    assert len(ext) == 3
-    loc = self.get_loc(self._db.nextrecno())
-    info = TarInfo(name+ext+loc+self.label2str(labels)+self.SUFFIX)
-    info.mtime = mtime
+  def add_data(self, info, data):
+    loc = self._get_loc(self._db.nextrecno())
+    info.name = loc+info.name
     self._db.add_record(info, data)
     return loc
 
@@ -396,36 +354,10 @@ class TarDBCorpus(Corpus):
     fp = self.loc_fp(loc)
     return fp.read()
 
-  def get_labels(self, loc):
-    return self.str2label(self._get_loc_name(loc)[self.namelen+11:])
-
-  def set_labels(self, loc, labels):
-    name = self._get_loc_name(loc)
-    self._set_loc_name(loc, name[:self.namelen+11] + self.label2str(labels))
-    return
-
-  def loc_feats(self, loc):
-    from utils import PROP_LABEL
-    return [ PROP_LABEL+x for x in sorted(self.get_labels(loc)) ]
-
   def get_all_locs(self):
     for recno in xrange(len(self._db)):
-      yield self.get_loc(recno)
+      yield self._get_loc(recno)
     return
-
-  @classmethod
-  def str2label(klass, x):
-    if x:
-      return set(x.split('.'))
-    else:
-      return set()
-
-  @classmethod
-  def label2str(klass, labels):
-    if labels:
-      return '.'.join(sorted(labels))
-    else:
-      return ''
 
 
 ##  GzipTarDBCorpus
@@ -433,24 +365,27 @@ class TarDBCorpus(Corpus):
 class GzipTarDBCorpus(TarDBCorpus):
 
   SUFFIX = '.gz'
-  
+
   def loc_fp(self, loc):
     from gzip import GzipFile
     return GzipFile(fileobj=TarDBCorpus.loc_fp(self, loc))
 
-  def add_data(self, data, name, ext, mtime=0, labels=None):
+  def get_info(self, loc):
+    info = TarDBCorpus.get_info(self, loc)
+    assert info.name.endswith(self.SUFFIX)
+    info.name = info.name[:-len(self.SUFFIX)]
+    return info
+
+  def set_info(self, loc, info):
+    info.name += self.SUFFIX
+    recno = self._get_recno(loc)
+    return self._db.set_info(recno, info)
+
+  def add_data(self, info, data):
     from gzip import GzipFile
     fp = StringIO()
     gz = GzipFile(mode='w', fileobj=fp)
     gz.write(data)
     gz.close()
-    return TarDBCorpus.add_data(self, fp.getvalue(), name, ext, mtime=mtime, labels=labels)
-
-  def _get_loc_name(self, loc):
-    return self.get_loc_info(loc).name[:-3]
-
-  def _set_loc_name(self, loc, name):
-    info = self.get_loc_info(loc)
-    info.name = name+'.gz'
-    self.set_loc_info(loc, info)
-    return
+    info.name += self.SUFFIX
+    return TarDBCorpus.add_data(self, info, fp.getvalue())
