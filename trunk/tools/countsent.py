@@ -25,7 +25,7 @@ def index(argv):
     if k == '-d': verbose += 1
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
-    elif k == '-t': doctype = getattr(document, v)
+    elif k == '-t': doctype = document.get_doctype(v)
     elif k == '-e': encoding = v
   assert len(prefix) == 3
   corpus = FilesystemCorpus(basedir, '/tmp', prefix, doctype, encoding)

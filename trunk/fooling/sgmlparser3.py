@@ -26,7 +26,7 @@
 #  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 
-import re
+import sys, re
 from htmlentitydefs import name2codepoint
 
 __all__ = [ 'SGMLParser3' ]
@@ -430,7 +430,7 @@ class SGMLParser3(object):
 
 ##  Test suite
 ##
-if __name__ == '__main__':
+def test(argv):
   import unittest
 
   class TestSGMLParser3(unittest.TestCase):
@@ -549,4 +549,9 @@ if __name__ == '__main__':
 
       return
 
-  unittest.main()
+  
+  suite = unittest.TestSuite()
+  suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(TestSGMLParser3))
+  return not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
+
+if __name__ == '__main__': sys.exit(test(sys.argv))

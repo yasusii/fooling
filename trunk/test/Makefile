@@ -8,7 +8,7 @@ INDEX=$(PYTHON) ../tools/idxmake.py -e euc-jp -F
 SEARCH=$(PYTHON) ../tools/idxsearch.py -e euc-jp
 MERGE=$(PYTHON) ../tools/idxmerge.py
 IDXDUMP=$(PYTHON) ../tools/idxdump.py -d -e euc-jp
-TARDB=$(PYTHON) ../fooling/tardb.py
+TARDB=$(PYTHON) ../tools/tardbutils.py
 
 # Automated tests:
 
@@ -207,11 +207,11 @@ search_plainyomi: plainyomi1.test plainyomi2.test plainyomi3.test plainyomi4.tes
 tardb: clean_tardb index_tardb search_tardb
 
 testdb: plaintext1.txt
-	$(TARDB) create testdb
-	$(TARDB) add testdb foo plaintext1.txt
+	$(TARDB) testdb create
+	$(TARDB) testdb add foo plaintext1.txt
 
 idz00000.cdb: testdb
-	$(INDEX) -cTarDBCorpus -tPlainTextDocument -pidz -btestdb ./ 0
+	$(INDEX) -cTarDBCorpus -tPlainTextDocument -pidz -btestdb ./ 00000000
 idz00000.dump: idz00000.cdb
 	$(IDXDUMP) idz00000.cdb > idz00000.dump
 idz00000.test: idz00000.dump idz00000.dump.src

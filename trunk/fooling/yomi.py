@@ -259,8 +259,9 @@ class YomiPattern(object):
 
 
 # test
-if __name__ == '__main__':
+def test(argv):
   import unittest
+  
   # index_yomi
   class TestIndexYomi(unittest.TestCase):
 
@@ -293,7 +294,7 @@ if __name__ == '__main__':
       self.assertTokens(u'はなぢ',
                         u'ハナ ワナ ナジ')
       return
-    
+
     def test_03b(self):
       self.assertTokens(u'鼻血',
                         u'ハナ ナジ ビチ ナチ ビケ ケツ ナケ バナ')
@@ -376,13 +377,9 @@ if __name__ == '__main__':
                           u'明日は雨です')
       return
 
-  def main(argv):
-    import fileinput
-    for line in fileinput.input():
-      line = unicode(line.strip(), 'euc-jp')
-      print line.encode('euc-jp')
-      print ' '.join( decode_yomi(w) for w in index_yomi(line) )
-    return 0
+  suite = unittest.TestSuite()
+  suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(TestIndexYomi))
+  suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(TestGrepYomi))
+  return not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
 
-  unittest.main()
-  #sys.exit(main(sys.argv))
+if __name__ == '__main__': sys.exit(test(sys.argv))

@@ -2,11 +2,11 @@
 ##
 ##  tardb.py - tar database
 ##
-##  TarDB is a simplistic data archival system using ordinary
-##  filesystems. It is suitable for storing a large number of small
+##  TarDB is a simplistic data archival system using multiple
+##  tar files. It is suitable for storing a large number of small
 ##  chunk of data. Unlike other database systems, TarDB uses
 ##  a data format that is extremely simple, well-known, and can be
-##  manipulated with a standard Unix tools. With TarDB, you can add
+##  manipulated with standard Unix tools. With TarDB, you can add
 ##  a new record, retrieve an existing record using the record number,
 ##  scanning all the records. TarDB is an archival system, which
 ##  means you cannot modify a record once it is created.
@@ -146,7 +146,7 @@ class FileLock(object):
     return
 
   def _emerge(self):
-    if self._fp:
+    if self._fp and self._locked:
       print >>sys.stderr, 'Emergency close: %d: %r' % (os.getpid(), self.fname)
       self.close()
     return
@@ -553,10 +553,10 @@ class TarDB(object):
 
 
 # unittests
-if 0:
+def test(argv):
   import unittest
   dirname = './test_tardb/'
-  class TarDBTest(unittest.TestCase):
+  class TestTarDB(unittest.TestCase):
     
     def setUp(self):
       db = TarDB(dirname)
@@ -656,7 +656,7 @@ if 0:
     
     def test_failure(self):
       # cannot open
-      self.assertRaises(TarDB.FileError, lambda : TarDB('fungea').open())
+      self.assertRaises(TarDB.LockError, lambda : TarDB('fungea').open())
       # not opened
       db = TarDB(dirname)
       self.assertRaises(TarDB.FileError, lambda : db.add_record(TarInfo('foo'), '123'))
@@ -696,61 +696,9 @@ if 0:
       db1.close()
       db2.close()
       return
-    
-  unittest.main()
-  assert 0, 'not reached'
+      
+  suite = unittest.TestSuite()
+  suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(TestTarDB))
+  return not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
 
-def main(argv):
-  import getopt, locale
-  def usage():
-    print 'usage: %s {create,ls,get,add,getinfo,setinfo} basedir [args]' % argv[0]
-    sys.exit(2)
-  try:
-    (opts, args) = getopt.getopt(argv[1:], 'v')
-  except getopt.GetoptError:
-    usage()
-  if len(args) < 2: return usage()
-  verbose = 1
-  for (k, v) in opts:
-    if k == '-d': verbose += 1
-  cmd = args.pop(0)
-  db = TarDB(args.pop(0))
-  if cmd == 'create':
-    db.create()
-  elif cmd == 'ls':
-    db.open()
-    for (i,info) in enumerate(db):
-      print i,info
-  elif cmd == 'get':
-    recno = int(args.pop(0))
-    db.open()
-    data = db.get_record(recno)
-    sys.stdout.write(data)
-    db.close()
-  elif cmd == 'add':
-    db.open(mode='w')
-    name = args.pop(0)
-    data = open(args.pop(0), 'rb').read()
-    db.add_record(TarInfo(name), data)
-    db.close()
-  elif cmd == 'getinfo':
-    recno = int(args.pop(0))
-    db.open()
-    info = db.get_info(recno)
-    print info
-    db.close()
-  elif cmd == 'setinfo':
-    recno = int(args.pop(0))
-    db.open()
-    info = db.get_info(recno)
-    info.name = args.pop(0)
-    db.set_info(recno, info)
-    print info, name
-    db.close()
-  elif cmd == 'recover':
-    db.recover_catalog()
-  elif cmd == 'validate':
-    db.validate_catalog()
-  return
-
-if __name__ == '__main__': sys.exit(main(sys.argv))
+if __name__ == '__main__': sys.exit(test(sys.argv))

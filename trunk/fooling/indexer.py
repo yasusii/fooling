@@ -7,7 +7,7 @@ import sys, time
 from struct import pack
 from array import array
 from utils import encode_array, zen2han, rmsp
-from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO, PROP_LABEL
+from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_IDXINFO, PROP_LABEL
 from indexdb import IndexDB
 
 
@@ -142,7 +142,7 @@ class Indexer(object):
     for (docid,doc) in self.docinfo:
       self.maker.add(PROP_LOC+doc.loc, pack('>i', docid))
     # The number of documents
-    self.maker.add(PROP_INFO, pack('>ii', len(self.docinfo), len(self.terms)))
+    self.maker.add(PROP_IDXINFO, pack('>ii', len(self.docinfo), len(self.terms)))
     self.maker.finish()
     self.maker = None
     if self.verbose:
