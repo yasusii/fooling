@@ -7,7 +7,7 @@ import sys, time
 from struct import pack
 from array import array
 from utils import encode_array, zen2han, rmsp
-from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
+from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO, PROP_LABEL
 from indexdb import IndexDB
 
 
@@ -89,7 +89,8 @@ class Indexer(object):
       sys.stderr.write('.'); sys.stderr.flush()
     terms = self.terms
     # other features
-    add_features(terms, docid, 0, self.corpus.loc_feats(doc.loc))
+    add_features(terms, docid, 0,
+                 ( PROP_LABEL+x for x in self.corpus.loc_labels(doc.loc) ))
     add_features(terms, docid, 0, doc.get_feats())
     # sents
     sentid = 0

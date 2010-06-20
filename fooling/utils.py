@@ -8,6 +8,9 @@ from struct import pack, unpack
 PROP_WORD  = 0x10
 PROP_SENT  = '\x00'
 PROP_YOMI  = '\x20'
+PROP_EMAIL_MSGID = '\x80'
+PROP_EMAIL_REPLY = '\x81'
+PROP_EMAIL_REF = '\x82'
 PROP_DATE  = '\xf0'
 PROP_LABEL = '\xf1'
 PROP_DOCID = '\xfd'
