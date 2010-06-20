@@ -35,7 +35,7 @@ def index(argv):
     elif k == '-Y': indexstyle = 'yomi'
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
-    elif k == '-c': corpustype = getattr(corpus, v)
+    elif k == '-c': corpustype = corpus.get_corpustype(v)
     elif k == '-t': doctype = document.get_doctype(v)
     elif k == '-e': encoding = v
     elif k == '-D': maxdocs = int(v)

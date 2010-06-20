@@ -102,7 +102,7 @@ class IndexDB(object):
     lastloc = None
     for (_,idx) in self.iteridxs():
       (ndocs,_) = idx_info(idx)
-      (_,lastloc) = idx_docid2info(idx, ndocs-1)
+      (lastloc,_) = idx_docid2info(idx, ndocs-1)
       # the first index must be newest, so we stop here.
       break
     return lastloc

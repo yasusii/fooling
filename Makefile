@@ -40,16 +40,11 @@ dict/pubdic.txt:
 
 check: unittest searchtest
 
-unittest:
-	python fooling/unittests.py
+unittest: dict
+	cd fooling && $(MAKE) test
 
 searchtest: dict
-	cd test; make test
-
-cmstest: cmsclean
-	$(PYTHON) fooling/tarcms.py
-cmsclean:
-	-rm -rf ./test.__*
+	cd test && $(MAKE) test
 
 dist: clean
 	$(PYTHON) setup.py sdist

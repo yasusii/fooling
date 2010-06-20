@@ -13,7 +13,7 @@ def show_results(selection, n, encoding, timeout=0):
   def e(s): return s.encode(encoding, 'replace')
   window = []
   for (found,loc) in enumerate(selection):
-    (mtime, loc, title, s) = selection.get_snippet(loc,
+    (loc, mtime, title, s) = selection.get_snippet(loc,
                                                    highlight=lambda x: '\033[31m%s\033[m' % x,
                                                    maxchars=200, maxlr=100)
     print '%d: [%s] %s' % (found+1, e(title or 'unknown'), e(s))
@@ -49,17 +49,16 @@ def load_selection(fname):
 def search(argv):
   import getopt, locale, time
   def usage():
-    print ('usage: %s [-d] [-T timeout] [-s|-Y] [-S] [-D] [-a] '
+    print ('usage: %s [-d] [-T timeout] [-s|-Y] [-D] [-a] '
            '[-c savefile] [-b basedir] [-p prefix] [-t doctype] '
            '[-e encoding] [-n results] idxdir [keyword ...]') % argv[0]
     sys.exit(2)
   try:
-    (opts, args) = getopt.getopt(argv[1:], 'dT:sYSDac:b:p:t:e:n:')
+    (opts, args) = getopt.getopt(argv[1:], 'dT:sYDac:b:p:t:e:n:')
   except getopt.GetoptError:
     usage()
   debug = 0
   timeout = 0
-  safe = True
   stat = False
   disjunctive = False
   savefile = ''
@@ -72,7 +71,6 @@ def search(argv):
   for (k, v) in opts:
     if k == '-d': debug += 1
     elif k == '-T': timeout = int(v)
-    elif k == '-S': safe = False
     elif k == '-D': disjunctive = True
     elif k == '-a': stat = True
     elif k == '-Y': predtype = YomiKeywordPredicate
@@ -80,7 +78,7 @@ def search(argv):
     elif k == '-c': savefile = v
     elif k == '-b': basedir = v
     elif k == '-p': prefix = v
-    elif k == '-t': doctype = getattr(document, v)
+    elif k == '-t': doctype = document.get_doctype(v)
     elif k == '-e': encoding = v
     elif k == '-n': n = int(v)
 
@@ -94,7 +92,7 @@ def search(argv):
     indexdb = IndexDB(idxdir, prefix)
     indexdb.open()
     preds = [ predtype(unicode(kw, encoding)) for kw in keywords ]
-    selection = Selection(indexdb, preds, safe=safe, disjunctive=disjunctive)
+    selection = Selection(indexdb, preds, disjunctive=disjunctive)
     selection.set_timeout(timeout)
     try:
       show_results(selection, n, encoding)

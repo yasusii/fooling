@@ -8,7 +8,7 @@ from array import array
 from struct import pack, unpack
 import pycdb as cdb
 from utils import encode_array, decode_array, idx_info
-from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_INFO
+from utils import PROP_SENT, PROP_DOCID, PROP_LOC, PROP_IDXINFO
 
 
 __all__ = [
@@ -138,7 +138,7 @@ def idxmerge(cdbname, idxstomerge, verbose=0):
   nterms = 0
   docid2info = []
   for (k,vs) in cdbmerge(idxstomerge):
-    if k[0] == PROP_LOC or k[0] == PROP_INFO: break
+    if k[0] == PROP_LOC or k[0] == PROP_IDXINFO: break
     if k[0] == PROP_DOCID: 
       # read a docid->loc mapping
       (oldid,) = unpack('>xi', k)
@@ -170,7 +170,7 @@ def idxmerge(cdbname, idxstomerge, verbose=0):
 
   if verbose:
     print >>sys.stderr, 'done: docs=%d, terms=%d' % (len(docid2info), nterms)
-  maker.add(PROP_INFO, pack('>ii', len(docid2info), nterms))
+  maker.add(PROP_IDXINFO, pack('>ii', len(docid2info), nterms))
   maker.finish()
   return
 

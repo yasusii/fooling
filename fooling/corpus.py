@@ -130,7 +130,7 @@ class FilesystemCorpusWithDefaultTitle(FilesystemCorpus):
 
   def loc_title(self, loc):
     return os.path.basename(loc)
-  
+
 
 ##  BerkeleyDBCorpus
 ##
@@ -262,9 +262,6 @@ class SQLiteCorpus(Corpus):
 ##  TarDBCorpus
 ##
 class TarDBCorpus(Corpus):
-
-  SMALL_MERGE = 20
-  LARGE_MERGE = 2000
   
   def __init__(self, basedir, doctype, encoding, indexstyle=None):
     Corpus.__init__(self, doctype, encoding, indexstyle)
@@ -277,14 +274,14 @@ class TarDBCorpus(Corpus):
            (self.basedir, self.default_doctype, self.default_encoding)
 
   def open(self, mode='r'):
-    assert self._db == None
+    assert self._db == None, self._db
     import tardb
     self._db = tardb.TarDB(self.basedir)
     self._db.open(mode=mode)
     return
 
   def close(self):
-    assert self._db != None
+    assert self._db != None, self._db
     self._db.close()
     self._db = None
     return
@@ -326,7 +323,7 @@ class TarDBCorpus(Corpus):
     return
 
   def _get_recno(self, loc):
-    assert len(loc) == 8
+    assert len(loc) == 8, loc
     return int(loc, 16)
   def _get_loc(self, recno):
     return '%08x' % recno
@@ -372,7 +369,7 @@ class GzipTarDBCorpus(TarDBCorpus):
 
   def get_info(self, loc):
     info = TarDBCorpus.get_info(self, loc)
-    assert info.name.endswith(self.SUFFIX)
+    assert info.name.endswith(self.SUFFIX), info.name
     info.name = info.name[:-len(self.SUFFIX)]
     return info
 
@@ -389,3 +386,16 @@ class GzipTarDBCorpus(TarDBCorpus):
     gz.close()
     info.name += self.SUFFIX
     return TarDBCorpus.add_data(self, info, fp.getvalue())
+
+
+# get_corpustype
+CORPUSTYPES = {
+  'fs': FilesystemCorpus,
+  'Filesystem': FilesystemCorpus,
+  'tar': TarDBCorpus,
+  'TarDBCorpus': TarDBCorpus,
+  'tgz': GzipTarDBCorpus,
+  'GzipTarDBCorpus': GzipTarDBCorpus,
+  }
+def get_corpustype(corpustype):
+  return CORPUSTYPES[corpustype]

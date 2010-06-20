@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: euc-jp -*-
+import sys
 
 ##  romm.py - handles Roma-ji and kana.
 ##
@@ -501,7 +502,7 @@ def kana2english(s, ignore=False):
   return kana2romm(s, ignore, PARSE_ENGLISH, GEN_ENGLISH)
 
 # Test cases
-if __name__ == '__main__':
+def test(argv):
   import unittest
 
   class TestRoma(unittest.TestCase):
@@ -683,4 +684,8 @@ if __name__ == '__main__':
       self.checkOfficial2Kana(u'nitchimosatchimo.',
                               u'ニッチモサッチモ。')
   
-  unittest.main()
+  suite = unittest.TestSuite()
+  suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(TestRoma))
+  return not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
+
+if __name__ == '__main__': sys.exit(test(sys.argv))

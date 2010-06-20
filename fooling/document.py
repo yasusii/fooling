@@ -350,5 +350,5 @@ if __name__ == '__main__':
       return 'euc-jp'
   for fname in sys.argv[1:]:
     doc = EMailDocument(DummyCorpus(fname), '')
-    for (pos,sent) in doc.get_sents(0):
+    for (pos,sent) in doc.get_sents():
       print pos, sent.encode('euc-jp').strip()

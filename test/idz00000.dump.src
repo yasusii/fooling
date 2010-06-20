@@ -19,6 +19,6 @@ term(0x13):world -> (1) 1:0
 term(0xf0):1970 -> (1) 1:0
 term(0xf0):1970/01 -> (1) 1:0
 term(0xf0):1970/01/01 -> (1) 1:0
-docid:1 -> mtime:0, loc:'0'
-loc:'0' -> docid:1
+docid:1 -> mtime:0, loc:'00000000'
+loc:'00000000' -> docid:1
 ndocs=1, nterms=18

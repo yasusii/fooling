@@ -105,9 +105,40 @@ class HTMLRipper(SGMLParser3):
     return self.para
 
 # test
-if __name__ == '__main__':
-  for fname in sys.argv[1:]:
-    fp = file(fname)
-    for (pos,sent) in HTMLRipper().feedfile(fp, 'euc-jp'):
-      print pos, sent.strip().encode('euc-jp', 'replace')
-    fp.close()
+def test(argv):
+  import unittest
+
+  class TestHTMLRipper(unittest.TestCase):
+
+    def assertHTML(self, html, sents):
+      self.assertEqual(HTMLRipper().feedunicode(html), sents)
+    def test_00(self):
+      self.assertHTML(u'<html><body></body></html>', [u''])
+      return
+    def test_01(self):
+      self.assertHTML(u'<html><body>a</body></html>', [u'a'])
+      return
+    def test_02(self):
+      self.assertHTML(u'<html><style>foo</style>a</body></html>', [u'a'])
+      return
+    def test_03(self):
+      self.assertHTML(u'<html>&amp;a</html>', [u'&a'])
+      return
+    def test_04(self):
+      self.assertHTML(u'<body><p>abc<p>def</html>', [u'', u'abc', u'def'])
+      return
+    def test_05(self):
+      self.assertHTML(u'<body>abc\ndef</body>', [u'abc\ndef'])
+      return
+    def test_06(self):
+      self.assertHTML(u'<pre>abc\ndef</pre>', [u'', u'abc\n', u'def', u''])
+      return
+    def test_07(self):
+      self.assertHTML(u'<p>abc\n<img src="foo" alt="baa">', [u'', u'abc\n[baa]'])
+      return
+
+  suite = unittest.TestSuite()
+  suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(TestHTMLRipper))
+  return not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful()
+
+if __name__ == '__main__': sys.exit(test(sys.argv))
